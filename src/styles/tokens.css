@@ -1,0 +1,327 @@
+/* Aside's shared material system — "Acheron": a sharp, monochrome,
+ * instrument-panel look built from the Google Stitch design system of the
+ * same name (see the "macOS Theme Analyzer" Stitch project, decisions.md).
+ * Flat black/white surfaces, 0px corners everywhere, hairline borders,
+ * frosted glass. Type (2026-09-02, owner request) is the Mac's own default
+ * system font everywhere — San Francisco via `-apple-system` — instead of
+ * the vendored JetBrains Mono / Space Grotesk pair; see decisions.md. The
+ * live overlay keeps the same system inverted to a dark ground (see
+ * overlay.css) rather than switching to light — a call-time UX call, not a
+ * Stitch requirement; see decisions.md. Replaces the prior "mineral glass"
+ * violet system. */
+
+:root {
+  color-scheme: light;
+
+  /* --- Ground & text -----------------------------------------------------
+   * Values are the Acheron Stitch design system's own tokens (surface/
+   * on-surface/outline), not invented — see decisions.md. */
+  --canvas: #f9f9f9;
+  --content-bg: rgba(249, 249, 249, 0.5);
+  --text: #1a1c1c;
+  --muted: #4c4546;
+  --faint: #7e7576;
+  --line: rgba(0, 0, 0, 0.1);
+  --line-bright: rgba(0, 0, 0, 0.16);
+  /* Dial tick marks, hairline scale graduations. */
+  --tick: #cfc4c5;
+
+  /* --- Accent: monochrome. Black means action or live state -------------
+   * Acheron has one "colour": black. No tinted accent. */
+  --accent: #000000;
+  --accent-ink: #ffffff;
+  --accent-dim: #e2e2e2;
+  --accent-strong: #000000;
+  /* Acheron's own "ambient shadow" formula — extremely subtle, large-radius,
+   * used only where the old system used a coloured glow. */
+  --accent-glow: 0 10px 24px rgba(0, 0, 0, 0.08);
+
+  /* --- Caution / Danger: unchanged in meaning, kept legible -------------- */
+  --warn: #a45c00;
+  --warn-ink: #ffffff;
+  --danger: #ba1a1a;
+  --danger-ink: #ffffff;
+
+  /* --- Elevation ladder ---------------------------------------------------
+   * Acheron's own "Glass Layer" + "Tonal Layers" rules: semi-transparent
+   * WHITE surfaces with heavy backdrop blur, edges defined by a 1px black
+   * hairline at ~10% opacity (never a shadow-drawn edge), shadows kept to
+   * large-radius "ambient" blurs reserved for the top-most layer only. */
+
+  /* L1 — plane: the sheet content sits on (chrome, sidebar). */
+  --l1-bg: rgba(255, 255, 255, 0.74);
+  --l1-blur: blur(24px);
+  --l1-border: rgba(0, 0, 0, 0.1);
+  --l1-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 0 rgba(0, 0, 0, 0.04);
+
+  /* L2 — control surface: rests ON a plane, no blur. Acheron's own "List
+   * Items" rule: 5% black tint, 10% on hover. Also used for badge/chip
+   * neutral fill and row hover — anywhere that wants a flat filled tint
+   * rather than glass. Buttons/inputs that want the underline/outline-only
+   * treatment ignore this and go transparent instead (see ui.css). */
+  --l2-bg: rgba(0, 0, 0, 0.05);
+  --l2-bg-hover: rgba(0, 0, 0, 0.1);
+  --l2-border: rgba(0, 0, 0, 0.12);
+  --l2-shadow: none;
+
+  /* L3 — floating: dropdowns, popovers, the More menu. */
+  --l3-bg: rgba(255, 255, 255, 0.94);
+  --l3-blur: blur(28px);
+  --l3-border: rgba(0, 0, 0, 0.12);
+  --l3-shadow: 0 18px 42px rgba(0, 0, 0, 0.1);
+
+  /* L4 — nearest: modals, sheets. */
+  --l4-bg: rgba(255, 255, 255, 0.97);
+  --l4-blur: blur(32px);
+  --l4-border: rgba(0, 0, 0, 0.14);
+  --l4-shadow: 0 30px 80px rgba(0, 0, 0, 0.14);
+
+  /* Flat design has no carved/pressed look — kept defined (harmless
+   * no-op box-shadow) so nothing breaks if still referenced. */
+  --neo-pressed: none;
+
+  /* --- Radius: sharp, everywhere ------------------------------------------
+   * Acheron's own rule: 0px corners on every button, field, card, container.
+   * The one exception (checkbox/progress caps) is handled locally where it
+   * occurs, not through these tokens. */
+  --r-window: 0px;
+  --r-plane: 0px;
+  --r-control: 0px;
+  --r-chip: 0px;
+
+  /* --- Spacing ------------------------------------------------------------
+   * Unchanged: a neutral scale, not tied to any particular visual world. */
+  --sp-2: 2px;
+  --sp-4: 4px;
+  --sp-6: 6px;
+  --sp-8: 8px;
+  --sp-10: 10px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-20: 20px;
+  --sp-24: 24px;
+  --sp-32: 32px;
+  --sp-48: 48px;
+
+  /* --- Layout --------------------------------------------------------- */
+  --gutter-r: clamp(24px, 5vw, 72px);
+  --chrome-h: 44px;
+
+  /* --- Type -----------------------------------------------------------
+   * The Mac's own default font, everywhere (2026-09-02, owner request,
+   * replacing Acheron's original Space Grotesk/JetBrains Mono pair):
+   * `-apple-system` resolves to San Francisco on macOS — SF Pro Display
+   * at headline sizes, SF Pro Text below that, switched automatically by
+   * the browser engine itself, which is why display and UI share one
+   * stack. Falls back to Segoe UI / system-ui on non-Apple platforms.
+   * `--font-mono` stays a real monospace family (San Francisco's own SF
+   * Mono, not JetBrains Mono) for the places that still want digits or
+   * code to line up in fixed columns — see the `.numeral` rule below. */
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Consolas, Menlo, monospace;
+
+  --display-size: 34px;
+  --display-leading: 1.08;
+  --display-tracking: -0.01em;
+  --display-weight: 600;
+
+  --title-size: 19px;
+  --title-leading: 1.3;
+  --title-tracking: -0.005em;
+  --title-weight: 600;
+
+  --body-size: 14px;
+  --body-leading: 1.5;
+
+  /* Acheron's own `label-caps` token: wider tracking than the prior pass,
+   * always used uppercase (see ui.css/*.css for `text-transform`). */
+  --label-size: 11px;
+  --label-leading: 1.2;
+  --label-tracking: 0.08em;
+  --label-weight: 700;
+
+  --numeral-size: 13px;
+
+  /* --- Motion ------------------------------------------------------------
+   * Unchanged — a quick, confident settle, not tied to any one look. */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-press: 120ms;
+  --t-hover: 140ms;
+  --t-pop: 180ms;
+  --t-modal: 220ms;
+  --t-expand: 240ms;
+
+  /* --- Overlay user prefs (More menu steppers, persisted in Rust) ------ */
+  --ov-zoom: 1;
+  --ov-opacity: 0.82;
+  --ov-font-px: 13px;
+
+  /* --- Shared semantics not theme-dependent ---------------------------- */
+  --focus-width: 2px;
+  --scrim: rgba(20, 20, 20, 0.3);
+  /* A small text role for dense list meta, hints, secondary badge text. */
+  --small-size: 12px;
+  --small-leading: 1.4;
+}
+
+/* --- Dark theme -----------------------------------------------------------
+ * Same monochrome Acheron system, luminance inverted — identical logic to
+ * how the live overlay already stays dark (overlay.css), just now offered
+ * as a user choice on the main window instead of being forced. Canvas
+ * (#121212) is the owner's own reference colour, picked with a colour tool
+ * against the app; every other token below follows the overlay's already-
+ * proven dark values so the two dark surfaces read as one design language.
+ * Toggled by `useTheme` (state/theme.ts) via `data-theme` on `<html>`. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #121212;
+  --content-bg: rgba(18, 18, 18, 0.5);
+  --text: #f5f5f5;
+  --muted: rgba(245, 245, 245, 0.64);
+  --faint: rgba(245, 245, 245, 0.42);
+  --line: rgba(255, 255, 255, 0.12);
+  --line-bright: rgba(255, 255, 255, 0.2);
+  --tick: rgba(255, 255, 255, 0.18);
+
+  --accent: #ffffff;
+  --accent-ink: #000000;
+  --accent-dim: rgba(255, 255, 255, 0.14);
+  --accent-strong: #ffffff;
+  --accent-glow: 0 10px 24px rgba(0, 0, 0, 0.4);
+
+  --l1-bg: rgba(255, 255, 255, 0.05);
+  --l1-border: rgba(255, 255, 255, 0.1);
+  --l1-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 0 rgba(0, 0, 0, 0.3);
+
+  --l2-bg: rgba(255, 255, 255, 0.06);
+  --l2-bg-hover: rgba(255, 255, 255, 0.12);
+  --l2-border: rgba(255, 255, 255, 0.14);
+  --l2-shadow: none;
+
+  --l3-bg: rgba(10, 10, 10, 0.92);
+  --l3-border: rgba(255, 255, 255, 0.12);
+  --l3-shadow: 0 18px 42px rgba(0, 0, 0, 0.5);
+
+  --l4-bg: rgba(8, 8, 8, 0.94);
+  --l4-border: rgba(255, 255, 255, 0.16);
+  --l4-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme="dark"] {
+    --l1-bg: #121212;
+    --l1-blur: none;
+    --l3-bg: #121212;
+    --l3-blur: none;
+    --l4-bg: #121212;
+    --l4-blur: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root[data-theme="dark"] {
+    --muted: #f5f5f5;
+    --faint: rgba(245, 245, 245, 0.8);
+    --line: rgba(255, 255, 255, 0.32);
+    --line-bright: rgba(255, 255, 255, 0.44);
+  }
+}
+
+/* --- Browser surfaces ---------------------------------------------------
+ * The parts we did not draw still carry the design. */
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+* {
+  caret-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Never suppress focus without replacing it — this only hides the ring for
+ * pointer users, who get :active feedback instead. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-bright) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--line-bright);
+  border-radius: var(--r-chip);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--faint);
+}
+
+/* Every changing number uses tabular figures so digits don't jitter. */
+.numeral,
+[data-numeral] {
+  font-family: var(--font-mono);
+  font-size: var(--numeral-size);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Accessibility overrides -------------------------------------------- */
+
+/* Collapse the elevation ladder to solid equivalents: hierarchy survives
+ * through border and shadow without any translucency. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --l1-bg: #ffffff;
+    --l1-blur: none;
+    --l3-bg: #ffffff;
+    --l3-blur: none;
+    --l4-bg: #ffffff;
+    --l4-blur: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-press: 1ms;
+    --t-hover: 1ms;
+    --t-pop: 1ms;
+    --t-modal: 1ms;
+    --t-expand: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --muted: #2a2828;
+    --faint: #4c4546;
+    --line: rgba(0, 0, 0, 0.28);
+    --line-bright: rgba(0, 0, 0, 0.4);
+  }
+}

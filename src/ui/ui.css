@@ -1,0 +1,873 @@
+/* Aside UI primitives — shared component stylesheet, read by both windows.
+   Every class is prefixed `u-` so nothing collides with per-screen classes
+   (`aw-`/`sc-`/`ov-`). Every value is a token from src/styles/tokens.css —
+   the same value on both `--l*` and colour tokens automatically re-themes
+   every primitive here between the main window's light glass and the
+   overlay's dark glass (DESIGN.md §2/§3). Rewritten alongside the light
+   theme: the previous version referenced token names (`--text-body-sm-size`,
+   `--space-10`, `--focus-width`, `--color-accent-strong`, …) that no longer
+   existed after the 2026-08-29 dark rewrite, so these primitives had been
+   silently rendering with undefined values. */
+
+/* ---------------------------------------------------------------------- */
+/* Button                                                                  */
+/* ---------------------------------------------------------------------- */
+
+.u-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  min-height: 40px;
+  padding: 0 var(--sp-24);
+  border-radius: var(--r-chip);
+  border: 1px solid transparent;
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--body-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--label-tracking);
+  cursor: pointer;
+  transition:
+    background var(--t-hover) var(--ease),
+    border-color var(--t-hover) var(--ease),
+    color var(--t-hover) var(--ease),
+    filter var(--t-hover) var(--ease),
+    transform var(--t-press) var(--ease);
+}
+
+/* Acheron's signature accent: a 45° corner cut on the app's marquee CTAs
+   (Start Call, Initialize/Save Copilot) — used sparingly, opt-in via a
+   `chamfer` prop on <Button>, not the default for every button. */
+.u-btn--chamfer {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.u-btn:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: 1px;
+}
+
+.u-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.u-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.u-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--accent-glow);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .u-btn--primary:hover:not(:disabled) {
+    filter: brightness(1.35);
+  }
+}
+
+.u-btn--secondary {
+  background: transparent;
+  border-color: var(--text);
+  color: var(--text);
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .u-btn--secondary:hover:not(:disabled) {
+    background: var(--l2-bg);
+  }
+}
+
+.u-btn--secondary:active:not(:disabled) {
+  background: var(--l2-bg-hover);
+}
+
+.u-btn--destructive {
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .u-btn--destructive:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Card                                                                    */
+/* ---------------------------------------------------------------------- */
+
+.u-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  background: var(--l1-bg);
+  backdrop-filter: var(--l1-blur);
+  -webkit-backdrop-filter: var(--l1-blur);
+  border: 1px solid var(--l1-border);
+  border-radius: var(--r-plane);
+  box-shadow: var(--l1-shadow);
+  padding: var(--sp-20);
+}
+
+.u-card--xl {
+  border-radius: var(--r-window);
+}
+
+.u-card--bordered {
+  border-color: var(--line-bright);
+}
+
+.u-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.u-card__eyebrow {
+  margin: 0;
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  line-height: var(--label-leading);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.u-card__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--title-size);
+  font-weight: var(--title-weight);
+  line-height: var(--title-leading);
+  letter-spacing: var(--title-tracking);
+  color: var(--text);
+}
+
+.u-card__body {
+  min-width: 0;
+}
+
+.u-card__foot {
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-16);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Field / Select / Input / Textarea — L2 controls, deliberately no blur   */
+/* ---------------------------------------------------------------------- */
+
+.u-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.u-field__label {
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  line-height: var(--label-leading);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.u-field__hint {
+  margin: 0;
+  font-size: var(--small-size);
+  line-height: var(--small-leading);
+  color: var(--faint);
+}
+
+.u-field__error {
+  margin: 0;
+  font-size: var(--small-size);
+  line-height: var(--small-leading);
+  color: var(--danger);
+}
+
+/* Acheron's own field rule: "minimalist — only a bottom border (1px
+   black), label placed above." No fill, no box, no radius. */
+
+.u-select {
+  position: relative;
+  width: 100%;
+}
+
+.u-select__trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  border-bottom: 1px solid var(--line-bright);
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--sp-8) var(--sp-2);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--body-size);
+  min-height: 40px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--t-hover) var(--ease);
+}
+
+.u-select__trigger:hover,
+.u-select__trigger:focus-visible {
+  outline: none;
+  border-bottom-color: var(--text);
+}
+
+.u-select__trigger:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.u-select__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.u-select__value--placeholder {
+  color: var(--faint);
+}
+
+.u-select__caret {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform var(--t-hover) var(--ease);
+}
+
+.u-select__trigger[aria-expanded="true"] .u-select__caret {
+  transform: rotate(180deg);
+}
+
+.u-select__menu {
+  position: fixed;
+  z-index: 80;
+  padding: var(--sp-4);
+  background: var(--l3-bg);
+  backdrop-filter: var(--l3-blur);
+  -webkit-backdrop-filter: var(--l3-blur);
+  border: 1px solid var(--l3-border);
+  border-radius: var(--r-plane);
+  box-shadow: var(--l3-shadow);
+  max-height: 240px;
+  overflow-y: auto;
+  animation: u-select-in var(--t-pop) var(--ease);
+}
+
+.u-select__option {
+  display: block;
+  width: 100%;
+  padding: var(--sp-8) var(--sp-10);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--body-size);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-hover) var(--ease);
+}
+
+.u-select__option:hover,
+.u-select__option:focus-visible {
+  outline: none;
+  background: var(--l2-bg-hover);
+}
+
+.u-select__option--selected {
+  font-weight: 700;
+}
+
+.u-select__option:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+@keyframes u-select-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-select__menu {
+    animation: none;
+  }
+}
+
+.u-input {
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  border-bottom: 1px solid var(--line-bright);
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--sp-8) var(--sp-2);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--body-size);
+  min-height: 40px;
+  transition: border-color var(--t-hover) var(--ease);
+}
+
+.u-input--mono {
+  font-family: var(--font-mono);
+  font-size: var(--numeral-size);
+}
+
+.u-input::placeholder {
+  color: var(--faint);
+}
+
+.u-input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--text);
+}
+
+.u-textarea-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.u-textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: var(--sp-12) var(--sp-2);
+  border: 0;
+  border-bottom: 1px solid var(--line-bright);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--body-size);
+  line-height: var(--body-leading);
+  transition: border-color var(--t-hover) var(--ease);
+}
+
+.u-textarea--mono {
+  font-family: var(--font-mono);
+  font-size: var(--numeral-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.u-textarea:focus-visible {
+  outline: none;
+  border-bottom-color: var(--text);
+}
+
+.u-textarea-count {
+  margin: 0;
+  align-self: flex-end;
+  font-family: var(--font-mono);
+  font-size: var(--small-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Badge                                                                   */
+/* ---------------------------------------------------------------------- */
+
+.u-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-12);
+  border-radius: var(--r-chip);
+  font-family: var(--font-ui);
+  font-size: var(--small-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--label-tracking);
+}
+
+.u-badge--neutral {
+  background: var(--l2-bg);
+  color: var(--muted);
+  box-shadow: var(--l2-shadow, none);
+}
+
+.u-badge--accent {
+  background: var(--accent-dim);
+  color: var(--accent-strong, var(--accent-ink));
+}
+
+.u-badge--ok {
+  background: var(--accent-dim);
+  color: var(--accent-strong, var(--accent-ink));
+}
+
+.u-badge--warn {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+
+.u-badge--bad {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Dialog — L4, nearest                                                    */
+/* ---------------------------------------------------------------------- */
+
+.u-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-24);
+  background: var(--scrim);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.u-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  width: min(480px, 100%);
+  max-height: calc(100% - var(--sp-48));
+  overflow-y: auto;
+  background: var(--l4-bg);
+  backdrop-filter: var(--l4-blur);
+  -webkit-backdrop-filter: var(--l4-blur);
+  border: 1px solid var(--l4-border);
+  border-radius: var(--r-plane);
+  box-shadow: var(--l4-shadow);
+  padding: var(--sp-24);
+  animation: u-dialog-in var(--t-modal) var(--ease);
+}
+
+.u-dialog:focus-visible {
+  outline: none;
+}
+
+.u-dialog--destructive {
+  border-color: var(--danger);
+}
+
+.u-dialog__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--title-size);
+  font-weight: var(--title-weight);
+  line-height: var(--title-leading);
+  letter-spacing: var(--title-tracking);
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.u-dialog__body {
+  font-size: var(--body-size);
+  line-height: var(--body-leading);
+  color: var(--muted);
+}
+
+.u-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-8);
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--line);
+}
+
+@keyframes u-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Empty state                                                             */
+/* ---------------------------------------------------------------------- */
+
+.u-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  padding: var(--sp-32) 0;
+}
+
+.u-empty__heading {
+  margin: 0;
+  font-size: var(--body-size);
+  font-weight: 600;
+  line-height: var(--body-leading);
+  color: var(--text);
+}
+
+.u-empty__description {
+  margin: 0;
+  max-width: 65ch;
+  font-size: var(--small-size);
+  line-height: var(--small-leading);
+  color: var(--muted);
+}
+
+.u-empty__action {
+  margin-top: var(--sp-8);
+}
+
+/* ---------------------------------------------------------------------- */
+/* List row                                                                */
+/* ---------------------------------------------------------------------- */
+
+.u-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid var(--line);
+  transition: background var(--t-hover) var(--ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .u-row:hover {
+    background: var(--l2-bg);
+  }
+}
+
+.u-row--selected {
+  background: var(--accent-dim);
+  border-left: 2px solid var(--text);
+  padding-left: calc(var(--sp-16) - 2px);
+}
+
+.u-row:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: -2px;
+}
+
+.u-row__leading {
+  flex-shrink: 0;
+}
+
+.u-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.u-row__title {
+  font-size: var(--body-size);
+  font-weight: 600;
+  line-height: var(--body-leading);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.u-row__meta {
+  font-size: var(--small-size);
+  line-height: var(--small-leading);
+  color: var(--faint);
+}
+
+.u-row__trailing {
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Metric                                                                  */
+/* ---------------------------------------------------------------------- */
+
+.u-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.u-metric__label {
+  margin: 0;
+  font-size: var(--label-size);
+  font-weight: var(--label-weight);
+  line-height: var(--label-leading);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.u-metric__value {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--numeral-size);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Speaker bubble                                                          */
+/* ---------------------------------------------------------------------- */
+
+.u-bubble {
+  max-width: min(72%, 520px);
+  padding: var(--sp-12) var(--sp-16);
+}
+
+.u-bubble__text {
+  margin: 0;
+  font-size: var(--body-size);
+  line-height: var(--body-leading);
+}
+
+.u-bubble__meta {
+  margin-top: var(--sp-6);
+  font-family: var(--font-mono);
+  font-size: var(--small-size);
+  color: var(--faint);
+  opacity: 0.8;
+}
+
+.u-bubble--me {
+  align-self: flex-end;
+  background: var(--accent-dim);
+  color: var(--text);
+  border-radius: var(--r-plane) var(--r-plane) var(--sp-4) var(--r-plane);
+}
+
+.u-bubble--me .u-bubble__meta {
+  text-align: right;
+}
+
+.u-bubble--them {
+  align-self: flex-start;
+  background: var(--l2-bg);
+  color: var(--text);
+  border-radius: var(--r-plane) var(--r-plane) var(--r-plane) var(--sp-4);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Level meter                                                             */
+/* ---------------------------------------------------------------------- */
+
+.u-meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.u-meter__track {
+  height: var(--sp-8);
+  border-radius: var(--r-chip);
+  background: var(--l2-bg);
+  overflow: hidden;
+}
+
+.u-meter__fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--accent);
+  transition: transform var(--t-hover) var(--ease);
+}
+
+.u-meter__label {
+  margin: 0;
+  font-size: var(--small-size);
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Pill — segmented control / nav-active wash / filter tab (GlassPill)     */
+/* ---------------------------------------------------------------------- */
+
+.u-pillbar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--l2-bg);
+  border: 1px solid var(--l2-border);
+  border-radius: var(--r-chip);
+  box-shadow: var(--neo-pressed, none);
+}
+
+.u-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-16);
+  border-radius: var(--r-chip);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--small-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--label-tracking);
+  cursor: pointer;
+  transition:
+    background var(--t-hover) var(--ease),
+    color var(--t-hover) var(--ease);
+}
+
+.u-pill:focus-visible {
+  outline: var(--focus-width) solid var(--accent);
+  outline-offset: 1px;
+}
+
+.u-pill--active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .u-pill:not(.u-pill--active):hover {
+    background: var(--l2-bg-hover);
+    color: var(--text);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Status orb — small dot + label (sidebar status rows, overlay Listening) */
+/* ---------------------------------------------------------------------- */
+
+.u-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  font-size: var(--small-size);
+  color: var(--muted);
+}
+
+.u-status-orb {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.u-status-orb--ok {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.u-status-orb--warn {
+  background: var(--warn);
+}
+
+.u-status-orb--bad {
+  background: var(--danger);
+}
+
+.u-status-orb--live {
+  animation: u-status-breathe 2.4s var(--ease) infinite;
+}
+
+@keyframes u-status-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Table (Call History, Copilots, Documents/Resume)                        */
+/* ---------------------------------------------------------------------- */
+
+/* One grid spans the header row and every data row (see `Table.tsx`) —
+   column widths themselves belong to each page's own stylesheet
+   (`grid-template-columns` on the page's own class, e.g. `.ss-table`).
+   `align-items: stretch` (the grid default — kept explicit as a reminder
+   of why) lets every cell in a row fill that row's full height, so a
+   cell's background/border always spans the row completely even when a
+   sibling cell in the same row (e.g. one with a tall leading icon) is
+   taller than it — `center` would instead leave each cell only as tall as
+   its own content, so shorter cells' backgrounds visibly fall short of a
+   taller row. */
+.u-table {
+  display: grid;
+  align-items: stretch;
+}
+
+/* `display: contents`: this row div still exists in the DOM (so `>` and
+   `:nth-child` selectors on its cells keep working), but paints nothing of
+   its own — its cells become direct items of the parent `.u-table` grid. */
+.u-table__row {
+  display: contents;
+}
+
+/* Every cell centers its own content vertically within whatever height the
+   grid stretches it to (see `.u-table` above). A page's own stylesheet can
+   override `display`/`align-items` per cell where it needs something else
+   (e.g. `.ss-cell-title`'s stacked title+meta) — this is only the default. */
+.u-table__row > * {
+  display: flex;
+  align-items: center;
+}
+
+/* A header-cell spacer that reserves the same width as a leading icon/
+   avatar in the data rows below it, so the header label and the indented
+   text it labels share a left edge — without hardcoding that width as a
+   number anywhere. Give it the exact same class(es) as the real element
+   it's standing in for (e.g. `cp-card__initial cp-card__initial--sm`). */
+.u-invisible-spacer {
+  visibility: hidden;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Reduced motion                                                          */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .u-btn,
+  .u-row,
+  .u-dialog,
+  .u-meter__fill,
+  .u-pill,
+  .u-status-orb--live {
+    transition: none;
+    animation: none;
+  }
+}

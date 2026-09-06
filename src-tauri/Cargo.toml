@@ -1,0 +1,94 @@
+[package]
+name = "aside"
+version = "0.1.0"
+description = "Aside — a personal, transparent meeting/interview AI copilot"
+authors = ["Devendra"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "aside_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# `macos-private-api` is required for `WebviewWindowBuilder::transparent` on
+# macOS — the Live overlay (`commands/overlay.rs`) needs a genuinely
+# transparent window so the frontend's own dark-glass chrome
+# (`backdrop-filter: blur(...)`, `--ov-*` tokens) can show, not the OS's
+# default opaque background. Also requires `tauri.conf.json`'s
+# `app.macOSPrivateApi: true`. Screen-share hiding is a separate, intentional
+# call (`set_content_protected`) in `stealth.rs`, not this feature flag.
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "2"
+cpal = "0.18"
+rusqlite = { version = "0.32", features = ["bundled"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "rustls", "stream"] }
+tokio = { version = "1", features = ["sync", "macros", "rt", "time", "net", "fs", "io-util"] }
+async-trait = "0.1"
+regex = "1"
+parakeet-rs = "0.3.7"
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
+futures-util = "0.3"
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs"] }
+# Phase 7 (RAG). Pinned to the exact version + feature set `parakeet-rs`
+# already resolves for STT (`docs/decisions.md` / `docs/evidence.md`'s
+# Parakeet entries) — Cargo unifies features for one crate version across
+# the whole dependency graph, so matching this exactly means the ONNX
+# Runtime dylib linking this project already has proven working (real model,
+# real inference, this machine) is reused as-is, not a second independent
+# resolution of the same crate.
+ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "ndarray"] }
+ndarray = "0.17"
+tokenizers = { version = "=0.23.1", default-features = false, features = ["onig"] }
+# Phase 8 (resume/JD ingestion). Chosen over `lopdf::Document::extract_text`
+# after a real benchmark against real PDF/DOCX fixtures
+# (`examples/bench_ingest.rs`, numbers in `docs/evidence.md`): `pdf-extract`
+# is 2-4x slower (tens of ms either way, irrelevant at once-per-upload
+# scale) but produces clean prose text, while `lopdf`'s extractor splits
+# hyphenated words and bullets across separate lines — corrupting for this
+# project's sentence-boundary chunker and regex fact extractor. `lopdf` is
+# kept as a dev-dependency only, so the comparison stays real and re-runnable
+# without shipping an unused parser in the release binary.
+pdf-extract = "0.12.0"
+docx-rs = "0.4.22"
+tauri-plugin-dialog = "2.7.2"
+xcap = { version = "0.9", features = ["image"] }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+base64 = "0.22"
+tauri-plugin-global-shortcut = "2"
+# Acoustic echo cancellation (AEC3) on the Me path when laptop speakers
+# are open. BSD-3. Optional `cpal` feature is left off — we already own
+# capture via cpal 0.18 and must not use Voice Processing IO.
+sonora = "0.2.0"
+tauri-plugin-fs = "2.5.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Already fully resolved in Cargo.lock as a transitive dependency of cpal
+# 0.18.2 (cpal's own macOS default-output-device-change monitor uses it
+# internally) — this adds zero new packages or version-resolution risk, only
+# a direct edge onto a version already pinned. Used by `audio/device_watch.rs`
+# to watch `kAudioHardwarePropertyDefaultInputDevice`/
+# `kAudioHardwarePropertyDefaultOutputDevice` on `kAudioObjectSystemObject`,
+# the mechanism `cpal` itself uses for its (output-stream-only, so not
+# reusable here as-is) `ErrorKind::DeviceChanged`. Feature set matches what
+# our plain (non-Block, non-deprecated) property-listener calls need — no
+# `block2`/`dispatch2` (those back the Block-based listener variant, which
+# this module deliberately does not use) and no `objc2`/`objc2-foundation`
+# (those back Objective-C object bindings this module never touches).
+objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware"] }
+
+[dev-dependencies]
+lopdf = "0.44.0"
+zip = "8.6.0"
+

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Without this key macOS does not deny system-audio capture, it silently
+	     delivers zero-filled buffers with no prompt and no error. That is the
+	     same failure the microphone hit here before NSMicrophoneUsageDescription
+	     was added; see docs/evidence.md. -->
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Aside listens to the other participants' audio during a call so it can follow the conversation alongside you.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aside listens to your microphone during a call to help you follow along and respond.</string>
+	<!-- Agent app: no Dock icon and no Aside menu-bar menus from the first
+	     frame, so hiding does not flash an icon at launch. Activity Monitor
+	     still lists the process. Runtime can restore a normal Dock icon if
+	     hiding is turned off (`ActivationPolicy::Regular`). -->
+	<key>LSUIElement</key>
+	<true/>
+</dict>
+</plist>

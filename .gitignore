@@ -1,0 +1,16 @@
+# OS
+.DS_Store
+
+# Node
+node_modules/
+dist/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/schemas
+
+# Generated app bundle (rebuilt via scripts/build-app.sh)
+/Aside.app
+
+# Third-party reference code (license-restricted, not for redistribution)
+/references/

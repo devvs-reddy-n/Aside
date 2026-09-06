@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Aside",
+  "version": "0.1.0",
+  "identifier": "com.aside.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Aside",
+        "url": "index.html",
+        "width": 1180,
+        "height": 860,
+        "minWidth": 900,
+        "minHeight": 680,
+        "maxWidth": 1600,
+        "maxHeight": 1040,
+        "visible": true,
+        "decorations": false,
+        "contentProtected": true,
+        "skipTaskbar": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "icon": [
+      "icons/icon.icns"
+    ]
+  }
+}
