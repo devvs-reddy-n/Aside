@@ -2,7 +2,7 @@
 
 **PARTIAL (builds and tested; owner real-device pass still owed).** Aside is a desktop meeting copilot: a normal workspace window plus a compact, always-on-top live window. It captures microphone and system audio separately, transcribes them, keeps a growing session context, and answers spoken, typed, and screenshot questions. It is hidden from screenshots, recordings, and meeting screen-shares by default (still needs a live owner check against Zoom and Cmd+Shift+3).
 
-## Latest change (2026-09-26): full UI redesign from the owner's spec, Phases 1–4 of 6 (branch `redesign-dock`, one commit per phase, not pushed)
+## Latest change (2026-09-26): full UI redesign from the owner's spec, all 6 phases (branch `redesign-dock`, one commit per phase, not pushed)
 
 **PARTIAL: built and checked in the browser preview and by tests; the real app still needs the owner's eye.**
 
@@ -27,7 +27,20 @@
   - Problems show as a one-line alert with a Fix button; hover for details.
   - Answers are larger (15px) and the copy button appears on hover. ⌘[ ⌘] shows "2 of 5".
   - Lengths read Short · Med · Long, and the copilot's default length is picked up at start.
-- **Not done yet:** Phase 6 (motion pass and removals).
+- **Phase 6 (motion and clean-up):**
+  - **Motion:** nothing animates longer than 320ms, apart from spinners and End's 4-second confirm bar. Nothing overshoots. With Reduce Motion on, nothing slides; fades take 120ms or less.
+  - **Removed:** History's search box when there are six calls or fewer (⌘P still searches); the Delete button in the saved-call window (each History row's ⋯ menu has Delete); tinted icon tiles on Library and History rows.
+  - **Contrast:** the keyboard focus ring is now solid blue, and the faintest grey text is slightly darker.
+- **Acceptance checks (run by script in headless Chrome, not the real app):**
+  - No company, role or file name is cut to one line at 1100×700, even with very long names.
+  - All 44 text and control colour pairs pass contrast in light and dark, including live-window text over the opposite colour at 94%.
+  - Reduce Motion behaves as described above.
+- **Owner checks still owed for this redesign:**
+  - the real window's look and its traffic lights
+  - the live window over a busy background
+  - the Start panel's real audio checks and the System Settings round-trip
+  - whether the answer length passes from the main window to the live window (the two windows need to share storage)
+  - dropping files onto the window
 - **Differences from the spec:**
   - There's no "App default" model choice; a new copilot starts with the Settings model.
   - Shortcuts are shown, not rebindable.

@@ -263,3 +263,16 @@ This is the compact record of decisions that still affect the product. Supersede
 - **Alerts show one line with the main fix.** The explanation and a second way out open on hover or keyboard focus, so a problem never pushes the answers far down.
 - **Meters use one shared five-bar component** (`kit/LevelBars`): 50 ms rise, 200 ms fall. It stops animating when settled, so a quiet call costs nothing.
 
+## Redesign Phase 6 decisions (2026-09-26)
+
+- **Motion rules:**
+  - The spring is now critically damped (no bounce).
+  - With Reduce Motion on, every shared timing becomes a 120ms fade, and Motion drops movement.
+  - Highlight glows were cut from 1.2–1.6s to 300ms.
+  - Kept on purpose: spinners and End's 4-second confirm bar, which counts down rather than decorates.
+- **The keyboard focus ring is solid accent blue.** The spec's 40% tint measured 1.8:1 against the 3:1 minimum.
+- **History's search box only appears with more than six calls.** The spec removes a permanent search box when there are few items; ⌘P still searches everything, including what was said.
+- **The saved-call window has no Delete button.** Delete lives in each History row's ⋯ menu (with Undo), per the spec's "no footer Delete".
+- **Library and History rows have no icon tiles.** Library keeps a plain type icon. History drops the per-company monogram; it stays in the sidebar.
+- **Sidebar folding still animates its width.** The design checker flags this, but the main pane must resize anyway, so it stays.
+

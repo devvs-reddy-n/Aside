@@ -278,7 +278,7 @@ html.live-window #root {
 .lv-turn__text { padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); overflow-wrap: anywhere; }
 .lv-turn[data-who="me"] .lv-turn__text { border-color: var(--wash-2); background: var(--wash); color: var(--blue-ink); }
 .lv-turn[data-interim] .lv-turn__text { opacity: 0.68; }
-.lv-turn[data-flagged] .lv-turn__text { border-color: var(--blue); background: var(--wash); animation: lv-flag 1.4s var(--out); }
+.lv-turn[data-flagged] .lv-turn__text { border-color: var(--blue); background: var(--wash); animation: lv-flag 300ms var(--out); }
 @keyframes lv-flag { from { box-shadow: 0 0 0 0 var(--blue-soft); } 40% { box-shadow: 0 0 0 6px var(--blue-soft); } to { box-shadow: 0 0 0 0 transparent; } }
 
 .lv-jump {
@@ -302,8 +302,7 @@ html.live-window #root {
 @keyframes lv-jump-in { from { opacity: 0; transform: translateY(8px); } }
 
 /* "2 of 5" while stepping through answers */
-.lv-stepper-pill { position: absolute; top: 8px; left: 50%; z-index: 5; padding: 3px 10px; border-radius: var(--r-pill); background: var(--text); color: var(--surface); font-size: 12px; font-weight: 600; box-shadow: var(--e2); transform: translateX(-50%); animation: lv-step 1.6s var(--ease-out) both; }
-@keyframes lv-step { 0% { opacity: 0; transform: translate(-50%, -4px); } 12%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+.lv-stepper-pill { position: absolute; top: 8px; left: 50%; z-index: 5; padding: 3px 10px; border-radius: var(--r-pill); background: var(--text); color: var(--surface); font-size: 12px; font-weight: 600; box-shadow: var(--e2); transform: translateX(-50%); animation: lv-fade var(--fast) var(--ease-out) both; }
 
 /* ---------- answers ---------- */
 .lv-answer { display: grid; gap: 6px; animation: lv-rise 320ms var(--out) both; }
@@ -319,7 +318,7 @@ html.live-window #root {
 }
 .lv-asked::before { content: "Question · "; color: var(--ink-3); font-weight: 600; }
 .lv-card { border: 1px solid var(--wash-2); border-radius: 14px; background: var(--card); overflow: hidden; }
-.lv-answer[data-flash] .lv-card { animation: lv-flag 1.2s var(--out); }
+.lv-answer[data-flash] .lv-card { animation: lv-flag 300ms var(--out); }
 .lv-answer[data-state="error"] .lv-card { border-color: var(--red-line); background: var(--red-wash); }
 .lv-card__head { display: flex; align-items: center; gap: 7px; padding: 8px 8px 0 12px; color: var(--blue-ink); }
 .lv-card__head b { font-size: 12.5px; font-weight: 640; }
@@ -336,7 +335,7 @@ html.live-window #root {
 .lv-fold { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; height: 30px; border: 0; border-top: 1px solid var(--wash-2); background: transparent; color: var(--ink-2); font-size: 12px; font-weight: 580; }
 .lv-fold:hover { background: var(--wash); color: var(--ink); }
 .lv-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px 10px; border-top: 1px solid var(--wash-2); }
-.lv-card__foot--chips { animation: lv-rise 300ms 120ms var(--out) both; }
+.lv-card__foot--chips { animation: lv-rise 200ms 120ms var(--out) both; }
 .lv-oops { display: flex; flex: 1 1 12em; gap: 7px; min-width: 0; color: var(--red-ink); }
 .lv-oops b, .lv-oops small { display: block; }
 .lv-oops small { font-size: 0.85em; opacity: 0.85; }
@@ -369,7 +368,7 @@ html.live-window #root {
   border: 1px solid var(--wash-2);
   border-radius: 14px;
   background: var(--wash);
-  animation: lv-pop 360ms var(--out) both, lv-flag 1.6s var(--out);
+  animation: lv-pop var(--slow) var(--out) both, lv-flag 300ms 120ms var(--out);
 }
 .lv-question__tag { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--blue-ink); font-size: 0.88em; font-weight: 640; }
 .lv-question blockquote { max-height: 5.2em; margin: 0; overflow-y: auto; overflow-wrap: anywhere; }
@@ -443,7 +442,7 @@ html.live-window #root {
 /* ---------- ended ---------- */
 .lv-ended { position: absolute; inset: 0; z-index: 40; display: grid; align-content: center; justify-items: center; gap: 8px; padding: 20px; background: rgb(var(--lv-rgb) / 1); text-align: center; animation: lv-fade 320ms var(--out) both; }
 .lv-ended p { color: var(--ink-2); }
-.lv-ended__check { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--green-wash); color: var(--green); animation: lv-pop 520ms 120ms var(--out) both; }
+.lv-ended__check { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--green-wash); color: var(--green); animation: lv-pop var(--slow) 60ms var(--out) both; }
 .lv-ended dl { display: flex; gap: 22px; margin: 10px 0 0; }
 .lv-ended dt { color: var(--ink-3); font-size: 0.8em; }
 .lv-ended dd { margin: 0; font: 600 15px var(--mono); font-variant-numeric: tabular-nums; }

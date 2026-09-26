@@ -69,11 +69,11 @@
 .palette__search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--text); font-size: 15px; -webkit-user-select: text; user-select: text; }
 .palette__list { margin: 0; padding: 6px; overflow-y: auto; list-style: none; }
 .palette__group { padding: 8px 10px 4px; color: var(--text-3); font-size: 12px; font-weight: 560; }
-.palette__item { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: var(--r-s); background: none; color: var(--text); font-size: 14px; text-align: left; }
+.palette__item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 6px 10px; border: 0; border-radius: var(--r-s); background: none; color: var(--text); font-size: 14px; text-align: left; }
 .palette__item .icon { color: var(--text-2); }
 .palette__item[aria-selected="true"] { background: var(--accent-soft); }
-.palette__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.palette__detail { flex: 1; min-width: 0; overflow: hidden; color: var(--text-3); font-size: 12.5px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.palette__label { display: -webkit-box; flex: 1 1 auto; min-width: 0; overflow: hidden; text-align: left; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.palette__detail { display: -webkit-box; flex: 0 1 45%; min-width: 0; overflow: hidden; color: var(--text-3); font-size: 12.5px; text-align: right; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .palette__empty { padding: 24px; color: var(--text-3); text-align: center; }
 
 /* ---------- Shared bits ---------- */
@@ -104,8 +104,7 @@
 .lib-item[data-view="list"] + .lib-item[data-view="list"] { border-top: 1px solid var(--border); }
 .lib-item__main { display: flex; flex: 1; align-items: center; gap: var(--s3); min-width: 0; padding: 12px 52px 12px 14px; border: 0; background: none; color: inherit; text-align: left; transition: background-color var(--fast) var(--ease-std); }
 .lib-item__main:hover { background: var(--hover); }
-.lib-item__icon { display: grid; flex: none; place-items: center; width: 36px; height: 36px; border-radius: var(--r-s); background: var(--surface-muted); color: var(--text-2); }
-.lib-item__icon[data-kind="resume"] { background: var(--accent-soft); color: var(--accent-ink); }
+.lib-item__icon { display: grid; flex: none; place-items: center; width: 20px; color: var(--text-3); }
 .lib-item__text { display: grid; flex: 1; gap: 2px; min-width: 0; }
 .lib-item__text b { display: -webkit-box; overflow: hidden; font-weight: 560; line-height: 20px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .lib-item__text small { color: var(--text-2); font-size: 12.5px; font-variant-numeric: tabular-nums; }
@@ -128,7 +127,7 @@
 .hist-list { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: var(--r-l); background: var(--surface); overflow: hidden; }
 .hist-row { position: relative; display: flex; align-items: center; gap: var(--s2); min-width: 0; padding-right: 48px; overflow: hidden; }
 .hist-row + .hist-row { border-top: 1px solid var(--border); }
-.hist-row__main { display: flex; flex: 1; align-items: center; gap: var(--s3); min-width: 0; padding: 11px 8px 11px 14px; color: inherit; text-decoration: none; }
+.hist-row__main { display: flex; flex: 1; align-items: center; gap: var(--s3); min-width: 0; padding: 11px 8px 11px 16px; color: inherit; text-decoration: none; }
 .hist-row:hover { background: var(--hover); }
 .hist-row__text { display: grid; flex: 1; gap: 1px; min-width: 0; }
 .hist-row__text b { display: -webkit-box; overflow: hidden; font-weight: 560; line-height: 20px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }

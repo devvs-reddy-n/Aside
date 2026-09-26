@@ -75,7 +75,7 @@ h3 {
 }
 /* Keyboard focus only: a quiet accent outline set slightly off the element. */
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 

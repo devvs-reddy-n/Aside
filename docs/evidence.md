@@ -107,6 +107,18 @@ The build can emit existing unused-code warnings. The bundle script also strips 
 - **Seen in those screenshots:** one 44px header row (live dot, company, clock, ⋯, End); You/Them lanes with meters; Answers/Transcript tabs; a one-line alert with its Fix button; answers at 15px; footer lengths reading "Short · Med · Long".
 - **Not run:** the real window; the answer length handed from the Start panel (both windows need to share this Mac's local storage, which only the real app can show); ⌘[ ⌘] stepping with the "2 of 5" marker; the opacity slider.
 
+## Redesign Phase 6: motion pass and acceptance (2026-09-26)
+
+- **Automated checks:** `npx tsc --noEmit` clean. `npm test` 56 passed. `npm run build` clean (no CSS warnings). Impeccable detector on `src`: only the deliberate sidebar width animation.
+- **Truncation (script at 1100×700):** the demo copilot was renamed "OneMain Financial Group Holdings International Incorporated", with a long role, and a pasted file got an 80-character name. The script checked sidebar, copilot title and role, file cards, Library, History and the palette: 9 elements on the copilot page and 10 in Library, none cut to one line.
+- **Contrast (script computing ratios from the live colour tokens, light and dark):** 44 pairs, all passing after two fixes. The focus ring was 1.8:1 and is now solid accent. The faint grey was 4.42:1 on muted grey and is now 4.91.
+- **Reduce Motion (Chrome with Reduce Motion emulated):**
+  - Start panel: no transform at 40ms, fully visible by 150ms.
+  - Keyframe animations are cut to ~0.
+  - Transitions: opacity and colours only, 0.12s.
+- **Screenshots:** a full "after" set of every screen in light and dark (live window at 520×700), plus the Start panel. They were compared with the Phase 0 "before" set in one side-by-side page.
+- **Not run:** the real app window.
+
 ## Historical evidence retained as outcomes
 
 - Local SQLite replaced flat or transient-only session storage.

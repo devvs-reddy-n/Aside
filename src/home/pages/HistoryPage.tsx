@@ -19,7 +19,6 @@ import { toast } from "../../kit/toast";
 import { deleteWithUndo } from "../../kit/undo";
 import { historyStore, loadHistory, returnToCall, setHidden, systemStore } from "../data";
 import { hrefFor, navigate } from "../router";
-import { Monogram } from "../Sidebar";
 
 export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   const { sessions, loaded, error, hiddenIds } = useStore(historyStore, (state) => state);
@@ -94,7 +93,7 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
 
       {error ? <Callout tone="bad" title="Couldn't load your history">{error}</Callout> : null}
 
-      {visible.length > 0 ? (
+      {visible.length > 6 ? (
         <label className="hm-search">
           <Icon name="search" size={15} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search calls and what was said" aria-label="Search history" />
@@ -147,7 +146,7 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
         </>
       )}
 
-      {selected ? <SessionSheet session={selected} onClose={() => navigate("history")} onDelete={() => remove(selected)} /> : null}
+      {selected ? <SessionSheet session={selected} onClose={() => navigate("history")} /> : null}
     </div>
   );
 }
@@ -165,7 +164,6 @@ function CallRow({ session, live, onDelete }: { session: PastSessionSummary; liv
       transition={{ duration: FAST }}
     >
       <a className="hist-row__main" href={hrefFor("history", session.id)}>
-        <Monogram name={name} size={32} />
         <span className="hist-row__text">
           <b>{name}</b>
           <small className="tabular">{detail}</small>
@@ -201,7 +199,7 @@ function Highlight({ text, term }: { text: string; term: string }) {
 
 type Tab = "conversation" | "notes" | "summary";
 
-function SessionSheet({ session, onClose, onDelete }: { session: PastSessionSummary; onClose: () => void; onDelete: () => void }) {
+function SessionSheet({ session, onClose }: { session: PastSessionSummary; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>("conversation");
   const [lines, setLines] = useState<ConversationLine[] | null>(null);
   const [notes, setNotes] = useState<string[] | null>(null);
@@ -243,7 +241,6 @@ function SessionSheet({ session, onClose, onDelete }: { session: PastSessionSumm
       subtitle={[session.company ? session.title : null, `${formatDate(session.started_at_ms)}, ${formatTime(session.started_at_ms)}`, formatDuration(session.duration_ms)].filter(Boolean).join(" · ")}
       footer={
         <>
-          <Button variant="danger" icon="trash" onClick={onDelete}>Delete call</Button>
           <span className="grow" />
           {canExport ? (
             <>
