@@ -1,5 +1,6 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { MotionConfig } from "motion/react";
+import { TooltipProvider } from "./kit/Tooltip";
 import ReactDOM from "react-dom/client";
 // Styles first: colours, fonts and building blocks must load before any screen's own styles.
 import "./theme/index.css";
@@ -45,6 +46,8 @@ function pickRoot() {
 // Motion follows the Mac's Reduce Motion setting everywhere.
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <MotionConfig reducedMotion="user">{pickRoot()}</MotionConfig>
+    <MotionConfig reducedMotion="user">
+      <TooltipProvider>{pickRoot()}</TooltipProvider>
+    </MotionConfig>
   </StrictMode>,
 );

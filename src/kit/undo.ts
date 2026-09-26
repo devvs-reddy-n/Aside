@@ -2,7 +2,7 @@ import { toast } from "./toast";
 
 /**
  * Delete-with-undo. The item disappears from the screen straight away and a
- * toast offers Undo for eight seconds; only when that passes (or the toast
+ * toast offers Undo for five seconds; only when that passes (or the toast
  * is dismissed) is the real delete run. If the app closes first, nothing was
  * deleted — the safe way round.
  */

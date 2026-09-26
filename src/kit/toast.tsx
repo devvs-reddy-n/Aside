@@ -1,6 +1,8 @@
-import { useEffect } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 import { createStore, useStore } from "../core/store";
 import { Icon } from "./Icon";
+import { BASE, EASE_OUT } from "./motion";
 
 interface ToastItem {
   id: number;
@@ -26,7 +28,7 @@ export function toast(
     tone: options.tone ?? "info",
     action: options.action,
     onDone: options.onDone,
-    ms: options.ms ?? (options.action ? 8000 : 4200),
+    ms: options.ms ?? 5000,
   };
   store.set((state) => ({ items: [...state.items.slice(-3), item] }));
   return id;
@@ -40,13 +42,31 @@ export function dismissToast(id: number, viaAction = false): void {
 }
 
 function Toast({ item }: { item: ToastItem }) {
+  // The countdown pauses while the pointer is over the toast, so it never vanishes mid-read.
+  const [paused, setPaused] = useState(false);
+  const left = useRef(item.ms);
   useEffect(() => {
-    const timer = window.setTimeout(() => dismissToast(item.id), item.ms);
-    return () => window.clearTimeout(timer);
-  }, [item.id, item.ms]);
-  const icon = item.tone === "ok" ? "check" : item.tone === "bad" || item.tone === "warn" ? "alert" : "info";
+    if (paused) return;
+    const started = Date.now();
+    const timer = window.setTimeout(() => dismissToast(item.id), left.current);
+    return () => {
+      window.clearTimeout(timer);
+      left.current = Math.max(600, left.current - (Date.now() - started));
+    };
+  }, [item.id, paused]);
+  const icon = item.tone === "ok" ? "checkCircle" : item.tone === "bad" || item.tone === "warn" ? "alertCircle" : "info";
   return (
-    <div className={`toast toast--${item.tone}`} role={item.tone === "bad" ? "alert" : "status"}>
+    <motion.div
+      layout
+      className={`toast toast--${item.tone}`}
+      role={item.tone === "bad" ? "alert" : "status"}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: BASE, ease: EASE_OUT }}
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+    >
       <Icon name={icon} size={16} />
       <span className="toast__text">{item.message}</span>
       {item.action ? (
@@ -64,7 +84,7 @@ function Toast({ item }: { item: ToastItem }) {
       <button type="button" className="toast__close" aria-label="Dismiss" onClick={() => dismissToast(item.id)}>
         <Icon name="x" size={14} />
       </button>
-    </div>
+    </motion.div>
   );
 }
 
@@ -73,9 +93,9 @@ export function ToastHost() {
   const items = useStore(store, (state) => state.items);
   return (
     <div className="toast-host" aria-live="polite">
-      {items.map((item) => (
-        <Toast key={item.id} item={item} />
-      ))}
+      <AnimatePresence initial={false}>
+        {items.map((item) => <Toast key={item.id} item={item} />)}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,3 +1,7 @@
+import * as RSwitch from "@radix-ui/react-switch";
+import * as TG from "@radix-ui/react-toggle-group";
+import { motion } from "motion/react";
+import { SPRING } from "./motion";
 import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 interface FieldProps {
@@ -49,43 +53,50 @@ export interface SwitchProps {
   disabled?: boolean;
 }
 
-/** A labelled on/off switch. The whole row is the click target. */
+/** A labelled on/off row: label and helper on the left, switch on the right. */
 export function Switch({ checked, onChange, label, hint, disabled }: SwitchProps) {
+  const id = useId();
   return (
-    <button type="button" role="switch" aria-checked={checked} disabled={disabled} className="switch-row" onClick={() => onChange(!checked)}>
-      <span className="switch-row__text">
+    <div className="switch-row">
+      <label htmlFor={id} className="switch-row__text">
         <span className="switch-row__label">{label}</span>
         {hint ? <span className="switch-row__hint">{hint}</span> : null}
-      </span>
-      <span className={`switch${checked ? " switch--on" : ""}`} aria-hidden="true"><span className="switch__knob" /></span>
-    </button>
+      </label>
+      <Toggle id={id} checked={checked} onChange={onChange} label={label} disabled={disabled} />
+    </div>
   );
 }
 
-/** A bare on/off switch for rows that already show their own label. */
-export function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (next: boolean) => void; label: string; disabled?: boolean }) {
+/** A bare on/off switch for rows that already show their own label. The knob moves on a spring. */
+export function Toggle({ checked, onChange, label, disabled, id }: { checked: boolean; onChange: (next: boolean) => void; label: string; disabled?: boolean; id?: string }) {
   return (
-    <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} className={`switch${checked ? " switch--on" : ""}`} onClick={() => onChange(!checked)}>
-      <span className="switch__knob" />
-    </button>
+    <RSwitch.Root id={id} className="switch" checked={checked} onCheckedChange={onChange} aria-label={label} disabled={disabled}>
+      <RSwitch.Thumb asChild>
+        <motion.span className="switch__knob" layout transition={SPRING} />
+      </RSwitch.Thumb>
+    </RSwitch.Root>
   );
 }
 
 export interface SegmentedProps<T extends string> {
   value: T;
   onChange: (next: T) => void;
-  options: Array<{ value: T; label: string }>;
+  options: Array<{ value: T; label: ReactNode; title?: string }>;
   label: string;
+  size?: "sm" | "md";
 }
 
-export function Segmented<T extends string>({ value, onChange, options, label }: SegmentedProps<T>) {
+/** Choose one of a few. The highlight slides to the chosen option. */
+export function Segmented<T extends string>({ value, onChange, options, label, size = "md" }: SegmentedProps<T>) {
+  const id = useId();
   return (
-    <div className="segmented" role="radiogroup" aria-label={label}>
+    <TG.Root type="single" className={`seg seg--${size}`} value={value} aria-label={label} onValueChange={(next) => { if (next) onChange(next as T); }}>
       {options.map((option) => (
-        <button key={option.value} type="button" role="radio" aria-checked={value === option.value} className="segmented__item" onClick={() => onChange(option.value)}>
-          {option.label}
-        </button>
+        <TG.Item key={option.value} value={option.value} className="seg__item" title={option.title}>
+          {value === option.value ? <motion.span layoutId={`seg-${id}`} className="seg__thumb" transition={SPRING} /> : null}
+          <span className="seg__label">{option.label}</span>
+        </TG.Item>
       ))}
-    </div>
+    </TG.Root>
   );
 }
