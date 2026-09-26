@@ -37,7 +37,8 @@ function TopStrip() {
 
 function Page() {
   const route = useRoute();
-  const key = route.page === "copilots" ? `copilots/${route.param ?? ""}` : route.page;
+  // Switching between copilots stays inside one page (the sidebar highlight glides; no page fade).
+  const key = route.page;
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div

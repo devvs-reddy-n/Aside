@@ -85,3 +85,9 @@ export function monogram(name: string): string {
   if (words.length === 0) return "?";
   return (words[0][0] + (words[1]?.[0] ?? "")).toUpperCase();
 }
+
+/** A file added without saying what it is: its name decides ("Jane_CV.pdf" → resume, anything else → document). */
+export function guessDocType(fileName: string): "resume" | "other" {
+  const name = fileName.split(/[\\/]/).pop() ?? fileName;
+  return /(^|[^a-z])(resume|résumé|cv|curriculum)([^a-z]|$)/i.test(name) ? "resume" : "other";
+}

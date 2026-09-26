@@ -2,6 +2,30 @@
 
 **PARTIAL (builds and tested; owner real-device pass still owed).** Aside is a desktop meeting copilot: a normal workspace window plus a compact, always-on-top live window. It captures microphone and system audio separately, transcribes them, keeps a growing session context, and answers spoken, typed, and screenshot questions. It is hidden from screenshots, recordings, and meeting screen-shares by default (still needs a live owner check against Zoom and Cmd+Shift+3).
 
+## Latest change (2026-09-26): full UI redesign from the owner's spec, Phases 1–4 of 6 (branch `redesign-dock`, one commit per phase, not pushed)
+
+**PARTIAL: built and checked in the browser preview and by tests; the real app still needs the owner's eye.**
+
+- **Phases 1–3 (committed):** new colours, spacing and motion rules; Lucide icons; Motion and Radix building blocks (side panels, menus, tooltips, switches); a new window layout. Real Mac traffic lights; a resizable sidebar that folds with ⌘\ and lists copilots with name and role; Library / History / Settings; a status pill; ⌘P to search everything. ⌘K stays the screenshot shortcut.
+- **Phase 4 (this change):**
+  - **Copilot page:** one centred column.
+    - Company and role are edited in place.
+    - Chips show whether the job and resume are there.
+    - It **saves by itself** ("Saving…" → "Saved"), so there's no Save button.
+    - Three cards: **Job** (link import, description preview, full-height editor), **Your background** (resume card with Preview/Replace; drop zone for other files) and **Answer style** (guidance, default answer length, AI model, save transcript).
+    - ⋯ menu: Duplicate, Delete (Undo).
+  - **Library:** one page for Resumes and Documents.
+    - Filter: All / Resumes / Documents. List or grid.
+    - Each file says how many copilots use it. Drop files anywhere on the page; under All, a file's name decides whether it's a resume.
+  - **History:** grouped Today / Yesterday / by date, with company, role, time and length on each row. Calls under 10 seconds are hidden behind a "Show" line. ⋯ menu on each row.
+  - **Settings:** one column in this order: Speech, AI model, Answer rules, Appearance, Shortcuts, General. Warning badges appear only when something needs doing. Answer rules open in a side panel and save as you type.
+  - **Start session:** a side panel that runs every check by itself, one after another: speech, AI, resume, then a few seconds of listening on the microphone and on system audio, with live meters. If system audio isn't allowed it offers "Open System Settings" and re-checks when you come back. Start passes the copilot's default answer length to the live window.
+- **Not done yet:** Phase 5 (live window) and Phase 6 (motion pass and removals).
+- **Differences from the spec:**
+  - There's no "App default" model choice; a new copilot starts with the Settings model.
+  - Shortcuts are shown, not rebindable.
+  - The default answer length is stored on this Mac only.
+
 ## Latest change (2026-09-25, night): styling restored
 
 The installed app had lost all its styling because of one stray `}` in a stylesheet (details in `docs/decisions.md`). Fixed, guarded by a new test, checked on the production build, and followed by a design review pass across the workspace and live window. Real-app look still needs the owner's eye.

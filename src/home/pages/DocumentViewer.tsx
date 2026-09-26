@@ -5,6 +5,7 @@ import { Callout } from "../../kit/Bits";
 import { Dialog } from "../../kit/Dialog";
 import { Segmented } from "../../kit/Form";
 import { Spinner } from "../../kit/Bits";
+import { displayFileName } from "../../core/text";
 
 function fromBase64(value: string): Uint8Array<ArrayBuffer> {
   const raw = atob(value);
@@ -59,7 +60,7 @@ export function DocumentViewer({ doc, onClose }: { doc: StoredDocument; onClose:
   }, [view, doc, original]);
 
   return (
-    <Dialog open onClose={onClose} size="xl" title={doc.file_name} >
+    <Dialog open onClose={onClose} size="xl" title={displayFileName(doc.file_name)} subtitle={doc.file_name}>
       {doc.original_available ? (
         <div className="hm-viewer__tabs">
           <Segmented label="What to show" value={view} onChange={setView} options={[{ value: "original", label: "Original file" }, { value: "text", label: "Parsed text" }]} />

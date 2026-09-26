@@ -1,19 +1,25 @@
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../../bridge/api";
 import type { PastSessionSummary, SessionSummary, TranscriptSearchResult } from "../../bridge/types";
 import { conversationText, mergeConversation, type ConversationLine } from "../../core/conversation";
 import { downloadPdf, downloadText } from "../../core/downloads";
-import { formatClock, formatDate, formatDuration, formatRelative, plural, slug } from "../../core/format";
+import { formatClock, formatDate, formatDuration, formatTime, plural, slug } from "../../core/format";
+import { groupByDay, isShort } from "../../core/historyGroups";
 import { useStore } from "../../core/store";
 import { Badge, Callout, EmptyState, Spinner } from "../../kit/Bits";
-import { Button } from "../../kit/Button";
+import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Segmented } from "../../kit/Form";
 import { Icon } from "../../kit/Icon";
+import { Menu } from "../../kit/Menu";
+import { RichText } from "../../kit/RichText";
+import { FAST } from "../../kit/motion";
 import { toast } from "../../kit/toast";
 import { deleteWithUndo } from "../../kit/undo";
 import { historyStore, loadHistory, returnToCall, setHidden, systemStore } from "../data";
 import { hrefFor, navigate } from "../router";
+import { Monogram } from "../Sidebar";
 
 export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   const { sessions, loaded, error, hiddenIds } = useStore(historyStore, (state) => state);
@@ -50,17 +56,22 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   }, [query]);
 
   const visible = useMemo(() => sessions.filter((session) => !hiddenIds.includes(session.id)), [sessions, hiddenIds]);
+  const [showShort, setShowShort] = useState(false);
+  const term = query.trim().toLowerCase();
   const matching = useMemo(() => {
-    const term = query.trim().toLowerCase();
     if (!term) return visible;
     return visible.filter((session) => `${session.title} ${session.company ?? ""}`.toLowerCase().includes(term));
-  }, [visible, query]);
+  }, [visible, term]);
+  // Accidental starts stay out of the way unless asked for (or searched for).
+  const shortCount = term ? 0 : matching.filter((session) => isShort(session) && session.id !== activeId).length;
+  const listed = showShort || term ? matching : matching.filter((session) => !isShort(session) || session.id === activeId);
+  const groups = useMemo(() => groupByDay(listed), [listed]);
   const selected = selectedId ? visible.find((session) => session.id === selectedId) ?? null : null;
 
   function remove(session: PastSessionSummary) {
     if (selectedId === session.id) navigate("history");
     deleteWithUndo({
-      label: `“${session.title}”`,
+      label: `“${session.company || session.title}”`,
       hide: () => setHidden(historyStore, session.id, true),
       restore: () => setHidden(historyStore, session.id, false),
       commit: async () => {
@@ -76,38 +87,35 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   }
 
   return (
-    <div className="hm-page">
-      <header className="hm-page__head">
-        <div>
-          <h1>History</h1>
-          
-        </div>
+    <div className="hm-page hist">
+      <header className="pg-head">
+        <h1>History {visible.length > 0 ? <span className="pg-count tabular">{visible.length}</span> : null}</h1>
       </header>
 
       {error ? <Callout tone="bad" title="Couldn't load your history">{error}</Callout> : null}
 
       {visible.length > 0 ? (
-        <label className="hm-search hm-search--wide">
-          <Icon name="search" size={16} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search calls" aria-label="Search history" />
-          {searching ? <Spinner size={14} /> : <span className="hm-search__count">{plural(visible.length, "call")}</span>}
+        <label className="hm-search">
+          <Icon name="search" size={15} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search calls and what was said" aria-label="Search history" />
+          {searching ? <Spinner size={14} /> : null}
         </label>
       ) : null}
 
       {loaded && visible.length === 0 ? (
-        <EmptyState icon="clock" title="No calls yet" action={<Button variant="primary" onClick={() => navigate("copilots")}>Go to Copilots</Button>}>
-          Finished sessions appear here.
+        <EmptyState icon="history" title="No calls yet" action={<Button variant="primary" onClick={() => navigate("copilots")}>Go to Copilots</Button>}>
+          Finished sessions appear here, with their transcript when it was saved.
         </EmptyState>
       ) : (
         <>
           {hits.length > 0 ? (
             <section aria-label="Found in conversations" className="hm-hits">
-              <p className="caption">Found in conversations</p>
-              <ul className="hm-files">
+              <h2 className="hist-day__label">Found in conversations</h2>
+              <ul className="hist-list">
                 {hits.slice(0, 20).map((hit, index) => (
                   <li key={`${hit.session_id}-${hit.start_ms}-${index}`}>
                     <a className="hm-hit" href={hrefFor("history", hit.session_id)}>
-                      <span className="hm-hit__who">{hit.speaker === "you" ? "You" : "Others"}</span>
+                      <span className="hm-hit__who">{hit.speaker === "you" ? "You" : "Them"}</span>
                       <Highlight text={hit.text} term={query.trim()} />
                       <small>{hit.session_title}</small>
                     </a>
@@ -117,33 +125,65 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
             </section>
           ) : null}
 
-          <ul className="hm-files" aria-label="Calls">
-            {matching.map((session) => {
-              const live = session.id === activeId;
-              return (
-                <li key={session.id} className="hm-file">
-                  <a className="hm-file__main" href={hrefFor("history", session.id)}>
-                    <span className="hm-file__icon"><Icon name="clock" size={18} /></span>
-                    <span className="hm-file__text">
-                      <b>{session.title}</b>
-                      <small>{[session.company, formatDate(session.started_at_ms), formatDuration(session.duration_ms)].filter(Boolean).join(" · ")}</small>
-                    </span>
-                    {live ? <Badge tone="ok">Live now</Badge> : session.status === "draft" ? <Badge>Draft</Badge> : session.segment_count === 0 ? <Badge>No transcript</Badge> : null}
-                  </a>
-                  {live ? <Button size="sm" variant="secondary" onClick={() => void returnToCall()}>Return to call</Button> : null}
-                  <button type="button" className="icon-btn icon-btn--sm icon-btn--danger" aria-label={`Delete ${session.title}`} title="Delete" onClick={() => remove(session)} disabled={live}>
-                    <Icon name="trash" size={16} />
-                  </button>
-                </li>
-              );
-            })}
-            {loaded && matching.length === 0 && visible.length > 0 && hits.length === 0 && !searching ? <li className="hm-muted hm-pad">No call matches “{query}”.</li> : null}
-          </ul>
+          {groups.map((group) => (
+            <section key={group.key} className="hist-day" aria-label={group.label}>
+              <h2 className="hist-day__label">{group.label}</h2>
+              <ul className="hist-list">
+                <AnimatePresence initial={false}>
+                  {group.items.map((session) => (
+                    <CallRow key={session.id} session={session} live={session.id === activeId} onDelete={() => remove(session)} />
+                  ))}
+                </AnimatePresence>
+              </ul>
+            </section>
+          ))}
+
+          {shortCount > 0 ? (
+            <p className="hist-short">
+              {plural(shortCount, "short session")} hidden · <button type="button" onClick={() => setShowShort((v) => !v)}>{showShort ? "Hide" : "Show"}</button>
+            </p>
+          ) : null}
+          {loaded && matching.length === 0 && visible.length > 0 && hits.length === 0 && !searching ? <p className="lib-none">No call matches “{query}”.</p> : null}
         </>
       )}
 
       {selected ? <SessionSheet session={selected} onClose={() => navigate("history")} onDelete={() => remove(selected)} /> : null}
     </div>
+  );
+}
+
+function CallRow({ session, live, onDelete }: { session: PastSessionSummary; live: boolean; onDelete: () => void }) {
+  const name = session.company || session.title;
+  const detail = [session.company && session.title !== session.company ? session.title : null, formatTime(session.started_at_ms), live ? "Running" : formatDuration(session.duration_ms)].filter(Boolean).join(" · ");
+  return (
+    <motion.li
+      layout="position"
+      className="hist-row"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: FAST }}
+    >
+      <a className="hist-row__main" href={hrefFor("history", session.id)}>
+        <Monogram name={name} size={32} />
+        <span className="hist-row__text">
+          <b>{name}</b>
+          <small className="tabular">{detail}</small>
+        </span>
+        {live ? <Badge tone="ok">Live now</Badge> : session.segment_count > 0 ? <span className="hist-row__mark"><Icon name="chat" size={13} />Transcript</span> : null}
+      </a>
+      {live ? <Button size="sm" variant="secondary" onClick={() => void returnToCall()}>Return to call</Button> : null}
+      <div className="hist-row__menu">
+        <Menu
+          trigger={<IconButton icon="more" label={`More for ${name}`} size="sm" />}
+          items={[
+            { label: "Open", icon: "eye", onSelect: () => navigate("history", session.id) },
+            "separator",
+            { label: "Delete", icon: "trash", danger: true, disabled: live, onSelect: onDelete },
+          ]}
+        />
+      </div>
+    </motion.li>
   );
 }
 
@@ -199,8 +239,8 @@ function SessionSheet({ session, onClose, onDelete }: { session: PastSessionSumm
       open
       onClose={onClose}
       size="xl"
-      title={session.title}
-      subtitle={[session.company, `${formatDate(session.started_at_ms)}, ${formatRelative(session.started_at_ms)}`, formatDuration(session.duration_ms)].filter(Boolean).join(" · ")}
+      title={session.company || session.title}
+      subtitle={[session.company ? session.title : null, `${formatDate(session.started_at_ms)}, ${formatTime(session.started_at_ms)}`, formatDuration(session.duration_ms)].filter(Boolean).join(" · ")}
       footer={
         <>
           <Button variant="danger" icon="trash" onClick={onDelete}>Delete call</Button>
@@ -227,13 +267,13 @@ function SessionSheet({ session, onClose, onDelete }: { session: PastSessionSumm
               {lines.map((line, index) =>
                 line.kind === "turn" ? (
                   <div key={index} className={`hm-msg hm-msg--${line.who}`}>
-                    <span className="hm-msg__who">{line.who === "you" ? "You" : "Others"}<time>{formatClock(Math.max(0, line.at - session.started_at_ms))}</time></span>
+                    <span className="hm-msg__who">{line.who === "you" ? "You" : "Them"}<time>{formatClock(Math.max(0, line.at - session.started_at_ms))}</time></span>
                     <p>{line.text}</p>
                   </div>
                 ) : (
                   <div key={index} className="hm-suggest">
                     <span className="hm-suggest__tag"><Icon name="sparkle" size={13} />Aside suggested</span>
-                    <p>{line.text}</p>
+                    <RichText text={line.text} lines={200} />
                   </div>
                 ),
               )}

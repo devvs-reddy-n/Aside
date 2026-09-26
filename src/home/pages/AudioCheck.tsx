@@ -3,125 +3,77 @@ import * as api from "../../bridge/api";
 import { onEvent } from "../../bridge/events";
 import { channelEventNames } from "../../bridge/eventNames";
 import { isTauriRuntime } from "../../bridge/runtime";
-import { openPrivacySettings } from "../../bridge/system";
 import type { ChannelId } from "../../bridge/types";
-import { Icon } from "../../kit/Icon";
 
-const TEST_MS = 4500;
 /** Loudness above which a side is proven to be hearing something (same bar the live window uses). */
 const HEARD = 0.002;
 
-type Phase =
-  | { kind: "idle" }
-  | { kind: "testing" }
+export type ProbeResult =
   | { kind: "heard"; device: string | null }
-  | { kind: "quiet" }
+  | { kind: "quiet"; device: string | null }
   | { kind: "failed"; message: string };
 
-interface Side {
-  channel: ChannelId;
-  name: string;
-  icon: "mic" | "speaker";
-  pane: "microphone" | "screen";
-}
-
-const SIDES: Side[] = [
-  { channel: "mic", name: "Microphone", icon: "mic", pane: "microphone" },
-  { channel: "system", name: "Other side", icon: "speaker", pane: "screen" },
-];
-
-function Row({ side, disabled, onBusy }: { side: Side; disabled: boolean; onBusy: (busy: boolean) => void }) {
-  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const [level, setLevel] = useState(0);
-  const running = useRef(false);
-  const stopNow = useRef<() => void>(() => undefined);
-
-  // Leaving the page mid-test must let go of the audio.
-  useEffect(() => () => stopNow.current(), []);
-
-  async function test() {
-    if (running.current) return;
-    running.current = true;
-    onBusy(true);
-    setPhase({ kind: "testing" });
-    const started = await api.audio.start(side.channel, null);
-    if (!started.ok) {
-      running.current = false;
-      onBusy(false);
-      setPhase({ kind: "failed", message: started.error });
-      return;
-    }
-    let peak = 0;
-    const seen = (rms: number) => {
-      peak = Math.max(peak, rms);
-      setLevel(rms);
-    };
-    const stopListening = onEvent<{ rms: number }>(channelEventNames(side.channel).level, (payload) => seen(payload.rms));
-    // A plain browser preview has no audio events, so a pretend signal shows the meter working.
-    const fake = isTauriRuntime() ? undefined : window.setInterval(() => seen(Math.random() * 0.05), 120);
-    let timer = 0;
-
-    const release = async () => {
+/**
+ * Listens on one side for a few seconds, then lets go. Nothing is recorded; it only
+ * proves the side works (and brings up the macOS permission question now, not mid-call).
+ * `onLevel` gets the live loudness for a meter. Returns early if `signal` is aborted.
+ */
+export async function probeChannel(channel: ChannelId, options: { ms?: number; onLevel?: (rms: number) => void; signal?: AbortSignal } = {}): Promise<ProbeResult> {
+  const started = await api.audio.start(channel, null);
+  if (!started.ok) return { kind: "failed", message: started.error };
+  let peak = 0;
+  const seen = (rms: number) => {
+    peak = Math.max(peak, rms);
+    options.onLevel?.(rms);
+  };
+  const stopListening = onEvent<{ rms: number }>(channelEventNames(channel).level, (payload) => seen(payload.rms));
+  // A plain browser preview has no audio events, so a pretend signal shows the meter working.
+  const fake = isTauriRuntime() ? undefined : window.setInterval(() => seen(Math.random() * 0.05), 90);
+  await new Promise<void>((resolve) => {
+    const timer = window.setTimeout(resolve, options.ms ?? 2500);
+    options.signal?.addEventListener("abort", () => {
       window.clearTimeout(timer);
-      window.clearInterval(fake);
-      stopListening();
-      stopNow.current = () => undefined;
-      running.current = false;
-      onBusy(false);
-      await api.audio.stop(side.channel);
-    };
-    timer = window.setTimeout(() => {
-      void release().then(() => {
-        setLevel(0);
-        setPhase(peak > HEARD || !isTauriRuntime() ? { kind: "heard", device: started.value.device_name } : { kind: "quiet" });
-      });
-    }, TEST_MS);
-    stopNow.current = () => void release();
-  }
-
-  const testing = phase.kind === "testing";
-  const meter = Math.min(1, Math.sqrt(level) * 3.4);
-  const trouble = phase.kind === "failed" || phase.kind === "quiet";
-  const text =
-    phase.kind === "heard" ? "Heard sound"
-    : phase.kind === "quiet" ? "Nothing heard"
-    : phase.kind === "failed" ? phase.message
-    : "";
-
-  return (
-    <li className="ac-row" data-phase={phase.kind}>
-      <span className="ac-row__icon" aria-hidden="true">
-        <Icon name={phase.kind === "heard" ? "check" : trouble ? "alert" : side.icon} size={15} />
-      </span>
-      <b>{side.name}</b>
-      <span className="ac-meter" aria-hidden="true" data-on={testing || undefined}>
-        <i style={{ transform: `scaleX(${testing ? Math.max(0.03, meter).toFixed(3) : 0})` }} />
-      </span>
-      <small className="ac-row__status" title={text} role={trouble ? "alert" : undefined}>{text}</small>
-      {trouble ? <button type="button" className="ac-link" onClick={() => void openPrivacySettings(side.pane)}>Settings</button> : null}
-      <button type="button" className="ac-test" disabled={disabled || testing} onClick={() => void test()}>
-        {testing ? <span className="ac-spin" aria-hidden="true" /> : null}
-        {testing ? "Listening" : phase.kind === "idle" ? "Test" : "Retest"}
-      </button>
-    </li>
-  );
+      resolve();
+    });
+  });
+  window.clearInterval(fake);
+  stopListening();
+  options.onLevel?.(0);
+  await api.audio.stop(channel);
+  const heard = peak > HEARD || !isTauriRuntime();
+  return heard ? { kind: "heard", device: started.value.device_name } : { kind: "quiet", device: started.value.device_name };
 }
 
 /**
- * Lets the person check that both sides work before the call (and brings up the
- * macOS permission questions now, not mid-meeting). Each test listens for a few
- * seconds and stops; nothing is recorded.
- * `onBusy` tells the page a test is holding the audio, so Start can wait.
+ * Five bars that follow loudness: they jump up fast (50 ms) and fall back slowly (200 ms),
+ * like a studio meter, so speech reads as steady rather than flickering.
  */
-export function AudioCheck({ disabled, onBusy }: { disabled: boolean; onBusy: (busy: boolean) => void }) {
-  const busy = useRef(0);
-  const track = (on: boolean) => {
-    busy.current = Math.max(0, busy.current + (on ? 1 : -1));
-    onBusy(busy.current > 0);
-  };
+export function LevelBars({ level, active }: { level: number; active: boolean }) {
+  const target = useRef(0);
+  const [shown, setShown] = useState(0);
+  target.current = active ? Math.min(1, Math.sqrt(level) * 3.4) : 0;
+
+  useEffect(() => {
+    let frame = 0;
+    let last = performance.now();
+    let value = 0;
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      const goal = target.current;
+      const tau = goal > value ? 50 : 200;
+      value += (goal - value) * (1 - Math.exp(-dt / tau));
+      setShown((current) => (Math.abs(current - value) > 0.01 ? value : current));
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const lit = Math.round(shown * 5);
   return (
-    <ul className="ac">
-      {SIDES.map((side) => <Row key={side.channel} side={side} disabled={disabled} onBusy={track} />)}
-    </ul>
+    <span className="bars" data-active={active || undefined} aria-hidden="true">
+      {[0, 1, 2, 3, 4].map((index) => <i key={index} data-on={index < lit || undefined} />)}
+    </span>
   );
 }

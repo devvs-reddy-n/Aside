@@ -1,57 +1,41 @@
-/*
- * The Start window (a small dialog opened from a copilot): status pills, an
- * optional audio test, launch progress, and audio-trouble recovery.
- */
-/* The Start window: a small dialog with checks, an optional audio test and the Start button. */
-.sd { --out: cubic-bezier(0.16, 1, 0.3, 1); display: grid; gap: 18px; }
-.sd-h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; font-size: 14px; }
-.sd-h small { color: var(--ink-3); font-size: 12px; font-weight: 500; }
-.sd-status { flex: 1; min-width: 0; color: var(--ink-2); font-size: 13px; }
-.lp-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.lp-pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px 0 10px; border: 1px solid var(--green-line); border-radius: var(--r-pill); background: var(--green-wash); color: var(--green-ink); font-size: 12.5px; font-weight: 600; text-decoration: none; }
-.lp-pill[data-status="todo"] { border-color: var(--amber-line); background: var(--amber-wash); color: var(--amber-ink); }
-.lp-pill[data-status="info"] { border-color: var(--line-strong); background: var(--sunken); color: var(--ink-2); }
-a.lp-pill:hover { filter: brightness(0.97); }
-.lp-fix { padding: 5px 11px; border: 1px solid var(--amber-line); border-radius: 8px; background: var(--surface); color: var(--amber); font-size: 12.5px; font-weight: 650; text-decoration: none; }
-.lp-fix:hover { background: var(--amber-wash); }
+/* ---------- Start session: a small side panel of checks that run by themselves ---------- */
+.pf { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: var(--r-l); background: var(--surface); }
+.pf-row { display: flex; align-items: center; gap: var(--s3); min-height: 56px; padding: 10px 14px; }
+.pf-row + .pf-row { border-top: 1px solid var(--border); }
+.pf-row__icon { display: grid; flex: none; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-muted); color: var(--text-3); transition: background-color var(--base) var(--ease-std), color var(--base) var(--ease-std); }
+.pf-row[data-tone="ok"] .pf-row__icon { background: var(--green-wash); color: var(--success-ink); }
+.pf-row[data-tone="info"] .pf-row__icon { color: var(--text-2); }
+.pf-row[data-tone="warn"] .pf-row__icon { background: var(--amber-wash); color: var(--warning-ink); }
+.pf-row[data-tone="bad"] .pf-row__icon { background: var(--red-wash); color: var(--danger-ink); }
+.pf-row__text { display: grid; flex: 1; gap: 1px; min-width: 0; }
+.pf-row__text b { font-weight: 560; }
+.pf-row__text small { color: var(--text-2); font-size: 12.5px; overflow-wrap: anywhere; }
+.pf-row[data-tone="waiting"] .pf-row__text { opacity: 0.55; }
+.pf-row[data-tone="bad"] .pf-row__text small { color: var(--danger-ink); }
+.pf-row__action { flex: none; }
+.pf-fix { color: var(--accent-ink); font-size: 13px; font-weight: 560; text-decoration: none; }
+.pf-fix:hover { text-decoration: underline; }
+.pf-wait { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.pf-spin { display: inline-block; flex: none; width: 13px; height: 13px; border: 1.6px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: pf-spin 0.8s linear infinite; }
+@keyframes pf-spin { to { transform: rotate(360deg); } }
+.pf-status { display: inline-flex; flex: 1; align-items: center; gap: 8px; min-width: 0; color: var(--text-2); font-size: 13px; }
+.pf-bad { color: var(--danger-ink); }
+.pf-note { margin-top: var(--s3); color: var(--text-3); font-size: 12.5px; }
+.pf-trouble { display: grid; gap: 4px; margin-bottom: var(--s3); }
+.pf-trouble p { color: var(--text-2); font-size: 13px; }
 
-.ac { display: grid; margin: 0; padding: 0; list-style: none; }
-.ac-row { display: grid; grid-template-columns: 24px 88px minmax(40px, 1fr) minmax(0, auto) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
-.ac-row:last-child { border-bottom: 0; }
-.ac-row__icon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--sunken); color: var(--ink-2); transition: background var(--t-med), color var(--t-med); }
-.ac-row[data-phase="heard"] .ac-row__icon { background: var(--green); color: #fff; animation: lp-pop 420ms var(--out); }
-.ac-row[data-phase="failed"] .ac-row__icon, .ac-row[data-phase="quiet"] .ac-row__icon { background: var(--amber); color: #fff; }
-.ac-row[data-phase="testing"] .ac-row__icon { background: var(--wash); color: var(--blue); }
-.ac-row__status { max-width: 200px; overflow: hidden; color: var(--ink-2); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
-.ac-row[data-phase="failed"] .ac-row__status, .ac-row[data-phase="quiet"] .ac-row__status { color: var(--amber-ink); }
-.ac-row[data-phase="heard"] .ac-row__status { color: var(--green-ink); }
-.ac-meter { height: 4px; overflow: hidden; border-radius: 2px; background: var(--sunken); }
-.ac-meter i { display: block; height: 100%; border-radius: 2px; background: var(--green); transform-origin: left; transition: transform 90ms linear; }
-.ac-test { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 13px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); font-size: 12.5px; font-weight: 620; transition: background var(--t-fast), transform var(--t-fast) var(--out); }
-.ac-test:hover:not(:disabled) { background: var(--wash); border-color: var(--wash-2); }
-.ac-test:active:not(:disabled) { transform: scale(0.96); }
-.ac-test:disabled { opacity: 0.55; }
-.ac-link { border: 0; background: none; color: var(--blue); font-size: 12.5px; font-weight: 620; }
-.ac-link:hover { text-decoration: underline; }
-.ac-spin { width: 12px; height: 12px; border: 2px solid var(--blue); border-right-color: transparent; border-radius: 50%; animation: lp-spin 700ms linear infinite; }
-@keyframes lp-spin { to { transform: rotate(360deg); } }
-@keyframes lp-pop { from { transform: scale(0.6); } }
+/* Five-bar level meter */
+.bars { display: inline-flex; flex: none; align-items: flex-end; gap: 2px; height: 14px; }
+.bars i { width: 3px; border-radius: 1px; background: var(--border-strong); transition: background-color var(--fast) var(--ease-std); }
+.bars i:nth-child(1) { height: 5px; }
+.bars i:nth-child(2) { height: 7px; }
+.bars i:nth-child(3) { height: 9px; }
+.bars i:nth-child(4) { height: 11px; }
+.bars i:nth-child(5) { height: 14px; }
+.bars i[data-on] { background: var(--success); }
+.bars:not([data-active]) { opacity: 0.5; }
 
-.lp-trouble { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--amber-line); border-radius: 14px; background: var(--amber-wash); color: var(--amber-ink); }
-.lp-trouble h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; }
-.lp-trouble ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.lp-trouble li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.lp-trouble li p { font-size: 13px; }
+.pf-fade { animation: pf-fade var(--base) var(--ease-out) both; }
+@keyframes pf-fade { from { opacity: 0; } }
 
-.lp-warn { color: var(--amber); }
-.lp-bad { display: inline-flex; gap: 6px; align-items: flex-start; color: var(--red); }
-
-.lp-steps { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; }
-.lp-steps li { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-3); font-weight: 560; transition: color var(--t-med); }
-.lp-steps li > span { display: grid; place-items: center; width: 18px; height: 18px; border: 2px solid var(--line-strong); border-radius: 50%; transition: background var(--t-med), border-color var(--t-med); }
-.lp-steps li[data-state="now"] { color: var(--ink); }
-.lp-steps li[data-state="now"] > span { border-color: var(--blue); }
-.lp-steps li[data-state="now"] i { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); animation: lp-beat 1s ease-in-out infinite; }
-.lp-steps li[data-state="done"] { color: var(--green-ink); }
-.lp-steps li[data-state="done"] > span { border-color: var(--green); background: var(--green); color: #fff; animation: lp-pop 300ms var(--out); }
-@keyframes lp-beat { 50% { opacity: 0.35; transform: scale(0.7); } }
+@media (prefers-reduced-motion: reduce) { .pf-spin { animation-duration: 2.4s; } }

@@ -43,3 +43,12 @@ test("avatar tint and monogram are stable", async () => {
   assert.equal(monogram("Nimbus"), "N");
   assert.equal(monogram(""), "?");
 });
+
+test("a file's name decides resume or document", async () => {
+  const { guessDocType } = await import("./text.ts");
+  assert.equal(guessDocType("/Users/me/Jane_Resume_2026.pdf"), "resume");
+  assert.equal(guessDocType("jane-cv.docx"), "resume");
+  assert.equal(guessDocType("Résumé.pdf"), "resume");
+  assert.equal(guessDocType("architecture-notes.pdf"), "other");
+  assert.equal(guessDocType("cvs-pharmacy-offer.pdf"), "other");
+});

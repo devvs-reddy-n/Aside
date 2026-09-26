@@ -92,7 +92,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
   return (
     <TG.Root type="single" className={`seg seg--${size}`} value={value} aria-label={label} onValueChange={(next) => { if (next) onChange(next as T); }}>
       {options.map((option) => (
-        <TG.Item key={option.value} value={option.value} className="seg__item" title={option.title}>
+        <TG.Item key={option.value} value={option.value} className="seg__item" title={option.title} aria-label={typeof option.label === "string" ? undefined : option.title}>
           {value === option.value ? <motion.span layoutId={`seg-${id}`} className="seg__thumb" transition={SPRING} /> : null}
           <span className="seg__label">{option.label}</span>
         </TG.Item>

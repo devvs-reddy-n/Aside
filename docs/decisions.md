@@ -243,3 +243,15 @@ This is the compact record of decisions that still affect the product. Supersede
 - `status.md` is the compact feature ledger.
 - This file records active architectural and product decisions.
 - `docs/evidence.md` records checks that actually ran, not planned checks.
+
+## Redesign Phase 4 decisions (2026-09-26)
+
+- **Autosave counts only real edits.** The page reloads a copilot's attached files after every save. Without a check, that reload would trigger another save every 600 ms, forever. `useAutosave` now ignores values that arrive while it is off, the moment it turns on, and any value identical to the previous one.
+- **A new copilot keeps its identity on screen.** Its first save changes the address from `new` to its id. The page keeps the same component key, so it doesn't blink or lose typing focus.
+- **Blank company name:** a new copilot waits quietly until it has one. An existing copilot says "Add a company name first" and doesn't save.
+- **Files added under Library → All:** the file name decides the type ("resume", "cv" or "curriculum" means a resume; anything else is a document). The Resumes and Documents filters decide for themselves.
+- **Silent system audio before a call is "info", not a warning.** Nothing is usually playing yet. A failed start is a real problem and shows "Allow system audio recording".
+- **Start waits for any running audio test to let go of the device.** Otherwise the test's "stop" could switch off the call's audio.
+- **Key storage wording corrected before it shipped.** Keys are kept in Aside's own settings on this Mac, not the macOS keychain (per `storage/settings.rs`). The Settings hint says "Kept on this Mac".
+- **Reference check:** the reference app's history is a search plus rows with a status badge, and it has no file library. The plan already goes further, so nothing was adopted.
+

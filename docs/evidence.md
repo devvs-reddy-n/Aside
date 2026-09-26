@@ -86,6 +86,17 @@ The build can emit existing unused-code warnings. The bundle script also strips 
 
 - `npm test` 43 passed; TypeScript, `npm run build` (no CSS warnings) clean; detector clean. Headless Chrome screenshots at 1180×780 light and 1000×700 dark; scripted checks of fit (677/677), text editor, file chooser, new form. Real app not run.
 
+## Redesign Phase 4: screens (2026-09-26)
+
+- **Automated checks:** `npx tsc --noEmit` clean. `npm test` 56 passed, 0 failed (new tests: guess resume from file name, History day groups and short-call rule). `npm run build` clean except the known bundle-size note, with no CSS warnings. `cargo build` clean (no Rust changes). Impeccable detector on `src/home src/kit`: one warning, the sidebar's width animation, kept on purpose.
+- **Demo, scripted in the browser pane:**
+  - Editing a copilot's role went pending → saving → saved, and the sidebar showed the new role.
+  - A new copilot saved once it had a company, the address moved from `new` to its id, and the same page element stayed on screen.
+  - Start panel: speech, AI and resume turned ok in turn, then the microphone listened, then system audio. "Checking…" cleared and Start was enabled.
+- **Headless Chrome screenshots, 1100×700, light and dark:** Copilot page (also the full height and a new copilot), Library, History, Settings (full height), Start panel (mid-check and finished), Answer rules panel, file preview, saved-call window.
+- **Real bug caught and fixed:** after the first save, a new copilot didn't move to its own address. React's development double-run had cleared a "still on screen" flag.
+- **Not run:** the real app window, real audio checks, the System Settings round-trip, and dropping files onto the window.
+
 ## Historical evidence retained as outcomes
 
 - Local SQLite replaced flat or transient-only session storage.

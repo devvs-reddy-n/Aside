@@ -1,74 +1,104 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import * as api from "../../bridge/api";
-import { isTauriRuntime } from "../../bridge/runtime";
 import type { DocType, StoredDocument } from "../../bridge/types";
-import { formatBytes, formatRelative, plural } from "../../core/format";
+import { formatBytes, formatDate, plural } from "../../core/format";
 import { useStore } from "../../core/store";
+import { displayFileName, fileKind, guessDocType } from "../../core/text";
 import { Callout, EmptyState } from "../../kit/Bits";
-import { Button } from "../../kit/Button";
+import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
-import { Field, TextArea, TextInput } from "../../kit/Form";
+import { Field, Segmented, TextInput } from "../../kit/Form";
 import { Icon } from "../../kit/Icon";
+import { Menu } from "../../kit/Menu";
+import { FAST } from "../../kit/motion";
+import { TextEditor } from "../../kit/TextEditor";
 import { toast } from "../../kit/toast";
 import { deleteWithUndo } from "../../kit/undo";
-import { ingestPaths, libraryStore, loadLibrary, pasteDocument, pickDocumentFiles, setHidden } from "../data";
+import { onMessage } from "../bus";
+import { copilotsStore, ingestPaths, libraryStore, loadLibrary, pasteDocument, pickDocumentFiles, setHidden } from "../data";
+import { useFileDrop } from "../fileDrop";
+import { navigate } from "../router";
 import { DocumentViewer } from "./DocumentViewer";
 
-const COPY: Record<"resume" | "other", { title: string; noun: string; empty: string; hint: string; pasteName: string }> = {
-  resume: {
-    title: "Resumes",
-    noun: "resume",
-    empty: "No resumes yet",
-    hint: "Used to write your answers.",
-    pasteName: "Resume",
-  },
-  other: {
-    title: "Documents",
-    noun: "document",
-    empty: "No documents yet",
-    hint: "Notes and extra background.",
-    pasteName: "Notes",
-  },
-};
+type Filter = "all" | "resumes" | "documents";
+type View = "list" | "grid";
+const VIEW_KEY = "aside-library-view";
 
-/** Lets people drop PDF or Word files onto the window. Only exists in the real app. */
-function useFileDrop(onFiles: (paths: string[]) => void): boolean {
-  const [over, setOver] = useState(false);
-  const latest = useRef(onFiles);
-  latest.current = onFiles;
-  useEffect(() => {
-    if (!isTauriRuntime()) return;
-    let stop: (() => void) | null = null;
-    let cancelled = false;
-    void getCurrentWebview()
-      .onDragDropEvent((event) => {
-        const payload = event.payload;
-        if (payload.type === "enter" || payload.type === "over") setOver(true);
-        else if (payload.type === "leave") setOver(false);
-        else if (payload.type === "drop") {
-          setOver(false);
-          latest.current(payload.paths);
-        }
-      })
-      .then((fn) => {
-        if (cancelled) fn();
-        else stop = fn;
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-      stop?.();
-    };
-  }, []);
-  return over;
+function readView(): View {
+  try {
+    return window.localStorage.getItem(VIEW_KEY) === "grid" ? "grid" : "list";
+  } catch {
+    return "list";
+  }
 }
 
-export function LibraryPage({ filter }: { filter: string | null }) {
-  const kind: "resume" | "other" = filter === "documents" ? "other" : "resume";
+/** How many copilots use each file (worked out from every copilot's attached files). */
+function useUsage(): Map<string, number> {
+  const copilots = useStore(copilotsStore, (state) => state.items);
+  const [usage, setUsage] = useState<Map<string, number>>(new Map());
+  const stamp = copilots.map((c) => `${c.id}:${c.updated_at_ms}`).join(",");
+  useEffect(() => {
+    let alive = true;
+    void Promise.all(copilots.map((copilot) => api.copilots.sources(copilot.id))).then((results) => {
+      if (!alive) return;
+      const counts = new Map<string, number>();
+      for (const result of results) {
+        if (!result.ok) continue;
+        for (const doc of result.value) counts.set(doc.id, (counts.get(doc.id) ?? 0) + 1);
+      }
+      setUsage(counts);
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stamp]);
+  return usage;
+}
+
+function meta(doc: StoredDocument): string {
+  return [doc.doc_type === "resume" ? "Resume" : "Document", fileKind(doc.file_name, doc.mime_type), formatBytes(doc.byte_size), formatDate(doc.created_at_ms)].filter(Boolean).join(" · ");
+}
+
+function FileItem({ doc, uses, view, onOpen, onDelete }: { doc: StoredDocument; uses: number; view: View; onOpen: () => void; onDelete: () => void }) {
+  return (
+    <motion.li
+      layout="position"
+      className="lib-item"
+      data-view={view}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, height: 0, marginTop: 0 }}
+      transition={{ duration: FAST }}
+    >
+      <button type="button" className="lib-item__main" onClick={onOpen}>
+        <span className="lib-item__icon" data-kind={doc.doc_type} aria-hidden="true"><Icon name={doc.doc_type === "resume" ? "doc" : "note"} size={18} /></span>
+        <span className="lib-item__text">
+          <b title={doc.file_name}>{displayFileName(doc.file_name)}</b>
+          <small>{meta(doc)}</small>
+          <small className="lib-item__uses">{uses > 0 ? `Used by ${plural(uses, "copilot")}` : "Not used yet"}</small>
+        </span>
+      </button>
+      <div className="lib-item__menu">
+        <Menu
+          trigger={<IconButton icon="more" label={`More for ${displayFileName(doc.file_name)}`} size="sm" />}
+          items={[
+            { label: "Open", icon: "eye", onSelect: onOpen },
+            "separator",
+            { label: "Delete", icon: "trash", danger: true, onSelect: onDelete },
+          ]}
+        />
+      </div>
+    </motion.li>
+  );
+}
+
+export function LibraryPage({ filter: param }: { filter: string | null }) {
+  const filter: Filter = param === "resumes" || param === "documents" ? param : "all";
   const { docs, loaded, error, hiddenIds } = useStore(libraryStore, (state) => state);
-  const copy = COPY[kind];
-  const docType: DocType = kind;
+  const usage = useUsage();
+  const [view, setView] = useState<View>(readView);
   const [query, setQuery] = useState("");
   const [viewing, setViewing] = useState<StoredDocument | null>(null);
   const [pasting, setPasting] = useState(false);
@@ -78,26 +108,42 @@ export function LibraryPage({ filter }: { filter: string | null }) {
     void loadLibrary();
   }, []);
 
+  const visible = useMemo(() => docs.filter((doc) => !hiddenIds.includes(doc.id)), [docs, hiddenIds]);
+  const counts = { all: visible.length, resumes: visible.filter((d) => d.doc_type === "resume").length, documents: visible.filter((d) => d.doc_type !== "resume").length };
   const shown = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return docs.filter((doc) => doc.doc_type === kind && !hiddenIds.includes(doc.id) && (!term || doc.file_name.toLowerCase().includes(term)));
-  }, [docs, kind, hiddenIds, query]);
-  const total = docs.filter((doc) => doc.doc_type === kind && !hiddenIds.includes(doc.id)).length;
+    return visible
+      .filter((doc) => filter === "all" || (filter === "resumes") === (doc.doc_type === "resume"))
+      .filter((doc) => !term || doc.file_name.toLowerCase().includes(term))
+      .sort((a, b) => b.created_at_ms - a.created_at_ms);
+  }, [visible, filter, query]);
 
+  /** The chosen filter says what new files are; under All, each file's name decides. */
   async function addPaths(paths: string[]) {
     if (paths.length === 0) return;
     setBusy(true);
-    const report = await ingestPaths(paths, docType);
+    const groups = new Map<DocType, string[]>();
+    for (const path of paths) {
+      const type: DocType = filter === "resumes" ? "resume" : filter === "documents" ? "other" : guessDocType(path);
+      groups.set(type, [...(groups.get(type) ?? []), path]);
+    }
+    let added = 0;
+    for (const [type, group] of groups) {
+      const report = await ingestPaths(group, type);
+      added += report.added.length;
+      for (const failure of report.failed) toast(failure.error, { tone: "bad" });
+    }
     setBusy(false);
-    if (report.added.length > 0) toast(`Added ${plural(report.added.length, copy.noun)}.`, { tone: "ok" });
-    for (const failure of report.failed) toast(failure.error, { tone: "bad" });
+    if (added > 0) toast(`Added ${plural(added, "file")}`, { tone: "ok" });
   }
 
+  const pick = () => void pickDocumentFiles().then(addPaths);
   const over = useFileDrop((paths) => void addPaths(paths));
+  useEffect(() => onMessage("add-files", pick));
 
   function remove(doc: StoredDocument) {
     deleteWithUndo({
-      label: `“${doc.file_name}”`,
+      label: `“${displayFileName(doc.file_name)}”`,
       hide: () => setHidden(libraryStore, doc.id, true),
       restore: () => setHidden(libraryStore, doc.id, false),
       commit: async () => {
@@ -112,66 +158,94 @@ export function LibraryPage({ filter }: { filter: string | null }) {
     });
   }
 
+  function setLayout(next: View) {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Not remembered; still applied for now.
+    }
+  }
+
   return (
-    <div className="hm-page">
-      <header className="hm-page__head">
-        <div>
-          <h1>{copy.title}</h1>
-          <p className="hm-muted">{copy.hint}</p>
-        </div>
-        <div className="hm-page__actions">
+    <div className="hm-page lib">
+      <header className="pg-head">
+        <h1>Library <span className="pg-count tabular">{counts.all}</span></h1>
+        <div className="pg-head__actions">
           <Button variant="secondary" icon="note" onClick={() => setPasting(true)}>Paste text</Button>
-          <Button variant="primary" icon="upload" busy={busy} onClick={() => void pickDocumentFiles().then(addPaths)}>Add file</Button>
+          <Button variant="primary" icon="upload" busy={busy} onClick={pick}>Add files</Button>
         </div>
       </header>
 
       {error ? <Callout tone="bad" title="Couldn't load your library">{error}</Callout> : null}
 
-      {total > 0 ? (
-        <label className="hm-search hm-search--wide">
-          <Icon name="search" size={16} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" aria-label={`Find a ${copy.noun}`} />
-          <span className="hm-search__count">{plural(total, copy.noun)}</span>
-        </label>
-      ) : null}
+      <div className="lib-tools">
+        <Segmented<Filter>
+          label="Show"
+          size="sm"
+          value={filter}
+          onChange={(next) => navigate("library", next === "all" ? undefined : next)}
+          options={[
+            { value: "all", label: <>All <span className="seg__count">{counts.all}</span></> },
+            { value: "resumes", label: <>Resumes <span className="seg__count">{counts.resumes}</span></> },
+            { value: "documents", label: <>Documents <span className="seg__count">{counts.documents}</span></> },
+          ]}
+        />
+        {counts.all > 6 ? (
+          <label className="hm-search lib-search">
+            <Icon name="search" size={15} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" aria-label="Search files" />
+          </label>
+        ) : <span className="grow" />}
+        <Segmented<View>
+          label="Layout"
+          size="sm"
+          value={view}
+          onChange={setLayout}
+          options={[
+            { value: "list", label: <Icon name="list" size={15} />, title: "List" },
+            { value: "grid", label: <Icon name="grid" size={15} />, title: "Grid" },
+          ]}
+        />
+      </div>
 
-      {loaded && total === 0 ? (
-        <EmptyState icon={kind === "resume" ? "doc" : "note"} title={copy.empty} action={<Button variant="primary" icon="upload" onClick={() => void pickDocumentFiles().then(addPaths)}>Add a file</Button>}>
-          PDF or Word. Drop files here or paste text.
+      {loaded && counts.all === 0 ? (
+        <EmptyState
+          icon="library"
+          title="Your files live here"
+          action={<div className="empty__actions"><Button variant="primary" icon="upload" onClick={pick}>Add files</Button><Button variant="secondary" icon="note" onClick={() => setPasting(true)}>Paste text</Button></div>}
+        >
+          Resumes and notes your copilots can draw on. PDF or Word, or drop them anywhere on this page.
         </EmptyState>
       ) : (
-        <ul className="hm-files">
-          {shown.map((doc) => (
-            <li key={doc.id} className="hm-file">
-              <button type="button" className="hm-file__main" onClick={() => setViewing(doc)}>
-                <span className="hm-file__icon"><Icon name="doc" size={18} /></span>
-                <span className="hm-file__text">
-                  <b>{doc.file_name}</b>
-                  <small>
-                    {[doc.mime_type?.includes("pdf") ? "PDF" : doc.mime_type?.includes("word") ? "Word" : "Text", formatBytes(doc.byte_size), `Added ${formatRelative(doc.created_at_ms)}`].filter(Boolean).join(" · ")}
-                  </small>
-                </span>
-              </button>
-              <Button size="sm" variant="ghost" icon="eye" onClick={() => setViewing(doc)}>View</Button>
-              <button type="button" className="icon-btn icon-btn--sm icon-btn--danger" aria-label={`Delete ${doc.file_name}`} title="Delete" onClick={() => remove(doc)}>
-                <Icon name="trash" size={16} />
-              </button>
-            </li>
-          ))}
-          {loaded && shown.length === 0 && total > 0 ? <li className="hm-muted hm-pad">Nothing matches “{query}”.</li> : null}
+        <ul className="lib-list" data-view={view}>
+          <AnimatePresence initial={false}>
+            {shown.map((doc) => (
+              <FileItem key={doc.id} doc={doc} uses={usage.get(doc.id) ?? 0} view={view} onOpen={() => setViewing(doc)} onDelete={() => remove(doc)} />
+            ))}
+          </AnimatePresence>
+          {loaded && shown.length === 0 ? (
+            <li className="lib-none">{query ? <>Nothing matches “{query}”.</> : filter === "resumes" ? "No resumes yet." : "No documents yet."}</li>
+          ) : null}
         </ul>
       )}
 
-      {over ? <div className="hm-drop" aria-hidden="true"><Icon name="upload" size={26} />Drop PDF or Word files to add them</div> : null}
+      <AnimatePresence>
+        {over ? (
+          <motion.div className="hm-drop" aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
+            <Icon name="upload" size={24} />
+            Drop to add {filter === "resumes" ? "resumes" : filter === "documents" ? "documents" : "files"}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       {viewing ? <DocumentViewer doc={viewing} onClose={() => setViewing(null)} /> : null}
       {pasting ? (
         <PasteDialog
-          docType={docType}
-          defaultName={copy.pasteName}
+          initialType={filter === "resumes" ? "resume" : "other"}
           onClose={() => setPasting(false)}
           onSaved={() => {
             setPasting(false);
-            toast("Saved.", { tone: "ok" });
+            toast("Saved to Library", { tone: "ok" });
           }}
         />
       ) : null}
@@ -179,16 +253,18 @@ export function LibraryPage({ filter }: { filter: string | null }) {
   );
 }
 
-function PasteDialog({ docType, defaultName, onClose, onSaved }: { docType: DocType; defaultName: string; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(defaultName);
+function PasteDialog({ initialType, onClose, onSaved }: { initialType: DocType; onClose: () => void; onSaved: () => void }) {
+  const [docType, setDocType] = useState<DocType>(initialType);
+  const [name, setName] = useState("");
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fallback = docType === "resume" ? "Resume" : "Notes";
 
   async function save() {
     setSaving(true);
     setError(null);
-    const result = await pasteDocument(docType, name.trim() || defaultName, text);
+    const result = await pasteDocument(docType, name.trim() || fallback, text);
     setSaving(false);
     if (result.ok) onSaved();
     else setError(result.error);
@@ -198,6 +274,7 @@ function PasteDialog({ docType, defaultName, onClose, onSaved }: { docType: DocT
     <Dialog
       open
       onClose={onClose}
+      size="lg"
       title="Paste text"
       footer={
         <>
@@ -206,9 +283,12 @@ function PasteDialog({ docType, defaultName, onClose, onSaved }: { docType: DocT
         </>
       }
     >
-      <div className="hm-form">
-        <Field label="Name">{(id) => <TextInput id={id} value={name} onChange={(event) => setName(event.target.value)} />}</Field>
-        <Field label="Text">{(id) => <TextArea id={id} rows={10} value={text} onChange={(event) => setText(event.target.value)} placeholder="Paste here" data-autofocus />}</Field>
+      <div className="paste">
+        <div className="paste__row">
+          <Field label="Name">{(id) => <TextInput id={id} value={name} placeholder={fallback} onChange={(event) => setName(event.target.value)} />}</Field>
+          <Segmented<DocType> label="Type" value={docType} onChange={setDocType} options={[{ value: "resume", label: "Resume" }, { value: "other", label: "Document" }]} />
+        </div>
+        <TextEditor value={text} placeholder="Paste here" aria-label="Text" autoFocus onChange={(event) => setText(event.target.value)} />
         {error ? <Callout tone="bad">{error}</Callout> : null}
       </div>
     </Dialog>

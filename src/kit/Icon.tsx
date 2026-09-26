@@ -2,7 +2,7 @@ import type { SVGProps } from "react";
 import {
   ArrowDown, ArrowRight, ArrowUp, AudioLines, Briefcase, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   CircleAlert, CircleCheck, Clock, Code, Command, Copy, CopyPlus, Download, Ellipsis, ExternalLink, Eye, FileText, Files,
-  History, Info, Keyboard, LibraryBig, Link, List, LoaderCircle, Maximize2, MessageSquare, Mic, Minus, Monitor, Moon,
+  History, Info, Keyboard, LayoutGrid, LibraryBig, Link, List, LoaderCircle, Maximize2, MessageSquare, Mic, Minus, Monitor, Moon,
   PanelLeft, Pause, Pencil, Play, Plus, RefreshCw, Search, Settings, Shield, Sparkles, Square, Sun, TriangleAlert, Trash2,
   Undo2, Upload, Users, Volume2, WifiOff, X, Zap, type LucideIcon,
 } from "lucide-react";
@@ -19,6 +19,7 @@ const ICONS = {
   note: Files,
   library: LibraryBig,
   list: List,
+  grid: LayoutGrid,
   clock: Clock,
   history: History,
   gear: Settings,
