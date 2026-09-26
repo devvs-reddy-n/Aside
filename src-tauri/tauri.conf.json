@@ -18,14 +18,20 @@
         "url": "index.html",
         "width": 1180,
         "height": 860,
-        "minWidth": 900,
-        "minHeight": 680,
+        "minWidth": 960,
+        "minHeight": 640,
         "maxWidth": 1600,
         "maxHeight": 1040,
         "visible": true,
-        "decorations": false,
+        "decorations": true,
         "contentProtected": true,
-        "skipTaskbar": true
+        "skipTaskbar": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 18,
+          "y": 24
+        }
       }
     ],
     "security": {
@@ -34,7 +40,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
+    "targets": [
+      "app"
+    ],
     "icon": [
       "icons/icon.icns"
     ]

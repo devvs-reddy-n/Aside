@@ -1,17 +1,24 @@
 import { useSyncExternalStore } from "react";
 
-export type PageId = "copilots" | "resumes" | "documents" | "history" | "settings";
+export type PageId = "copilots" | "library" | "history" | "settings";
 
 export interface Route {
   page: PageId;
-  /** A selected item (copilot id, session id) or a settings section. */
+  /** A selected item (copilot id or "new", session id), a settings section, or a library filter. */
   param: string | null;
 }
 
-const PAGES: PageId[] = ["copilots", "resumes", "documents", "history", "settings"];
+const PAGES: PageId[] = ["copilots", "library", "history", "settings"];
+
+/** Older links from when Resumes and Documents were two pages. */
+const MOVED: Record<string, Route> = {
+  resumes: { page: "library", param: "resumes" },
+  documents: { page: "library", param: "documents" },
+};
 
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  if (parts[0] && MOVED[parts[0]]) return MOVED[parts[0]];
   const page = PAGES.find((candidate) => candidate === parts[0]) ?? "copilots";
   return { page, param: parts[1] ? decodeURIComponent(parts[1]) : null };
 }

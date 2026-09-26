@@ -71,3 +71,17 @@ export function isWebUrl(value: string): boolean {
     return false;
   }
 }
+
+/** A stable hue (0–359) for a name, so each company keeps its own avatar colour. */
+export function tintHue(name: string): number {
+  let hash = 0;
+  for (const ch of name.trim().toLowerCase()) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return hash % 360;
+}
+
+/** "OneMain Financial" → "OF", "Nimbus" → "N". */
+export function monogram(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  return (words[0][0] + (words[1]?.[0] ?? "")).toUpperCase();
+}

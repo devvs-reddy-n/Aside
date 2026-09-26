@@ -1,64 +1,210 @@
+import { LayoutGroup, motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import type { CopilotSummary } from "../bridge/types";
+import { formatRelative } from "../core/format";
 import { useStore } from "../core/store";
+import { monogram, tintHue } from "../core/text";
+import { IconButton } from "../kit/Button";
 import { Icon, type IconName } from "../kit/Icon";
-import { StatusDot } from "../kit/Bits";
-import { systemStore } from "./data";
-import { engineName, modelLabel } from "./labels";
-import { aiProblem, speechProblem } from "./readiness";
-import { hrefFor, useRoute, type PageId } from "./router";
+import { SPRING } from "../kit/motion";
+import { Tip } from "../kit/Tooltip";
+import { copilotsStore, loadCopilots } from "./data";
+import { hrefFor, navigate, useRoute, type PageId } from "./router";
+import { StatusPill } from "./StatusPill";
 
-const ITEMS: Array<{ page: PageId; label: string; icon: IconName }> = [
-  { page: "copilots", label: "Copilots", icon: "spark" },
-  { page: "resumes", label: "Resumes", icon: "doc" },
-  { page: "documents", label: "Documents", icon: "note" },
-  { page: "history", label: "History", icon: "clock" },
+const KEY = "aside-sidebar-v1";
+const MIN = 220;
+const MAX = 300;
+const DEFAULT = 240;
+
+const PLACES: Array<{ page: PageId; label: string; icon: IconName }> = [
+  { page: "library", label: "Library", icon: "library" },
+  { page: "history", label: "History", icon: "history" },
+  { page: "settings", label: "Settings", icon: "gear" },
 ];
+
+function readLayout(): { width: number; collapsed: boolean } {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(KEY) ?? "null") as { width?: number; collapsed?: boolean } | null;
+    return { width: Math.min(MAX, Math.max(MIN, raw?.width ?? DEFAULT)), collapsed: raw?.collapsed === true };
+  } catch {
+    return { width: DEFAULT, collapsed: false };
+  }
+}
+
+function saveLayout(layout: { width: number; collapsed: boolean }) {
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(layout));
+  } catch {
+    // Not remembered; still applied for now.
+  }
+}
+
+/** A small rounded square with the company's initials, tinted by its name. */
+export function Monogram({ name, size = 24 }: { name: string; size?: number }) {
+  return (
+    <span className="mono" style={{ "--h": tintHue(name), width: size, height: size, fontSize: size * 0.42 } as CSSProperties} aria-hidden="true">
+      {monogram(name)}
+    </span>
+  );
+}
+
+/** The selection highlight glides between sidebar rows. */
+function Highlight() {
+  return <motion.span layoutId="sb-selection" className="sb-item__bg" transition={SPRING} />;
+}
+
+function SidebarLink({ href, current, rail, tip, children }: { href: string; current: boolean; rail: boolean; tip: string; children: ReactNode }) {
+  const link = (
+    <a className="sb-item" href={href} aria-current={current ? "page" : undefined} aria-label={rail ? tip : undefined}>
+      {current ? <Highlight /> : null}
+      {children}
+    </a>
+  );
+  return rail ? <Tip label={tip} side="right">{link}</Tip> : link;
+}
+
+function CopilotRow({ copilot, current, rail }: { copilot: CopilotSummary; current: boolean; rail: boolean }) {
+  const title = copilot.company || copilot.name;
+  const tip = `${title}${copilot.target_role ? ` · ${copilot.target_role}` : ""}\nUpdated ${formatRelative(copilot.updated_at_ms).toLowerCase()}`;
+  const link = (
+    <a className="sb-item sb-item--copilot" href={hrefFor("copilots", copilot.id)} aria-current={current ? "page" : undefined} aria-label={rail ? title : undefined}>
+      {current ? <Highlight /> : null}
+      <Monogram name={title} />
+      {rail ? null : (
+        <span className="sb-item__text">
+          <b>{title}</b>
+          {copilot.target_role ? <small>{copilot.target_role}</small> : null}
+        </span>
+      )}
+    </a>
+  );
+  return <Tip label={tip} side="right">{link}</Tip>;
+}
 
 export function Sidebar() {
   const route = useRoute();
-  const system = useStore(systemStore, (state) => state);
-  const speech = speechProblem(system);
-  const ai = aiProblem(system);
+  const { items, hiddenIds } = useStore(copilotsStore, (state) => state);
+  const [layout, setLayout] = useState(readLayout);
+  const [query, setQuery] = useState("");
+  const dragging = useRef(false);
 
-  const rows: Array<{ label: string; tone: "ok" | "warn" | "off"; section: string }> = !system.loaded
-    ? [
-        { label: "Speech…", tone: "off", section: "speech" },
-        { label: "Model…", tone: "off", section: "ai" },
-        { label: "Privacy…", tone: "off", section: "privacy" },
-      ]
-    : [
-    { label: speech ? "Set up speech" : engineName(system.engine!), tone: speech ? "warn" : "ok", section: "speech" },
-    { label: ai ? "Set up AI model" : modelLabel(system.provider!, system.model!).replace(/^[^·]+· /, ""), tone: ai ? "warn" : "ok", section: "ai" },
-    { label: system.hidden === null ? "Sharing unknown" : system.hidden ? "Hidden from sharing" : "Visible to sharing", tone: system.hidden === null ? "off" : system.hidden ? "ok" : "warn", section: "privacy" },
-  ];
+  useEffect(() => {
+    void loadCopilots();
+  }, []);
+
+  // ⌘\ folds the sidebar to a rail of icons and back.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey && event.key === "\\") {
+        event.preventDefault();
+        setLayout((current) => {
+          const next = { ...current, collapsed: !current.collapsed };
+          saveLayout(next);
+          return next;
+        });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const copilots = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return items.filter((copilot) => !hiddenIds.includes(copilot.id) && (!term || `${copilot.company ?? ""} ${copilot.name} ${copilot.target_role ?? ""}`.toLowerCase().includes(term)));
+  }, [items, hiddenIds, query]);
+  const total = items.length - hiddenIds.length;
+  const selectedCopilot = route.page === "copilots" ? route.param ?? copilots[0]?.id ?? null : null;
+  const rail = layout.collapsed;
+
+  function startResize(event: React.PointerEvent) {
+    event.preventDefault();
+    dragging.current = true;
+    const startX = event.clientX;
+    const startWidth = layout.width;
+    const move = (e: PointerEvent) => {
+      if (!dragging.current) return;
+      setLayout((current) => ({ ...current, width: Math.min(MAX, Math.max(MIN, startWidth + e.clientX - startX)) }));
+    };
+    const up = () => {
+      dragging.current = false;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setLayout((current) => {
+        saveLayout(current);
+        return current;
+      });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
 
   return (
-    <nav className="hm-side" aria-label="Aside">
-      <ul className="hm-nav">
-        {ITEMS.map((item) => (
-          <li key={item.page}>
-            <a className="hm-nav__item" href={hrefFor(item.page)} aria-current={route.page === item.page ? "page" : undefined}>
-              <Icon name={item.icon} size={17} />
-              {item.label}
-            </a>
-          </li>
-        ))}
-        <li>
-          <a className="hm-nav__item" href={hrefFor("settings")} aria-current={route.page === "settings" ? "page" : undefined}>
-            <Icon name="gear" size={17} />
-            Settings
-          </a>
-        </li>
-      </ul>
-
-      <div className="hm-systems">
-        <p className="caption">Status</p>
-        {rows.map((row) => (
-          <a key={row.section} className="hm-systems__row" href={hrefFor("settings", row.section)}>
-            <StatusDot tone={row.tone} />
-            <span>{row.label}</span>
-          </a>
-        ))}
+    <nav className="sb" data-rail={rail || undefined} style={{ width: rail ? 64 : layout.width }} aria-label="Aside">
+      <div className="sb__top" data-tauri-drag-region>
+        <IconButton
+          icon="sidebar"
+          label={rail ? "Show sidebar" : "Hide sidebar"}
+          hint="⌘\"
+          size="sm"
+          onClick={() => setLayout((current) => {
+            const next = { ...current, collapsed: !current.collapsed };
+            saveLayout(next);
+            return next;
+          })}
+        />
       </div>
+
+      <LayoutGroup id="sidebar">
+        <div className="sb__group">
+          {rail ? null : (
+            <div className="sb__head">
+              <span>Copilots</span>
+              <IconButton icon="plus" label="New copilot" size="sm" onClick={() => navigate("copilots", "new")} />
+            </div>
+          )}
+          {!rail && total > 6 ? (
+            <label className="sb__search">
+              <Icon name="search" size={14} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter" aria-label="Filter copilots" />
+            </label>
+          ) : null}
+          <ul className="sb__list">
+            {copilots.map((copilot) => (
+              <li key={copilot.id}>
+                <CopilotRow copilot={copilot} current={selectedCopilot === copilot.id} rail={rail} />
+              </li>
+            ))}
+            {rail ? (
+              <li>
+                <Tip label="New copilot" side="right">
+                  <button type="button" className="sb-item" aria-label="New copilot" onClick={() => navigate("copilots", "new")}><Icon name="plus" size={16} /></button>
+                </Tip>
+              </li>
+            ) : null}
+            {!rail && total === 0 ? <li className="sb__empty">None yet</li> : null}
+          </ul>
+        </div>
+
+        <div className="sb__spacer" />
+
+        <ul className="sb__list sb__places">
+          {PLACES.map((place) => (
+            <li key={place.page}>
+              <SidebarLink href={hrefFor(place.page)} current={route.page === place.page} rail={rail} tip={place.label}>
+                <Icon name={place.icon} size={16} />
+                {rail ? null : <span className="sb-item__label">{place.label}</span>}
+              </SidebarLink>
+            </li>
+          ))}
+        </ul>
+      </LayoutGroup>
+
+      <div className="sb__foot">
+        <StatusPill compact={rail} />
+      </div>
+
+      {rail ? null : <div className="sb__resize" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" onPointerDown={startResize} />}
     </nav>
   );
 }

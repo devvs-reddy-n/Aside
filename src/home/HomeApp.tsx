@@ -1,11 +1,14 @@
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
 import { Callout } from "../kit/Bits";
 import { Button } from "../kit/Button";
+import { EASE_OUT, BASE } from "../kit/motion";
 import { ToastHost } from "../kit/toast";
 import { useStore } from "../core/store";
 import { isTauriRuntime, isDemoMode, NOT_TAURI_MESSAGE } from "../bridge/runtime";
 import { CallSaved, announceCallEnded } from "./CallSaved";
-import { Chrome } from "./Chrome";
+import { QuitGuard } from "./Chrome";
+import { CommandPalette } from "./CommandPalette";
 import { CopilotsPage } from "./pages/CopilotsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { LibraryPage } from "./pages/LibraryPage";
@@ -16,27 +19,42 @@ import { Sidebar } from "./Sidebar";
 import "./home.css";
 import "./launch.css";
 
-function ActiveCallBar() {
+/** The strip above the page: something to drag the window by, and the running-call shortcut. */
+function TopStrip() {
   const active = useStore(systemStore, (state) => state.active);
-  if (!active) return null;
   return (
-    <div className="hm-callbar" role="status">
-      <span className="hm-callbar__dot" aria-hidden="true" />
-      <span>A call is running{active.company ? ` with ${active.company}` : ""}.</span>
-      <Button size="sm" variant="primary" onClick={() => void returnToCall()}>Return to call</Button>
+    <div className="hm-top" data-tauri-drag-region>
+      {active ? (
+        <div className="hm-callpill" role="status">
+          <span className="live-dot" aria-hidden="true" />
+          <span>Call running{active.company ? ` · ${active.company}` : ""}</span>
+          <Button size="sm" variant="primary" onClick={() => void returnToCall()}>Return to call</Button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function Page() {
   const route = useRoute();
-  switch (route.page) {
-    case "resumes": return <LibraryPage kind="resume" />;
-    case "documents": return <LibraryPage kind="other" />;
-    case "history": return <HistoryPage selectedId={route.param} />;
-    case "settings": return <SettingsPage section={route.param} />;
-    default: return <CopilotsPage selectedId={route.param} />;
-  }
+  const key = route.page === "copilots" ? `copilots/${route.param ?? ""}` : route.page;
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={key}
+        className="hm-page-host"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: BASE, ease: EASE_OUT }}
+      >
+        {route.page === "library" ? <LibraryPage filter={route.param} />
+          : route.page === "history" ? <HistoryPage selectedId={route.param} />
+          : route.page === "settings" ? <SettingsPage section={route.param} />
+          : <CopilotsPage selectedId={route.param} />}
+      </motion.div>
+    </AnimatePresence>
+  );
 }
 
 /** Root of the workspace window (the normal Aside window). */
@@ -59,18 +77,17 @@ export function HomeApp() {
   const preview = !isTauriRuntime() && !isDemoMode();
   return (
     <div className="hm-root">
-      <Chrome />
-      <div className="hm-body">
-        <Sidebar />
-        <main className="hm-main">
-          {preview ? (
-            <div className="hm-previewnote"><Callout tone="warn" title="Plain web preview">{NOT_TAURI_MESSAGE}</Callout></div>
-          ) : null}
-          <ActiveCallBar />
-          <Page />
-        </main>
-      </div>
+      <Sidebar />
+      <main className="hm-main">
+        <TopStrip />
+        {preview ? (
+          <div className="hm-previewnote"><Callout tone="warn" title="Plain web preview">{NOT_TAURI_MESSAGE}</Callout></div>
+        ) : null}
+        <Page />
+      </main>
       <CallSaved />
+      <CommandPalette />
+      <QuitGuard />
       <ToastHost />
     </div>
   );

@@ -198,7 +198,7 @@ pub fn run() {
             if let Some(main) = app.get_webview_window("main") {
                 // A window taller than the usable screen looks "cut in the
                 // middle"; shrink and move it until all of it is visible.
-                window_fit::fit_window(&main, 900, 620);
+                window_fit::fit_window(&main, 960, 640);
                 let main_for_hide = main.clone();
                 main.on_window_event(move |event| {
                     // Also runs on the main thread's native event-dispatch

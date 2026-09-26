@@ -15,5 +15,10 @@ test("an unknown or empty hash falls back to Copilots", () => {
 
 test("links are built and encoded", () => {
   assert.equal(hrefFor("history", "a b"), "#/history/a%20b");
-  assert.equal(hrefFor("resumes"), "#/resumes");
+  assert.equal(hrefFor("library", "resumes"), "#/library/resumes");
+});
+
+test("old Resumes and Documents links open the Library with that filter", () => {
+  assert.deepEqual(parseHash("#/resumes"), { page: "library", param: "resumes" });
+  assert.deepEqual(parseHash("#/documents/xyz"), { page: "library", param: "documents" });
 });

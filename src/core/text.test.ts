@@ -34,3 +34,12 @@ test("only real web links count as importable", () => {
   assert.equal(isWebUrl("ftp://x.com"), false);
   assert.equal(isWebUrl("https://localhost"), false);
 });
+
+test("avatar tint and monogram are stable", async () => {
+  const { tintHue, monogram } = await import("./text.ts");
+  assert.equal(tintHue("Nimbus"), tintHue(" nimbus "));
+  assert.ok(tintHue("OneMain Financial") >= 0 && tintHue("OneMain Financial") < 360);
+  assert.equal(monogram("OneMain Financial"), "OF");
+  assert.equal(monogram("Nimbus"), "N");
+  assert.equal(monogram(""), "?");
+});

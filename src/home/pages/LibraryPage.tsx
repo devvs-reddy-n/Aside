@@ -64,7 +64,8 @@ function useFileDrop(onFiles: (paths: string[]) => void): boolean {
   return over;
 }
 
-export function LibraryPage({ kind }: { kind: "resume" | "other" }) {
+export function LibraryPage({ filter }: { filter: string | null }) {
+  const kind: "resume" | "other" = filter === "documents" ? "other" : "resume";
   const { docs, loaded, error, hiddenIds } = useStore(libraryStore, (state) => state);
   const copy = COPY[kind];
   const docType: DocType = kind;
