@@ -1,131 +1,154 @@
 /*
- * Aside design tokens. Colours come from the owner's reference screenshot
- * (calm warm-grey page, white surfaces, one clear blue); type is the Mac's
- * own system font. The theme code stamps data-theme="light" or "dark" on
- * <html>, so every colour below is defined for both.
+ * Aside design tokens. One accent (indigo-blue), cool neutrals, the Mac's own
+ * font. The theme code stamps data-theme="light" or "dark" on <html>.
+ *
+ * The second half of each block keeps the older token names alive as aliases,
+ * so every screen reads from this one palette.
  */
 :root {
   color-scheme: light;
 
-  /* surfaces */
-  --page: #efedec;
+  /* palette */
+  --bg: #f7f7f8;
   --surface: #ffffff;
-  --surface-2: #f7f6f5;
-  --sunken: #f2f4f3;
-  --feed: #faf9f8;
-  --hover: rgba(33, 36, 35, 0.06);
+  --surface-muted: #f1f1f3;
+  --border: rgba(0, 0, 0, 0.07);
+  --border-strong: rgba(0, 0, 0, 0.13);
+  --text: #0b0b0f;
+  --text-2: #55565e;
+  --text-3: #6e6f78;
+  --accent: #3d5afe;
+  --accent-hover: #2f4af0;
+  --on-accent: #ffffff;
+  --accent-ink: #2b44d9;
+  --accent-soft: rgba(61, 90, 254, 0.09);
+  --accent-soft-2: rgba(61, 90, 254, 0.18);
+  --success: #1f9d55;
+  --success-ink: #16753f;
+  --warning: #c27803;
+  --warning-ink: #8a5502;
+  --danger: #d93a3a;
+  --danger-ink: #b12b2b;
+  --hover: rgba(11, 11, 15, 0.045);
+  --press: rgba(11, 11, 15, 0.08);
 
-  /* text */
-  --ink: #212423;
-  --ink-2: #626765;
-  --ink-3: #8a8f8d;
-
-  /* lines */
-  --line: #e2dfdc;
-  --line-strong: #cfcbc7;
-
-  /* brand blue */
-  --blue: #0a66ff;
-  --blue-hover: #0857d9;
-  --on-blue: #ffffff;
-  --blue-ink: #0b4ab3;
-  --wash: #e6f0fe;
-  --wash-2: #d0e4f4;
-  --card: #f1f7fc;
-  --blue-soft: rgba(10, 102, 255, 0.14);
-
-  /* status */
-  --green: #1e9e6a;
-  --green-ink: #14724b;
-  --green-wash: #e6f6ee;
-  --green-line: #bfe3d2;
-  --amber: #a86a00;
-  --amber-ink: #5b3d00;
-  --amber-wash: #fff3d6;
-  --amber-line: #ecd08f;
-  --red: #c9302c;
-  --red-ink: #6b1b18;
-  --red-wash: #fbeceb;
-  --red-line: #f0c0bd;
-
-  /* code */
-  --code-bg: #ffffff;
-  --code-head: #f7f8f8;
-  --code-num: #a4a9ab;
-  --tok-key: #0a4fd1;
-  --tok-str: #1a7a4c;
-  --tok-com: #8a8f8d;
-  --tok-num: #b3540a;
-
-  /* shape and depth */
+  /* shape */
   --r-s: 8px;
-  --r-m: 14px;
+  --r-m: 12px;
+  --r-l: 16px;
   --r-pill: 999px;
-  --shadow-1: 0 1px 2px rgba(33, 36, 35, 0.08);
-  --shadow-2: 0 8px 24px rgba(33, 36, 35, 0.12);
-  --shadow-3: 0 18px 44px rgba(33, 36, 35, 0.22);
-  --focus-ring: 0 0 0 3px rgba(10, 102, 255, 0.3);
+
+  /* depth: soft shadow in light; border and lighter surface in dark */
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--border);
+  --e2: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
+  --e3: 0 24px 60px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--border);
 
   /* type */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
   --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
+  /* spacing (4-pt) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s14: 56px;
+
   /* motion */
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --t-fast: 120ms;
-  --t-med: 200ms;
-  --t-slow: 300ms;
+  --fast: 120ms;
+  --base: 180ms;
+  --slow: 260ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-std: cubic-bezier(0.2, 0, 0, 1);
+
+  /* code */
+  --code-bg: #ffffff;
+  --code-head: #f7f7f8;
+  --code-num: #9a9ba3;
+  --tok-key: #2b44d9;
+  --tok-str: #16753f;
+  --tok-com: #6e6f78;
+  --tok-num: #a2560a;
+
+  /* ---- aliases for older names ---- */
+  --page: var(--bg);
+  --surface-2: var(--surface-muted);
+  --sunken: var(--surface-muted);
+  --feed: var(--bg);
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --ink-3: var(--text-3);
+  --line: var(--border);
+  --line-strong: var(--border-strong);
+  --blue: var(--accent);
+  --blue-hover: var(--accent-hover);
+  --on-blue: var(--on-accent);
+  --blue-ink: var(--accent-ink);
+  --wash: var(--accent-soft);
+  --wash-2: var(--accent-soft-2);
+  --card: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  --blue-soft: rgba(61, 90, 254, 0.16);
+  --green: var(--success);
+  --green-ink: var(--success-ink);
+  --green-wash: rgba(31, 157, 85, 0.1);
+  --green-line: rgba(31, 157, 85, 0.28);
+  --amber: var(--warning);
+  --amber-ink: var(--warning-ink);
+  --amber-wash: rgba(194, 120, 3, 0.1);
+  --amber-line: rgba(194, 120, 3, 0.3);
+  --red: var(--danger);
+  --red-ink: var(--danger-ink);
+  --red-wash: rgba(217, 58, 58, 0.08);
+  --red-line: rgba(217, 58, 58, 0.28);
+  --shadow-1: var(--e1);
+  --shadow-2: var(--e2);
+  --shadow-3: var(--e3);
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px color-mix(in srgb, var(--accent) 40%, transparent);
+  --ease: var(--ease-out);
+  --t-fast: var(--fast);
+  --t-med: var(--base);
+  --t-slow: var(--slow);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #151817;
-  --surface: #1e2221;
-  --surface-2: #252a28;
-  --sunken: #1a1e1d;
-  --feed: #191d1c;
-  --hover: rgba(236, 235, 233, 0.08);
+  --bg: #0c0c0e;
+  --surface: #151518;
+  --surface-muted: #1c1c20;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #f2f2f4;
+  --text-2: #a3a4ad;
+  --text-3: #8a8b94;
+  --accent: #6e86ff;
+  --accent-hover: #8699ff;
+  --on-accent: #0b0b0f;
+  --accent-ink: #a7b5ff;
+  --accent-soft: rgba(110, 134, 255, 0.14);
+  --accent-soft-2: rgba(110, 134, 255, 0.26);
+  --success: #34c172;
+  --success-ink: #6fd89c;
+  --warning: #e0941f;
+  --warning-ink: #f0b95e;
+  --danger: #f05757;
+  --danger-ink: #ff8c8c;
+  --hover: rgba(255, 255, 255, 0.055);
+  --press: rgba(255, 255, 255, 0.09);
 
-  --ink: #ecebe9;
-  --ink-2: #a3a8a6;
-  --ink-3: #7d8381;
+  --e1: 0 0 0 1px var(--border);
+  --e2: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --e3: 0 0 0 1px var(--border-strong), 0 24px 60px rgba(0, 0, 0, 0.55);
 
-  --line: #343a38;
-  --line-strong: #454c49;
+  --code-bg: #111114;
+  --code-head: #18181c;
+  --code-num: #5f606a;
+  --tok-key: #a7b5ff;
+  --tok-str: #6fd89c;
+  --tok-com: #8a8b94;
+  --tok-num: #f0b95e;
 
-  --blue: #5b95ff;
-  --blue-hover: #7aa9ff;
-  --on-blue: #06152e;
-  --blue-ink: #9cbfff;
-  --wash: #1a2740;
-  --wash-2: #27406b;
-  --card: #1a2436;
-  --blue-soft: rgba(91, 149, 255, 0.2);
-
-  --green: #3cc48d;
-  --green-ink: #7fdcb5;
-  --green-wash: #163126;
-  --green-line: #245a45;
-  --amber: #e0a100;
-  --amber-ink: #f3d288;
-  --amber-wash: #3a2e10;
-  --amber-line: #6b5219;
-  --red: #ef6b66;
-  --red-ink: #f7b4b1;
-  --red-wash: #3a1b1a;
-  --red-line: #6e2e2b;
-
-  --code-bg: #161a19;
-  --code-head: #1c211f;
-  --code-num: #5f6664;
-  --tok-key: #7fb0ff;
-  --tok-str: #7fd6a8;
-  --tok-com: #7d8382;
-  --tok-num: #f2b56b;
-
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.6);
-  --focus-ring: 0 0 0 3px rgba(91, 149, 255, 0.4);
+  --blue-soft: rgba(110, 134, 255, 0.22);
+  --green-wash: rgba(52, 193, 114, 0.12);
+  --green-line: rgba(52, 193, 114, 0.3);
+  --amber-wash: rgba(224, 148, 31, 0.12);
+  --amber-line: rgba(224, 148, 31, 0.32);
+  --red-wash: rgba(240, 87, 87, 0.12);
+  --red-line: rgba(240, 87, 87, 0.32);
 }

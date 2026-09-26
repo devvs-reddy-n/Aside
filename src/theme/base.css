@@ -17,6 +17,7 @@ body {
   background: var(--page);
   color: var(--ink);
   font: 400 14px/1.5 var(--font);
+  letter-spacing: -0.003em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow: hidden;
@@ -64,22 +65,25 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.018em;
   text-wrap: balance;
-  font-weight: 650;
+  font-weight: 600;
 }
 
-:focus-visible {
+:focus {
   outline: none;
-  box-shadow: var(--focus-ring);
+}
+/* Keyboard focus only: a quiet accent outline set slightly off the element. */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline-offset: 2px;
 }
 
 kbd {
-  font: 600 10.5px/1 var(--mono);
+  font: 600 11px/1 var(--font);
   padding: 3px 5px;
   border-radius: 5px;
-  background: rgba(127, 127, 127, 0.22);
-  letter-spacing: 0.02em;
+  background: rgba(127, 127, 127, 0.2);
 }
 
 .icon {
@@ -103,16 +107,20 @@ kbd {
   border: 0;
 }
 
+/* Reduce Motion: no movement, only short fades. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 120ms !important;
+    transition-property: opacity, color, background-color, border-color !important;
     scroll-behavior: auto !important;
   }
 }
+
+.tabular { font-variant-numeric: tabular-nums; }
 
 /* Thin, quiet scrollbars. */
 * {
