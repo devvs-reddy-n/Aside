@@ -20,7 +20,14 @@
   - **History:** grouped Today / Yesterday / by date, with company, role, time and length on each row. Calls under 10 seconds are hidden behind a "Show" line. ⋯ menu on each row.
   - **Settings:** one column in this order: Speech, AI model, Answer rules, Appearance, Shortcuts, General. Warning badges appear only when something needs doing. Answer rules open in a side panel and save as you type.
   - **Start session:** a side panel that runs every check by itself, one after another: speech, AI, resume, then a few seconds of listening on the microphone and on system audio, with live meters. If system audio isn't allowed it offers "Open System Settings" and re-checks when you come back. Start passes the copilot's default answer length to the live window.
-- **Not done yet:** Phase 5 (live window) and Phase 6 (motion pass and removals).
+- **Phase 5 (live window):**
+  - Almost solid now (at least 94%).
+  - Header is one row: live dot, company, clock, ⋯, End.
+  - Second row: "You" and "Them" with meters, then Answers / Transcript tabs.
+  - Problems show as a one-line alert with a Fix button; hover for details.
+  - Answers are larger (15px) and the copy button appears on hover. ⌘[ ⌘] shows "2 of 5".
+  - Lengths read Short · Med · Long, and the copilot's default length is picked up at start.
+- **Not done yet:** Phase 6 (motion pass and removals).
 - **Differences from the spec:**
   - There's no "App default" model choice; a new copilot starts with the Settings model.
   - Shortcuts are shown, not rebindable.

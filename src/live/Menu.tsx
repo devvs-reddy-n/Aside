@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import * as api from "../bridge/api";
 import { Icon } from "../kit/Icon";
 import { useController, useLiveUi } from "./context";
+import { MIN_OPACITY } from "./controller";
 
 const SHORTCUTS: Array<[string, string]> = [
   ["⌘↩", "Answer"],
-  ["⌘K", "Answer from a screenshot"],
+  ["⌘K", "Screenshot answer"],
   ["⌘⇧A", "Ask a follow-up"],
   ["⌘[  ⌘]", "Previous / next answer"],
   ["⌘⇧H", "Hide from your screen"],
@@ -13,7 +14,6 @@ const SHORTCUTS: Array<[string, string]> = [
 
 const MIN_FONT = 12;
 const MAX_FONT = 20;
-const MIN_OPACITY = 55;
 const MAX_OPACITY = 100;
 
 function useWindowSize(): string {
@@ -80,13 +80,13 @@ export function Menu({ onClose, anchor }: { onClose: () => void; anchor: React.R
         </span>
       </div>
       <label className="lv-menu__row">
-        <span>See-through</span>
+        <span>Opacity</span>
         <input
           type="range"
           min={MIN_OPACITY}
           max={MAX_OPACITY}
           value={prefs.opacity_pct}
-          aria-label="Window transparency"
+          aria-label="Window opacity"
           onChange={(event) => controller.changePrefs({ opacity_pct: Number(event.target.value) })}
         />
       </label>

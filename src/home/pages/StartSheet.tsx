@@ -11,7 +11,8 @@ import { goLive, prepareCall, systemStore, type LaunchStep, type PreparedCall } 
 import { engineName, modelLabel } from "../labels";
 import { aiProblem, speechProblem } from "../readiness";
 import { hrefFor } from "../router";
-import { LevelBars, probeChannel, type ProbeResult } from "./AudioCheck";
+import { LevelBars } from "../../kit/LevelBars";
+import { probeChannel, type ProbeResult } from "./AudioCheck";
 
 type Tone = "waiting" | "checking" | "ok" | "info" | "warn" | "bad";
 interface CheckRow { id: string; label: string; tone: Tone; detail: string; action?: ReactNode }

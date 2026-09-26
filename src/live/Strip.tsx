@@ -1,11 +1,12 @@
 import { Icon } from "../kit/Icon";
+import { LevelBars } from "../kit/LevelBars";
 import { useController, useLive, useLiveUi } from "./context";
 import type { ChannelKey, ChannelView } from "./machine";
 import type { Room } from "./hooks";
 
 const NAMES: Record<ChannelKey, { name: string; icon: "mic" | "speaker"; help: string }> = {
   mic: { name: "You", icon: "mic", help: "your microphone" },
-  system: { name: "Others", icon: "speaker", help: "the other side of the call" },
+  system: { name: "Them", icon: "speaker", help: "the other side of the call" },
 };
 
 function stateLabel(view: ChannelView): string {
@@ -18,18 +19,8 @@ function stateLabel(view: ChannelView): string {
   }
 }
 
-/** Three little bars that rise and fall with the sound this side is hearing. */
-function Meter({ level, live }: { level: number; live: boolean }) {
-  const base = live ? Math.min(1, Math.sqrt(level) * 3.4) : 0;
-  const heights = [0.55, 1, 0.75].map((weight) => 0.16 + base * weight * 0.84);
-  return (
-    <span className="lv-meter" aria-hidden="true">
-      {heights.map((height, index) => <i key={index} style={{ transform: `scaleY(${height.toFixed(3)})` }} />)}
-    </span>
-  );
-}
-
-export function ChannelChip({ channel, showName = true }: { channel: ChannelKey; showName?: boolean }) {
+/** One side of the call: its name and a live meter. Tapping it turns that side off or on. */
+function Lane({ channel }: { channel: ChannelKey }) {
   const controller = useController();
   const view = useLive((state) => state.channels[channel]);
   const { name, icon, help } = NAMES[channel];
@@ -37,40 +28,33 @@ export function ChannelChip({ channel, showName = true }: { channel: ChannelKey;
   return (
     <button
       type="button"
-      className="lv-chan"
+      className="lv-lane"
       data-status={view.status}
-      data-speaking={view.speaking || undefined}
       aria-pressed={on}
       disabled={view.status === "starting"}
-      title={`${name}: ${stateLabel(view)} — ${on ? "tap to turn off" : "tap to turn on"} (${help})`}
-      aria-label={`${name}, ${stateLabel(view)}. ${on ? "Turn off" : "Turn on"} ${help}.`}
+      title={`${name}: ${stateLabel(view)}. Tap to turn ${on ? "off" : "on"} ${help}.`}
+      aria-label={`${name}, ${stateLabel(view)}. Turn ${on ? "off" : "on"} ${help}.`}
       onClick={() => void controller.toggleChannel(channel)}
     >
-      {view.status === "starting" ? <span className="lv-spin" aria-hidden="true" /> : <Icon name={icon} size={15} />}
-      {showName ? <span className="lv-chan__name">{name}</span> : null}
-      <Meter level={view.level} live={view.status === "on"} />
-      {showName ? <span className="lv-chan__state">{stateLabel(view)}</span> : null}
+      {view.status === "starting" ? <span className="lv-spin" aria-hidden="true" /> : <Icon name={view.status === "off" ? "minus" : icon} size={14} />}
+      <span>{name}</span>
+      <LevelBars level={view.level} active={view.status === "on"} />
     </button>
   );
 }
 
-/** The two ears and the view switch, on one calm row under the header. */
+/** Row two: the two sides of the call, then what the feed shows. */
 export function Strip({ room }: { room: Room }) {
   const controller = useController();
   const view = useLiveUi((state) => state.view);
-  const wide = room.width === "wide";
   return (
-    <div className="lv-strip">
-      <ChannelChip channel="mic" />
-      <ChannelChip channel="system" />
+    <div className="lv-strip" data-narrow={room.width === "narrow" || undefined}>
+      <Lane channel="mic" />
+      <Lane channel="system" />
       <span className="lv-grow" />
-      <div className="lv-seg" role="group" aria-label="What to show">
-        <button type="button" aria-pressed={view === "all"} onClick={() => controller.setView("all")} title="Show the conversation and answers">
-          <Icon name="list" size={14} />{wide ? <span>All</span> : null}
-        </button>
-        <button type="button" aria-pressed={view === "answers"} onClick={() => controller.setView("answers")} title="Show only answers">
-          <Icon name="sparkle" size={14} />{wide ? <span>Answers</span> : null}
-        </button>
+      <div className="lv-tabs" role="tablist" aria-label="What to show">
+        <button type="button" role="tab" aria-selected={view === "answers"} onClick={() => controller.setView("answers")} title="Only Aside's answers">Answers</button>
+        <button type="button" role="tab" aria-selected={view === "all"} onClick={() => controller.setView("all")} title="What was said, with answers in place">Transcript</button>
       </div>
     </div>
   );

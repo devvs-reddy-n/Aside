@@ -301,3 +301,14 @@
 .toast__action:hover { background: rgba(127, 127, 127, 0.4); }
 .toast__close { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 6px; background: none; color: inherit; opacity: 0.6; }
 .toast__close:hover { opacity: 1; }
+
+/* Five-bar level meter */
+.bars { display: inline-flex; flex: none; align-items: flex-end; gap: 2px; height: 14px; }
+.bars i { width: 3px; border-radius: 1px; background: var(--border-strong); transition: background-color var(--fast) var(--ease-std); }
+.bars i:nth-child(1) { height: 5px; }
+.bars i:nth-child(2) { height: 7px; }
+.bars i:nth-child(3) { height: 9px; }
+.bars i:nth-child(4) { height: 11px; }
+.bars i:nth-child(5) { height: 14px; }
+.bars i[data-on] { background: var(--bar-on, var(--success)); }
+.bars:not([data-active]) { opacity: 0.5; }

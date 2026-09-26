@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import * as api from "../../bridge/api";
 import { onEvent } from "../../bridge/events";
 import { channelEventNames } from "../../bridge/eventNames";
@@ -42,38 +41,4 @@ export async function probeChannel(channel: ChannelId, options: { ms?: number; o
   await api.audio.stop(channel);
   const heard = peak > HEARD || !isTauriRuntime();
   return heard ? { kind: "heard", device: started.value.device_name } : { kind: "quiet", device: started.value.device_name };
-}
-
-/**
- * Five bars that follow loudness: they jump up fast (50 ms) and fall back slowly (200 ms),
- * like a studio meter, so speech reads as steady rather than flickering.
- */
-export function LevelBars({ level, active }: { level: number; active: boolean }) {
-  const target = useRef(0);
-  const [shown, setShown] = useState(0);
-  target.current = active ? Math.min(1, Math.sqrt(level) * 3.4) : 0;
-
-  useEffect(() => {
-    let frame = 0;
-    let last = performance.now();
-    let value = 0;
-    const tick = (now: number) => {
-      const dt = now - last;
-      last = now;
-      const goal = target.current;
-      const tau = goal > value ? 50 : 200;
-      value += (goal - value) * (1 - Math.exp(-dt / tau));
-      setShown((current) => (Math.abs(current - value) > 0.01 ? value : current));
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
-  const lit = Math.round(shown * 5);
-  return (
-    <span className="bars" data-active={active || undefined} aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((index) => <i key={index} data-on={index < lit || undefined} />)}
-    </span>
-  );
 }

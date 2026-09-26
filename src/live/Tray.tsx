@@ -22,9 +22,9 @@ function QuestionCard() {
 }
 
 const LENGTHS: Array<["auto" | "small" | "medium" | "long", string, string]> = [
-  ["small", "S", "Short answer"],
-  ["medium", "M", "Medium answer"],
-  ["long", "L", "Long answer"],
+  ["small", "Short", "Short answers"],
+  ["medium", "Med", "Medium-length answers"],
+  ["long", "Long", "Long answers"],
 ];
 
 /** The bottom edge: ask for an answer, pick its length, take a screenshot, or type a follow-up. It never scrolls away. */
@@ -53,14 +53,14 @@ export function Footer({ room }: { room: Room }) {
   }
 
   const answerButton = (
-    <button type="button" className="lv-btn lv-answer-btn" data-primary={questionShowing ? undefined : ""} data-quiet={questionShowing ? "" : undefined} disabled={answering} onClick={() => void controller.answer()} title="Answer the latest question (⌘↩)">
+    <button type="button" className="lv-btn lv-answer-btn" data-primary={questionShowing ? undefined : ""} data-quiet={questionShowing ? "" : undefined} disabled={answering} onClick={() => void controller.answer()} title="Answer the latest question  ⌘↩">
       {answering ? <span className="lv-spin" aria-hidden="true" /> : <Icon name="play" size={13} />}
       <span>{answering ? "Answering…" : "Answer"}</span>
       {answering ? null : <kbd>⌘↩</kbd>}
     </button>
   );
   const shotButton = (
-    <button type="button" className="lv-icon lv-icon--boxed" disabled={answering || shotBusy} onClick={() => void controller.screenshot()} aria-label="Answer from a screenshot" title="Answer from a screenshot (⌘K)">
+    <button type="button" className="lv-icon lv-icon--boxed" disabled={answering || shotBusy} onClick={() => void controller.screenshot()} aria-label="Screenshot answer" title="Screenshot answer  ⌘K">
       {shotBusy ? <span className="lv-spin" aria-hidden="true" /> : <Icon name="camera" size={17} />}
     </button>
   );

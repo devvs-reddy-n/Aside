@@ -14,7 +14,7 @@ function Empty({ answersOnly }: { answersOnly: boolean }) {
   const paused = useLiveUi((state) => state.paused !== null) || (mic === "off" && system === "off");
   const title = paused ? "Listening is paused" : answersOnly ? "No answers yet" : "Listening…";
   const text = paused
-    ? "Turn on You or Others."
+    ? "Turn on You or Them."
     : answersOnly
       ? "Answers collect here."
       : "Speech appears here. Questions are flagged.";
@@ -31,7 +31,7 @@ function TurnRow({ item, startedAtMs, flagged }: { item: Extract<FeedItem, { kin
   return (
     <div className="lv-turn" data-who={item.who} data-flagged={flagged || undefined}>
       <div className="lv-turn__meta">
-        <span>{item.who === "me" ? "You" : "Others"}</span>
+        <span>{item.who === "me" ? "You" : "Them"}</span>
         <time>{formatClock(item.atMs - startedAtMs)}</time>
       </div>
       <p className="lv-turn__text selectable">{item.text}</p>
@@ -55,6 +55,8 @@ export function Feed() {
   const [away, setAway] = useState(0);
   const [atBottom, setAtBottom] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
+  /** "2 of 5" while stepping through answers with ⌘[ and ⌘]. */
+  const [step, setStep] = useState<{ at: number; of: number; tick: number } | null>(null);
 
   const answersOnly = view === "answers";
   const shown = useMemo(() => (answersOnly ? items.filter((item) => item.kind === "answer") : items), [items, answersOnly]);
@@ -114,8 +116,13 @@ export function Feed() {
     if (!card) return;
     scroller.current?.scrollTo({ top: Math.max(0, card.offsetTop - 8), behavior: reduced ? "auto" : "smooth" });
     setFlash(target.id);
+    setStep({ at: cursor.index + 1, of: answers.length, tick: cursor.tick });
     const id = window.setTimeout(() => setFlash(null), 1200);
-    return () => window.clearTimeout(id);
+    const hide = window.setTimeout(() => setStep(null), 1600);
+    return () => {
+      window.clearTimeout(id);
+      window.clearTimeout(hide);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor]);
 
@@ -151,11 +158,12 @@ export function Feed() {
         )}
         {interim && !answersOnly ? (
           <div className="lv-turn" data-who={interim.who} data-interim="">
-            <div className="lv-turn__meta"><span>{interim.who === "me" ? "You" : "Others"}</span><em>speaking</em></div>
+            <div className="lv-turn__meta"><span>{interim.who === "me" ? "You" : "Them"}</span><em>speaking</em></div>
             <p className="lv-turn__text">{interim.text}</p>
           </div>
         ) : null}
       </div>
+      {step ? <div key={step.tick} className="lv-stepper-pill tabular" role="status">{step.at} of {step.of}</div> : null}
       {!atBottom ? (
         <button
           type="button"

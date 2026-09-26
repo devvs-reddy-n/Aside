@@ -97,6 +97,16 @@ The build can emit existing unused-code warnings. The bundle script also strips 
 - **Real bug caught and fixed:** after the first save, a new copilot didn't move to its own address. React's development double-run had cleared a "still on screen" flag.
 - **Not run:** the real app window, real audio checks, the System Settings round-trip, and dropping files onto the window.
 
+## Redesign Phase 5: live window (2026-09-26)
+
+- **Automated checks:** `npx tsc --noEmit` clean. `npm test` 56 passed. `npm run build` clean (no CSS warnings). Impeccable detector on `src/live src/kit`: no findings.
+- **Headless Chrome screenshots of the live demo (`?demo=live`):**
+  - 520×700 light and 400×640 dark.
+  - The silent-audio scenario, with the alert collapsed and opened by focus.
+  - An answer streaming while a new question card is showing.
+- **Seen in those screenshots:** one 44px header row (live dot, company, clock, ⋯, End); You/Them lanes with meters; Answers/Transcript tabs; a one-line alert with its Fix button; answers at 15px; footer lengths reading "Short · Med · Long".
+- **Not run:** the real window; the answer length handed from the Start panel (both windows need to share this Mac's local storage, which only the real app can show); ⌘[ ⌘] stepping with the "2 of 5" marker; the opacity slider.
+
 ## Historical evidence retained as outcomes
 
 - Local SQLite replaced flat or transient-only session storage.

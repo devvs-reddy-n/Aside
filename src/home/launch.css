@@ -24,17 +24,6 @@
 .pf-trouble { display: grid; gap: 4px; margin-bottom: var(--s3); }
 .pf-trouble p { color: var(--text-2); font-size: 13px; }
 
-/* Five-bar level meter */
-.bars { display: inline-flex; flex: none; align-items: flex-end; gap: 2px; height: 14px; }
-.bars i { width: 3px; border-radius: 1px; background: var(--border-strong); transition: background-color var(--fast) var(--ease-std); }
-.bars i:nth-child(1) { height: 5px; }
-.bars i:nth-child(2) { height: 7px; }
-.bars i:nth-child(3) { height: 9px; }
-.bars i:nth-child(4) { height: 11px; }
-.bars i:nth-child(5) { height: 14px; }
-.bars i[data-on] { background: var(--success); }
-.bars:not([data-active]) { opacity: 0.5; }
-
 .pf-fade { animation: pf-fade var(--base) var(--ease-out) both; }
 @keyframes pf-fade { from { opacity: 0; } }
 

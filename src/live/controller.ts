@@ -1,5 +1,6 @@
 import type { OverlayPrefs } from "../bridge/types";
 import { createStore, type Store } from "../core/store";
+import { takeHandedOffLength } from "../core/answerLength";
 import { loadLaunchPrefs, saveLaunchPrefs } from "../core/launchPrefs";
 import type { LiveBackend, ShortcutName } from "./backend";
 import {
@@ -57,7 +58,11 @@ export interface LiveController {
   resetWindow: () => Promise<void>;
 }
 
-const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 95, font_px: 13, language: "en" };
+const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 97, font_px: 13, language: "en" };
+
+/** The live window is never less than 94% solid, so answers stay readable over a busy screen. Older saved values below that are lifted here. */
+export const MIN_OPACITY = 94;
+const withReadableOpacity = (prefs: OverlayPrefs): OverlayPrefs => ({ ...prefs, opacity_pct: Math.max(MIN_OPACITY, Math.min(100, prefs.opacity_pct)) });
 
 export function createLiveController(backend: LiveBackend): LiveController {
   const live = createStore<LiveState>(initialLiveState());
@@ -100,7 +105,9 @@ export function createLiveController(backend: LiveBackend): LiveController {
           if (on) dispatch({ type: "channel-started", channel, device: on.device });
         }
         const launch = loadLaunchPrefs();
-        ui.set({ booted: true, prefs: boot.prefs, view: launch.answersOnly ? "answers" : "all" });
+        // The copilot's default answer length, handed over by the Start panel (once).
+        const length = takeHandedOffLength() ?? "auto";
+        ui.set({ booted: true, prefs: withReadableOpacity(boot.prefs), view: launch.answersOnly ? "answers" : "all", length });
       })();
       return () => {
         stopListening();
@@ -173,12 +180,12 @@ export function createLiveController(backend: LiveBackend): LiveController {
     },
 
     changePrefs(patch) {
-      const next = { ...ui.get().prefs, ...patch };
+      const next = withReadableOpacity({ ...ui.get().prefs, ...patch });
       ui.set({ prefs: next });
       window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(() => {
         void backend.savePrefs(next).then((saved) => {
-          if (saved) ui.set({ prefs: saved });
+          if (saved) ui.set({ prefs: withReadableOpacity(saved) });
         });
       }, 300);
     },

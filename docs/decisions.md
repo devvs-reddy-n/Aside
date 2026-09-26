@@ -255,3 +255,11 @@ This is the compact record of decisions that still affect the product. Supersede
 - **Key storage wording corrected before it shipped.** Keys are kept in Aside's own settings on this Mac, not the macOS keychain (per `storage/settings.rs`). The Settings hint says "Kept on this Mac".
 - **Reference check:** the reference app's history is a search plus rows with a status badge, and it has no file library. The plan already goes further, so nothing was adopted.
 
+## Redesign Phase 5 decisions (2026-09-26)
+
+- **The live window is at least 94% solid.** Older saved values below that are lifted on the screen side, so the backend's own minimum of 55 is untouched. There's no desktop blur: a see-through web view can't blur what's behind it without native code.
+- **The header drops the logo and status pill.** It keeps a coloured dot, which pulses only while listening, and says the state in words only when it isn't plain listening.
+- **The other side is called "Them" everywhere** (live lanes, feed, saved-call window), matching "You".
+- **Alerts show one line with the main fix.** The explanation and a second way out open on hover or keyboard focus, so a problem never pushes the answers far down.
+- **Meters use one shared five-bar component** (`kit/LevelBars`): 50 ms rise, 200 ms fall. It stops animating when settled, so a quiet call costs nothing.
+
