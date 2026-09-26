@@ -19,16 +19,58 @@ use crate::storage::{settings, Db};
 
 pub const OVERLAY_LABEL: &str = "overlay";
 
-/// Toolbar-only height (spec §1: "Min ~720 × 48"). The overlay grows taller
-/// than this once an answer card is showing; `resize_overlay` below is what
-/// the frontend calls to do that.
-const MIN_WIDTH: f64 = 720.0;
-const MIN_HEIGHT: f64 = 48.0;
-/// Starting size: toolbar plus enough room to read the first answer without
-/// the frontend having to resize on every mount. The frontend still owns
-/// growing/shrinking after this via `resize_overlay`.
-const DEFAULT_WIDTH: f64 = 720.0;
-const DEFAULT_HEIGHT: f64 = 480.0;
+/// The two shapes the live window takes (redesign, 2026-09-25).
+///
+/// - **Dock**: a tall companion column. Free to resize by hand; it never
+///   snaps back on its own.
+/// - **Capsule**: a slim bar that grows only as tall as the answer card
+///   under it (the page asks for that height with `resize_overlay`).
+///
+/// The old window could not go narrower than 720px, but its toolbar needed
+/// 772px, so End Session sat off-screen. The floors below are chosen so that
+/// everything the page keeps visible at that size (Answer, Screenshot, End)
+/// always fits; the page shrinks its own extras to match.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OverlayMode {
+    Dock,
+    Capsule,
+}
+
+const DOCK_MIN_WIDTH: f64 = 340.0;
+const DOCK_MIN_HEIGHT: f64 = 260.0;
+const CAPSULE_MIN_WIDTH: f64 = 340.0;
+const CAPSULE_MIN_HEIGHT: f64 = 64.0;
+/// Starting size: the docked column, sized so the whole footer (Answer,
+/// follow-up box, End Session) is visible without scrolling.
+const DEFAULT_WIDTH: f64 = 400.0;
+const DEFAULT_HEIGHT: f64 = 640.0;
+const CAPSULE_DEFAULT_WIDTH: f64 = 460.0;
+/// Gap left between the docked window and the screen's right/top edges.
+const SCREEN_MARGIN: f64 = 24.0;
+const SCREEN_TOP_MARGIN: f64 = 56.0;
+
+/// The smallest window the given mode allows.
+fn mode_min(mode: OverlayMode) -> (f64, f64) {
+    match mode {
+        OverlayMode::Dock => (DOCK_MIN_WIDTH, DOCK_MIN_HEIGHT),
+        OverlayMode::Capsule => (CAPSULE_MIN_WIDTH, CAPSULE_MIN_HEIGHT),
+    }
+}
+
+/// Fits a requested size to the mode: never below its floor, and a missing
+/// side falls back to that mode's default.
+fn mode_size(mode: OverlayMode, width: Option<f64>, height: Option<f64>) -> (f64, f64) {
+    let (min_w, min_h) = mode_min(mode);
+    let (default_w, default_h) = match mode {
+        OverlayMode::Dock => (DEFAULT_WIDTH, DEFAULT_HEIGHT),
+        OverlayMode::Capsule => (CAPSULE_DEFAULT_WIDTH, CAPSULE_MIN_HEIGHT),
+    };
+    (
+        width.unwrap_or(default_w).max(min_w),
+        height.unwrap_or(default_h).max(min_h),
+    )
+}
 
 /// Opens the overlay, creating it the first time and simply re-showing +
 /// focusing it on every later call (e.g. re-connecting after Edit) rather
@@ -54,7 +96,7 @@ pub fn open_overlay(app: AppHandle) -> Result<(), String> {
             .always_on_top(true)
             .resizable(true)
             .inner_size(DEFAULT_WIDTH, DEFAULT_HEIGHT)
-            .min_inner_size(MIN_WIDTH, MIN_HEIGHT)
+            .min_inner_size(DOCK_MIN_WIDTH, DOCK_MIN_HEIGHT)
             // Hidden until sharing-type is set, so the first frame is never
             // captured. Shown just below, after `apply_to_window`.
             .visible(false)
@@ -69,10 +111,10 @@ pub fn open_overlay(app: AppHandle) -> Result<(), String> {
 
     crate::stealth::apply_to_window(&window, stealth_on);
 
-    // Start near the top-center of the primary display, like the reference
-    // apps' own overlays — not load-bearing, just a reasonable first
-    // position; the toolbar's drag region lets the user move it anywhere.
-    let _ = window.center();
+    // Start docked against the right edge of the screen the window opened on,
+    // like a side panel. Not load-bearing: the header is a drag region, so it
+    // can be moved anywhere.
+    place_docked(&window);
     window.show().map_err(|e| e.to_string())?;
     crate::stealth::apply_to_window(&window, stealth_on);
 
@@ -99,6 +141,27 @@ pub fn open_overlay(app: AppHandle) -> Result<(), String> {
     });
 
     Ok(())
+}
+
+/// Puts the window at the top-right of the usable part of its screen (below
+/// the menu bar, clear of the Dock), then makes sure all of it is visible.
+/// Falls back to centering if the monitor cannot be read.
+fn place_docked(window: &tauri::WebviewWindow) {
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        let _ = window.center();
+        return;
+    };
+    let scale = monitor.scale_factor();
+    let work = monitor.work_area();
+    let x = work.position.x as f64 + work.size.width as f64 - (DEFAULT_WIDTH + SCREEN_MARGIN) * scale;
+    let y = work.position.y as f64 + SCREEN_TOP_MARGIN * scale;
+    let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
+    keep_on_screen(window, DOCK_MIN_WIDTH, DOCK_MIN_HEIGHT);
+}
+
+/// Shrinks and moves the window until every edge is on the screen.
+fn keep_on_screen(window: &tauri::WebviewWindow, min_w: f64, min_h: f64) {
+    crate::window_fit::fit_window(window, min_w as u32, min_h as u32);
 }
 
 /// Stops both capture channels and their transcription, ignoring errors
@@ -170,23 +233,65 @@ fn close_overlay(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Grows/shrinks the overlay's OS window to match the frontend's own
-/// collapse/expand state (spec §6.1's Collapse control, §6.3's answer
-/// card). The frontend is the source of truth for *whether* the body is
-/// showing; this command just makes the real window the right shape for it.
+/// Sets the window's shape. Called when the page switches between the docked
+/// column and the capsule, with the size to restore (the page remembers the
+/// docked size it last had). Both sides are optional; a missing one uses that
+/// mode's default. Also moves the OS-level minimum so the window can never be
+/// dragged smaller than the layout can hold.
+#[tauri::command]
+pub fn set_overlay_mode(
+    app: AppHandle,
+    mode: OverlayMode,
+    width: Option<f64>,
+    height: Option<f64>,
+) -> Result<(), String> {
+    let Some(window) = app.get_webview_window(OVERLAY_LABEL) else {
+        return Ok(());
+    };
+    let (min_w, min_h) = mode_min(mode);
+    let (w, h) = mode_size(mode, width, height);
+    window
+        .set_min_size(Some(tauri::Size::Logical(tauri::LogicalSize {
+            width: min_w,
+            height: min_h,
+        })))
+        .map_err(|e| e.to_string())?;
+    window
+        .set_size(tauri::Size::Logical(tauri::LogicalSize { width: w, height: h }))
+        .map_err(|e| e.to_string())?;
+    keep_on_screen(&window, min_w, min_h);
+    Ok(())
+}
+
+/// The window's current inner size in logical pixels, so the page can
+/// remember the docked size before it collapses to a capsule.
+#[tauri::command]
+pub fn get_overlay_size(app: AppHandle) -> Result<(f64, f64), String> {
+    let Some(window) = app.get_webview_window(OVERLAY_LABEL) else {
+        return Ok((DEFAULT_WIDTH, DEFAULT_HEIGHT));
+    };
+    let scale = window.scale_factor().map_err(|e| e.to_string())?;
+    let size = window.inner_size().map_err(|e| e.to_string())?;
+    let logical = size.to_logical::<f64>(scale);
+    Ok((logical.width, logical.height))
+}
+
+/// Asks for an exact window size. In the capsule the page uses this to make
+/// the window exactly as tall as its content. It is never called in the docked
+/// layout, so a size the person dragged to is never overridden.
 #[tauri::command]
 pub fn resize_overlay(app: AppHandle, width: f64, height: f64) -> Result<(), String> {
     let Some(window) = app.get_webview_window(OVERLAY_LABEL) else {
         return Ok(());
     };
-    let clamped_width = width.max(MIN_WIDTH);
-    let clamped_height = height.max(MIN_HEIGHT);
     window
         .set_size(tauri::Size::Logical(tauri::LogicalSize {
-            width: clamped_width,
-            height: clamped_height,
+            width: width.max(CAPSULE_MIN_WIDTH),
+            height: height.max(CAPSULE_MIN_HEIGHT),
         }))
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    keep_on_screen(&window, CAPSULE_MIN_WIDTH, CAPSULE_MIN_HEIGHT);
+    Ok(())
 }
 
 /// Connect (spec §5): "hides Create (do not destroy form state)" — `main`
@@ -329,6 +434,31 @@ pub fn current_language(conn: &Connection) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_docked_window_can_be_narrower_than_the_old_720_floor_that_hid_end_session() {
+        let (w, _) = mode_size(OverlayMode::Dock, Some(300.0), Some(300.0));
+        assert_eq!(w, DOCK_MIN_WIDTH);
+        assert!(DOCK_MIN_WIDTH < 720.0);
+    }
+
+    #[test]
+    fn a_missing_size_uses_the_mode_default_and_a_tiny_one_is_lifted_to_the_floor() {
+        assert_eq!(
+            mode_size(OverlayMode::Dock, None, None),
+            (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        );
+        assert_eq!(
+            mode_size(OverlayMode::Capsule, Some(10.0), Some(10.0)),
+            (CAPSULE_MIN_WIDTH, CAPSULE_MIN_HEIGHT)
+        );
+    }
+
+    #[test]
+    fn the_capsule_floor_is_a_slim_bar_but_the_dock_floor_keeps_room_for_the_footer() {
+        assert!(CAPSULE_MIN_HEIGHT < DOCK_MIN_HEIGHT);
+        assert_eq!(mode_min(OverlayMode::Dock).1, DOCK_MIN_HEIGHT);
+    }
 
     #[test]
     fn opacity_can_never_be_saved_below_the_spec_floor() {

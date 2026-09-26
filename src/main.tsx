@@ -1,62 +1,44 @@
-import React from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import ReactDOM from "react-dom/client";
+// Styles first: colours, fonts and building blocks must load before any screen's own styles.
+import "./theme/index.css";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { AsideWindow } from "./window/AsideWindow";
-import { OverlayWindow } from "./layers/overlay/OverlayWindow";
-import { isTauriRuntime } from "./platform/runtime";
-import { applyStoredTheme } from "./state/theme";
-import "./styles/index.css";
+import { isTauriRuntime } from "./bridge/runtime";
+import { HomeApp } from "./home/HomeApp";
+import { createLiveController } from "./live/controller";
+import { tauriBackend } from "./live/backend";
+import { LiveApp } from "./live/LiveApp";
+import { applyStoredTheme } from "./theme/theme";
 
 applyStoredTheme();
 
-/**
- * One Vite bundle, one `index.html`, two possible OS windows (Phase B —
- * `future refs/live-helper-ui-spec.md` point 8 in the brief: "DO NOT add
- * multi-entry Vite / a second HTML file"). Which root component mounts is
- * decided here, at startup, by which Tauri window this particular webview
- * instance is — `main` (the Create/Connect window, declared in
- * `tauri.conf.json`) gets `AsideWindow`; `overlay` (created at runtime by
- * `commands::overlay::open_overlay` when Connect is pressed) gets
- * `OverlayWindow`. A plain browser preview (`npm run dev` in a normal tab,
- * no Tauri) has no window label at all, so it falls back to `AsideWindow`
- * — the same "just show the real app shell" behavior this file had before
- * the overlay existed.
- */
-/** `data-window` used to select between two divergent token overrides
- *  (light vs. dark, "Silk" vs. "Neon Glass"); as of "Cockpit Instrumentation"
- *  (2026-08-30) both windows share one token set, so this attribute is now
- *  informational only — kept for any future pass that needs to tell the two
- *  windows apart again, and because removing it would touch nothing but the
- *  attribute itself. */
-function markWindowTheme(label: "main" | "overlay"): void {
-  document.documentElement.dataset.window = label;
-}
+// Development-only: a pretend call so the live window can be checked in a plain browser tab.
+const DemoLive = import.meta.env.DEV ? lazy(() => import("./live/demo")) : null;
 
-function pickRoot(): React.ReactElement {
+/**
+ * One bundle, two windows. The window this webview belongs to decides which
+ * screen mounts: the always-on-top `overlay` window shows the live call; every
+ * other window (`main`, or a plain browser tab) shows the workspace.
+ */
+function pickRoot() {
   if (isTauriRuntime()) {
     try {
       if (getCurrentWindow().label === "overlay") {
-        markWindowTheme("overlay");
-        return <OverlayWindow />;
+        return <LiveApp controller={createLiveController(tauriBackend)} />;
       }
     } catch {
-      // Fall through to the default shell — a window-label lookup failing
-      // should never be the reason the app fails to render at all.
+      // If the window label can't be read, fall through to the workspace.
     }
-  } else if (new URLSearchParams(window.location.search).get("preview") === "overlay") {
-    // Plain-browser-only visual QA affordance: `?preview=overlay` on the
-    // `npm run dev` URL. Gated on `!isTauriRuntime()` so it can never fire
-    // inside a real build — the overlay's live data (audio, transcript,
-    // real screenshots) still won't work here, but its layout/styling can
-    // be checked without a real call, which this window otherwise makes
-    // impossible to preview.
-    markWindowTheme("overlay");
-    return <OverlayWindow />;
+    return <HomeApp />;
   }
-  markWindowTheme("main");
-  return <AsideWindow />;
+  if (DemoLive && new URLSearchParams(window.location.search).get("demo") === "live") {
+    return (
+      <Suspense fallback={null}>
+        <DemoLive />
+      </Suspense>
+    );
+  }
+  return <HomeApp />;
 }
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>{pickRoot()}</React.StrictMode>,
-);
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(<StrictMode>{pickRoot()}</StrictMode>);

@@ -21,6 +21,7 @@ mod storage;
 mod stt;
 mod transcript_coalesce;
 mod transcript_log;
+mod window_fit;
 mod window_memory;
 
 use tauri::Manager;
@@ -151,6 +152,8 @@ pub fn run() {
             commands::past_sessions::delete_session,
             commands::overlay::open_overlay,
             commands::overlay::resize_overlay,
+            commands::overlay::set_overlay_mode,
+            commands::overlay::get_overlay_size,
             commands::overlay::hide_main_window,
             commands::overlay::show_main_window,
             commands::overlay::end_live_session,
@@ -193,6 +196,9 @@ pub fn run() {
             // (Cmd+W, Window > Close) so destroying `main` cannot strand
             // a still-open overlay with no workspace to return to.
             if let Some(main) = app.get_webview_window("main") {
+                // A window taller than the usable screen looks "cut in the
+                // middle"; shrink and move it until all of it is visible.
+                window_fit::fit_window(&main, 900, 620);
                 let main_for_hide = main.clone();
                 main.on_window_event(move |event| {
                     // Also runs on the main thread's native event-dispatch

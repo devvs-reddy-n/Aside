@@ -1,0 +1,393 @@
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import * as api from "../../bridge/api";
+import { backendAvailable } from "../../bridge/runtime";
+import type { AnswerRules, EngineKind, LlmProviderKind, OverlayPrefs } from "../../bridge/types";
+import { useStore } from "../../core/store";
+import { Badge, Callout } from "../../kit/Bits";
+import { Button } from "../../kit/Button";
+import { Dialog } from "../../kit/Dialog";
+import { Segmented, Select, TextArea, TextInput } from "../../kit/Form";
+import { Icon } from "../../kit/Icon";
+import { toast } from "../../kit/toast";
+import { refreshSystem, systemStore } from "../data";
+import { ENGINE_ORDER, LANGUAGES, engineName, engineNeedsKey, modelLabel, providerLabel } from "../labels";
+import { useTheme, type ThemePreference } from "../../theme/theme";
+
+/** Everything on one page: cards of rows, label on the left, control on the right. */
+export function SettingsPage({ section }: { section: string | null }) {
+  useEffect(() => {
+    if (!section) return;
+    const target = section === "privacy" || section === "appearance" || section === "rules" ? "general" : section;
+    document.getElementById(`st-${target}`)?.scrollIntoView({ block: "center" });
+  }, [section]);
+
+  return (
+    <div className="st">
+      <h1>Settings</h1>
+      {!backendAvailable() ? <Callout tone="warn">Open Aside.app to change settings.</Callout> : null}
+      <div className="st-grid">
+        <div className="st-col">
+          <SpeechSection />
+          <AiSection />
+        </div>
+        <div className="st-col">
+          <GeneralSection />
+          <ShortcutsSection />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ id, title, badge, children }: { id: string; title: string; badge?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="st-sec" id={`st-${id}`}>
+      <header><h2>{title}</h2>{badge}</header>
+      <div className="st-rows">{children}</div>
+    </section>
+  );
+}
+
+/** One line: what it is (and a few words of help) on the left, its control on the right. */
+function Row({ label, hint, children }: { label: string; hint?: string; children?: ReactNode }) {
+  return (
+    <div className="st-row">
+      <div className="st-row__label"><b>{label}</b>{hint ? <small>{hint}</small> : null}</div>
+      {children ? <div className="st-row__control">{children}</div> : null}
+    </div>
+  );
+}
+
+/** A saved key is never shown again. It can only be replaced, and cancelling keeps the old one. */
+function KeyRow({ label, hasKey, onSave }: { label: string; hasKey: boolean; onSave: (key: string) => Promise<boolean> }) {
+  const [replacing, setReplacing] = useState(false);
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function save() {
+    if (!value.trim()) return;
+    setBusy(true);
+    setError(false);
+    const ok = await onSave(value.trim());
+    setBusy(false);
+    if (ok) {
+      setValue("");
+      setReplacing(false);
+      toast("Saved.", { tone: "ok" });
+    } else setError(true);
+  }
+
+  if (hasKey && !replacing) {
+    return (
+      <Row label={label}>
+        <Badge tone="ok"><Icon name="check" size={12} />Saved</Badge>
+        <Button size="sm" variant="secondary" onClick={() => setReplacing(true)}>Replace</Button>
+      </Row>
+    );
+  }
+  return (
+    <div className="st-row st-row--stack">
+      <div className="st-row__label"><b>{label}</b>{error ? <small className="st-bad">Couldn't save that key.</small> : null}</div>
+      <div className="hm-inline">
+        <TextInput type="password" autoComplete="off" spellCheck={false} value={value} placeholder="Paste key" aria-label={label} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void save(); }} />
+        <Button variant="primary" busy={busy} disabled={!value.trim()} onClick={() => void save()}>Save</Button>
+        {hasKey ? <Button variant="ghost" onClick={() => { setReplacing(false); setValue(""); setError(false); }}>Cancel</Button> : null}
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- speech --------------------------------- */
+
+function SpeechSection() {
+  const system = useStore(systemStore, (state) => state);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState<OverlayPrefs | null>(null);
+  const engines = (system.engines.length > 0 ? system.engines : ENGINE_ORDER).filter((engine) => engine !== "deepgram");
+
+  useEffect(() => {
+    void api.windows.overlayPrefs().then((result) => result.ok && setPrefs(result.value));
+  }, []);
+
+  async function choose(engine: EngineKind) {
+    setError(null);
+    const result = await api.speech.choose(engine);
+    if (!result.ok) setError(result.error);
+    await refreshSystem();
+  }
+
+  async function download() {
+    setDownloading(true);
+    setError(null);
+    const result = await api.speech.downloadModel();
+    setDownloading(false);
+    if (!result.ok) setError(result.error);
+    await refreshSystem();
+  }
+
+  async function setLanguage(language: string) {
+    if (!prefs) return;
+    const next = { ...prefs, language };
+    setPrefs(next);
+    const saved = await api.windows.saveOverlayPrefs(next);
+    if (saved.ok) setPrefs(saved.value);
+  }
+
+  const ready = system.engine === "parakeet_local" ? system.parakeetReady : system.speechKey;
+  const local = system.engine === "parakeet_local";
+  return (
+    <Section id="speech" title="Speech" badge={system.engine ? <Badge tone={ready ? "ok" : "warn"}>{ready ? "Ready" : local ? "Needs download" : "Needs key"}</Badge> : null}>
+      <Row label="Engine" hint={local ? "Runs on this Mac. Free." : "Cloud. Needs a key."}>
+        <Segmented<EngineKind> label="Speech engine" value={(system.engine ?? engines[0]) as EngineKind} onChange={(engine) => void choose(engine)} options={engines.map((engine) => ({ value: engine, label: engineName(engine) }))} />
+      </Row>
+
+      {system.engine && engineNeedsKey(system.engine) ? (
+        <KeyRow
+          label="API key"
+          hasKey={system.speechKey}
+          onSave={async (key) => {
+            const result = await api.speech.saveKey(system.engine as EngineKind, key);
+            await refreshSystem();
+            return result.ok;
+          }}
+        />
+      ) : null}
+
+      {local && !system.parakeetReady ? (
+        <Row label="Download" hint="One time, 480 MB.">
+          <Button size="sm" variant="primary" busy={downloading} onClick={() => void download()}>{downloading ? "Downloading" : "Download"}</Button>
+        </Row>
+      ) : null}
+
+      {!local ? (
+        <Row label="Language">
+          <Select aria-label="Spoken language" value={prefs?.language ?? "en"} disabled={!prefs} onChange={(event) => void setLanguage(event.target.value)}>
+            {LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language.label}</option>)}
+          </Select>
+        </Row>
+      ) : null}
+      {error ? <div className="st-row"><span className="st-bad">{error}</span></div> : null}
+    </Section>
+  );
+}
+
+/* ---------------------------------- AI model ---------------------------------- */
+
+interface ModelOption { provider: LlmProviderKind; model: string }
+
+function AiSection() {
+  const system = useStore(systemStore, (state) => state);
+  const [options, setOptions] = useState<ModelOption[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const providers = await api.model.providers();
+      if (!providers.ok) return setError(providers.error);
+      const lists = await Promise.all(providers.value.map(async (provider) => {
+        const models = await api.model.models(provider);
+        return models.ok ? models.value.map((model) => ({ provider, model })) : [];
+      }));
+      // The old "Flex / Priority" speed-vs-cost choice was removed (a few cents per call either way);
+      // anyone who had picked one goes back to the regular lane.
+      const tier = await api.model.tier();
+      if (tier.ok && tier.value) await api.model.setTier("");
+      if (alive) setOptions(lists.flat());
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function chooseModel(option: ModelOption) {
+    setBusy(true);
+    setError(null);
+    const provider = await api.model.setProvider(option.provider);
+    const model = provider.ok ? await api.model.setModel(option.provider, option.model) : provider;
+    setBusy(false);
+    if (!model.ok) setError(model.error);
+    await refreshSystem();
+  }
+
+  const provider = system.provider ?? "open_ai";
+  return (
+    <Section id="ai" title="AI model" badge={system.model ? <Badge tone={system.aiKey ? "ok" : "warn"}>{system.aiKey ? "Ready" : "Needs key"}</Badge> : null}>
+      <Row label="Model" hint="Writes every answer.">
+        <Select aria-label="AI model" disabled={busy || options.length === 0} value={system.model ? `${provider}|${system.model}` : ""} onChange={(event) => { const [p, ...rest] = event.target.value.split("|"); void chooseModel({ provider: p as LlmProviderKind, model: rest.join("|") }); }}>
+          <option value="" disabled>Choose one</option>
+          {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
+        </Select>
+      </Row>
+      <KeyRow
+        label={`${providerLabel(provider)} key`}
+        hasKey={system.aiKey}
+        onSave={async (key) => {
+          const result = await api.model.saveKey(provider, key);
+          await refreshSystem();
+          return result.ok;
+        }}
+      />
+      {error ? <div className="st-row"><span className="st-bad">{error}</span></div> : null}
+    </Section>
+  );
+}
+
+/* --------------------------------- privacy --------------------------------- */
+
+function PrivacyRow() {
+  const hidden = useStore(systemStore, (state) => state.hidden);
+  const [pending, setPending] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function confirm() {
+    if (pending === null) return;
+    setBusy(true);
+    // The backend saves the choice and reopens Aside so it applies from the first frame.
+    const result = await api.stealth.set(pending);
+    setBusy(false);
+    setPending(null);
+    if (!result.ok) toast(result.error, { tone: "bad" });
+  }
+
+  return (
+    <>
+      <Row label="Hide from screen sharing" hint="Also hides it from recordings and the Dock.">
+        <button type="button" role="switch" aria-checked={hidden ?? true} aria-label="Hide from screen sharing" disabled={hidden === null} className={`switch${(hidden ?? true) ? " switch--on" : ""}`} onClick={() => setPending(!(hidden ?? true))}>
+          <span className="switch__knob" />
+        </button>
+      </Row>
+      <Dialog
+        open={pending !== null}
+        onClose={() => setPending(null)}
+        size="sm"
+        title={pending ? "Turn on hiding?" : "Turn off hiding?"}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPending(null)}>Cancel</Button>
+            <Button variant="primary" busy={busy} onClick={() => void confirm()}>{pending ? "Turn on" : "Turn off"}</Button>
+          </>
+        }
+      >
+        <p>Aside will close and reopen.</p>
+      </Dialog>
+    </>
+  );
+}
+
+/* ------------------------------- appearance ------------------------------- */
+
+function ThemeRow() {
+  const { preference, setPreference } = useTheme();
+  return (
+    <Row label="Theme">
+      <Segmented<ThemePreference> label="Theme" value={preference} onChange={setPreference} options={[{ value: "system", label: "Auto" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />
+    </Row>
+  );
+}
+
+/* ------------------------------ answer rules ------------------------------ */
+
+function RulesRow() {
+  const [rules, setRules] = useState<AnswerRules | null>(null);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  const load = useCallback(async () => {
+    const result = await api.model.rules();
+    if (result.ok) {
+      setRules(result.value);
+      setDraft(result.value.text);
+    } else setError(result.error);
+  }, []);
+  useEffect(() => void load(), [load]);
+
+  async function save() {
+    setBusy(true);
+    setError(null);
+    const result = await api.model.saveRules(draft);
+    setBusy(false);
+    if (result.ok) {
+      setRules(result.value);
+      setDraft(result.value.text);
+      setOpen(false);
+      toast("Saved.", { tone: "ok" });
+    } else setError(result.error);
+  }
+
+  async function reset() {
+    setBusy(true);
+    const result = await api.model.resetRules();
+    setBusy(false);
+    setConfirmReset(false);
+    if (result.ok) {
+      setRules(result.value);
+      setDraft(result.value.text);
+      toast("Reset.", { tone: "ok" });
+    } else setError(result.error);
+  }
+
+  return (
+    <>
+      <Row label="Answer rules" hint={rules ? (rules.isDefault ? "Original" : "Edited") : "Loading…"}>
+        <Button size="sm" variant="secondary" icon="edit" disabled={!rules} onClick={() => setOpen(true)}>Edit</Button>
+      </Row>
+      {error && !open ? <div className="st-row"><span className="st-bad">{error}</span></div> : null}
+
+      <Dialog open={open} onClose={() => setOpen(false)} size="xl" title="Answer rules"
+        footer={
+          <>
+            <Button variant="danger" disabled={busy || !rules || rules.isDefault} onClick={() => setConfirmReset(true)}>Reset</Button>
+            <span className="grow" />
+            <Button variant="ghost" onClick={() => setOpen(false)}>Close</Button>
+            <Button variant="primary" busy={busy} disabled={!draft.trim() || draft === rules?.text} onClick={() => void save()}>Save</Button>
+          </>
+        }>
+        <TextArea className="hm-rules" value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="Answer rules" spellCheck={false} />
+        {rules && !rules.meetsCacheFloor ? <p className="st-bad">Too short. Answers may cost more.</p> : null}
+        {error ? <p className="st-bad">{error}</p> : null}
+      </Dialog>
+
+      <Dialog open={confirmReset} onClose={() => setConfirmReset(false)} size="sm" title="Reset to original?"
+        footer={<><Button variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => void reset()}>Reset</Button></>}>
+        <p>Your edits will be lost.</p>
+      </Dialog>
+    </>
+  );
+}
+
+/* -------------------------------- shortcuts -------------------------------- */
+
+const SHORTCUTS: Array<[string, string]> = [
+  ["⌘ ↩", "Answer"],
+  ["⌘ K", "Screenshot answer"],
+  ["⌘ ⇧ A", "Follow-up"],
+  ["⌘ [  ⌘ ]", "Previous / next answer"],
+  ["⌘ ⇧ H", "Hide or show Aside"],
+];
+
+function ShortcutsSection() {
+  return (
+    <Section id="shortcuts" title="Shortcuts">
+      {SHORTCUTS.map(([keys, what]) => (
+        <Row key={keys} label={what}><kbd>{keys}</kbd></Row>
+      ))}
+    </Section>
+  );
+}
+
+function GeneralSection() {
+  return (
+    <Section id="general" title="General">
+      <PrivacyRow />
+      <ThemeRow />
+      <RulesRow />
+    </Section>
+  );
+}

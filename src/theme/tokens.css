@@ -1,0 +1,131 @@
+/*
+ * Aside design tokens. Colours come from the owner's reference screenshot
+ * (calm warm-grey page, white surfaces, one clear blue); type is the Mac's
+ * own system font. The theme code stamps data-theme="light" or "dark" on
+ * <html>, so every colour below is defined for both.
+ */
+:root {
+  color-scheme: light;
+
+  /* surfaces */
+  --page: #efedec;
+  --surface: #ffffff;
+  --surface-2: #f7f6f5;
+  --sunken: #f2f4f3;
+  --feed: #faf9f8;
+  --hover: rgba(33, 36, 35, 0.06);
+
+  /* text */
+  --ink: #212423;
+  --ink-2: #626765;
+  --ink-3: #8a8f8d;
+
+  /* lines */
+  --line: #e2dfdc;
+  --line-strong: #cfcbc7;
+
+  /* brand blue */
+  --blue: #0a66ff;
+  --blue-hover: #0857d9;
+  --on-blue: #ffffff;
+  --blue-ink: #0b4ab3;
+  --wash: #e6f0fe;
+  --wash-2: #d0e4f4;
+  --card: #f1f7fc;
+  --blue-soft: rgba(10, 102, 255, 0.14);
+
+  /* status */
+  --green: #1e9e6a;
+  --green-ink: #14724b;
+  --green-wash: #e6f6ee;
+  --green-line: #bfe3d2;
+  --amber: #a86a00;
+  --amber-ink: #5b3d00;
+  --amber-wash: #fff3d6;
+  --amber-line: #ecd08f;
+  --red: #c9302c;
+  --red-ink: #6b1b18;
+  --red-wash: #fbeceb;
+  --red-line: #f0c0bd;
+
+  /* code */
+  --code-bg: #ffffff;
+  --code-head: #f7f8f8;
+  --code-num: #a4a9ab;
+  --tok-key: #0a4fd1;
+  --tok-str: #1a7a4c;
+  --tok-com: #8a8f8d;
+  --tok-num: #b3540a;
+
+  /* shape and depth */
+  --r-s: 8px;
+  --r-m: 14px;
+  --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(33, 36, 35, 0.08);
+  --shadow-2: 0 8px 24px rgba(33, 36, 35, 0.12);
+  --shadow-3: 0 18px 44px rgba(33, 36, 35, 0.22);
+  --focus-ring: 0 0 0 3px rgba(10, 102, 255, 0.3);
+
+  /* type */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --t-fast: 120ms;
+  --t-med: 200ms;
+  --t-slow: 300ms;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #151817;
+  --surface: #1e2221;
+  --surface-2: #252a28;
+  --sunken: #1a1e1d;
+  --feed: #191d1c;
+  --hover: rgba(236, 235, 233, 0.08);
+
+  --ink: #ecebe9;
+  --ink-2: #a3a8a6;
+  --ink-3: #7d8381;
+
+  --line: #343a38;
+  --line-strong: #454c49;
+
+  --blue: #5b95ff;
+  --blue-hover: #7aa9ff;
+  --on-blue: #06152e;
+  --blue-ink: #9cbfff;
+  --wash: #1a2740;
+  --wash-2: #27406b;
+  --card: #1a2436;
+  --blue-soft: rgba(91, 149, 255, 0.2);
+
+  --green: #3cc48d;
+  --green-ink: #7fdcb5;
+  --green-wash: #163126;
+  --green-line: #245a45;
+  --amber: #e0a100;
+  --amber-ink: #f3d288;
+  --amber-wash: #3a2e10;
+  --amber-line: #6b5219;
+  --red: #ef6b66;
+  --red-ink: #f7b4b1;
+  --red-wash: #3a1b1a;
+  --red-line: #6e2e2b;
+
+  --code-bg: #161a19;
+  --code-head: #1c211f;
+  --code-num: #5f6664;
+  --tok-key: #7fb0ff;
+  --tok-str: #7fd6a8;
+  --tok-com: #7d8382;
+  --tok-num: #f2b56b;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.6);
+  --focus-ring: 0 0 0 3px rgba(91, 149, 255, 0.4);
+}
