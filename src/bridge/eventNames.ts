@@ -45,13 +45,8 @@ export const SESSION_EVENTS = {
  *  `get_window_preview` rather than read it off the event payload. */
 export const WINDOW_MEMORY_EVENT = "window-memory";
 
-/** `shortcuts.rs`'s `EVENT_OVERLAY_*` constants — the four overlay-only
- *  global shortcuts (⌘⇧A chat, ⌘H collapse, ⌘[ / ⌘] history) that carry no
- *  data, they are pure "do the thing" notifications the overlay listens
- *  for. Only the overlay window ever mounts a listener for these. */
+/** Global Command+Left/Right history navigation, handled by the live window. */
 export const OVERLAY_SHORTCUT_EVENTS = {
-  toggleChat: "overlay-toggle-chat",
-  toggleCollapse: "overlay-toggle-collapse",
   historyPrev: "overlay-history-prev",
   historyNext: "overlay-history-next",
 } as const;
@@ -61,5 +56,5 @@ export const OVERLAY_SHORTCUT_EVENTS = {
 export const STEALTH_CHANGED_EVENT = "stealth-changed";
 
 /** `lifecycle.rs`'s `EVENT_QUIT_REQUESTED` — open the Quit confirmation
- *  dialog. Fired by the title-bar cross, ⌘Q, and the Aside menu's Quit. */
+ *  dialog. Fired by the title-bar cross and the Aside menu's Quit. */
 export const QUIT_REQUESTED_EVENT = "quit-requested";

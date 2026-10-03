@@ -171,14 +171,9 @@ fences, no metadata block, no preamble about what you are doing or how you are s
 Conversation memory is handled entirely by a separate process that never even sees this answer, so do not \
 attempt to summarize, record, or restate anything for that purpose here.";
 
-/// A manual length request from the overlay's Small/Medium/Long buttons
-/// (2026-08-31). Distinct from rule 25/26's AUTO table and in-conversation
-/// SHORT/MEDIUM/LONG override, both of which the model infers on its own —
-/// this one is an explicit button press, so it is injected as its own
-/// directive appended to the end of `user`, never into `system`: `system`
-/// must stay byte-identical across requests for [`PROMPT_CACHE_TOKEN_FLOOR`]
-/// to matter, but `user` already changes on every request anyway (new
-/// window text), so appending here costs nothing extra.
+/// A per-response instruction from an explicit length button. It follows the
+/// stable rules and documents in the system message so it can override their
+/// length preferences. The stable prefix remains cacheable; AUTO adds nothing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LengthOverride {
@@ -213,8 +208,7 @@ impl LengthOverride {
 
     fn directive(self) -> String {
         format!(
-            "ANSWER LENGTH OVERRIDE — the person manually pressed {label}. Ignore rule 25's AUTO length table for \
-this one response only and answer at {desc}. Never pad the answer just to reach this length, and never mention \
+            "ANSWER LENGTH OVERRIDE — the person manually pressed {label}. For this response only, this instruction takes precedence over the AUTO length rules and any conflicting length preference in the default context. Answer at {desc}. Never pad the answer just to reach this length, and never mention \
 that a length was requested.",
             label = self.label(),
             desc = self.band_description(),
@@ -514,7 +508,7 @@ pub fn build_prompt(
 }
 
 /// Same staged-fallback truncation as [`build_prompt`], with an optional
-/// manual [`LengthOverride`] appended to every candidate `user` string
+/// manual [`LengthOverride`] appended to every candidate `system` string
 /// before the budget check — the override's few extra words are cheap
 /// enough not to need their own fallback stage.
 pub fn build_prompt_with_length(
@@ -564,20 +558,20 @@ fn assemble(
     window_text: &str,
     length: Option<LengthOverride>,
 ) -> WindowPrompt {
-    let system = format!(
+    let mut system = format!(
         "{}\n\n{}",
         default_ctx.effective_rules(),
         default_ctx.render()
     );
-    let mut user = format!(
+    let user = format!(
         "{}\nNEW RAW CONVERSATION WINDOW\n{}\n\n\
 Now determine the most appropriate thing I should say at this exact point in the conversation.",
         memory.render(),
         window_text
     );
     if let Some(length) = length {
-        user.push_str("\n\n");
-        user.push_str(&length.directive());
+        system.push_str("\n\n");
+        system.push_str(&length.directive());
     }
     WindowPrompt { system, user }
 }
@@ -586,6 +580,23 @@ Now determine the most appropriate thing I should say at this exact point in the
 mod tests {
     use super::*;
     use crate::window_memory::types::{RawTurn, Speaker};
+
+    #[test]
+    fn explicit_length_overrides_live_in_system_and_do_not_leak_into_auto() {
+        let defaults = DefaultContext { rules_override: Some("Always give long answers.".into()), ..DefaultContext::default() };
+        let memory = SessionMemory::default();
+        let raw = window(&[("Other", "Explain indexing.")]);
+        let auto = build_prompt_with_length(&defaults, &memory, &raw, None);
+        for (length, band) in [(LengthOverride::Small, "15-40"), (LengthOverride::Medium, "40-90"), (LengthOverride::Long, "90-180")] {
+            let manual = build_prompt_with_length(&defaults, &memory, &raw, Some(length));
+            assert!(manual.system.starts_with(&auto.system));
+            assert!(manual.system.contains(band));
+            assert!(manual.system.contains("takes precedence"));
+            assert_eq!(manual.user, auto.user);
+        }
+        assert!(!auto.system.contains("ANSWER LENGTH OVERRIDE"));
+        assert_eq!(build_prompt_with_length(&defaults, &memory, &raw, None).system, auto.system);
+    }
 
     fn window(lines: &[(&str, &str)]) -> ConversationWindow {
         ConversationWindow {

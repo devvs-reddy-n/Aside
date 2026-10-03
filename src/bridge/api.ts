@@ -73,6 +73,7 @@ export const windows = {
   showMain: () => invoke<void>("show_main_window"),
   setOverlayMode: (mode: OverlayMode, width?: number, height?: number) =>
     invoke<void>("set_overlay_mode", { mode, width: width ?? null, height: height ?? null }),
+  dragResizeOverlay: (edge: Parameters<ReturnType<typeof import("@tauri-apps/api/window").getCurrentWindow>["startResizeDragging"]>[0]) => invoke<void>("drag_resize_overlay", { edge }),
   overlaySize: () => invoke<[number, number]>("get_overlay_size"),
   resizeOverlay: (width: number, height: number) => invoke<void>("resize_overlay", { width, height }),
   overlayPrefs: () => invoke<OverlayPrefs>("get_overlay_prefs"),

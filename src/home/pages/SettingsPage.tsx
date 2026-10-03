@@ -1,3 +1,4 @@
+import { APP_SHORTCUTS } from "../../core/shortcuts";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import * as api from "../../bridge/api";
 import { backendAvailable } from "../../bridge/runtime";
@@ -8,8 +9,6 @@ import { Button } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Segmented, Select, TextInput, Toggle } from "../../kit/Form";
 import { Icon } from "../../kit/Icon";
-import { Keys } from "../../kit/Keycap";
-import { RichText } from "../../kit/RichText";
 import { Sheet } from "../../kit/Sheet";
 import { Skeleton } from "../../kit/Skeleton";
 import { TextEditor } from "../../kit/TextEditor";
@@ -22,7 +21,7 @@ import { useTheme, type ThemePreference } from "../../theme/theme";
 
 const SECTIONS = ["speech", "ai", "rules", "appearance", "shortcuts", "general"] as const;
 
-/** Everything on one page, one column: a title above each card, rows of label left, control right. */
+/** Grouped preferences in two compact columns, with a readable hierarchy. */
 export function SettingsPage({ section }: { section: string | null }) {
   useEffect(() => {
     if (!section) return;
@@ -34,31 +33,34 @@ export function SettingsPage({ section }: { section: string | null }) {
     <div className="hm-page set">
       <header className="pg-head"><h1>Settings</h1></header>
       {!backendAvailable() ? <Callout tone="warn">Open Aside.app to change settings.</Callout> : null}
-      <SpeechSection />
-      <AiSection />
-      <RulesSection />
-      <Section id="appearance" title="Appearance"><ThemeRow /></Section>
-      <ShortcutsSection />
-      <Section id="general" title="General"><PrivacyRow /></Section>
+      <div className="set-grid">
+        <Section id="appearance" title="Appearance"><ThemeRow /></Section>
+        <Section id="general" title="Hide from screen sharing" footer="Also hides Aside from recordings and the Dock."><PrivacyRow /></Section>
+        <AiSection />
+        <SpeechSection />
+        <ShortcutsSection />
+        <RulesSection />
+      </div>
     </div>
   );
 }
 
 /** A title above a card. The badge only appears when something needs doing. */
-function Section({ id, title, badge, children }: { id: string; title: string; badge?: ReactNode; children: ReactNode }) {
+function Section({ id, title, badge, action, footer, children }: { id: string; title: string; badge?: ReactNode; action?: ReactNode; footer?: ReactNode; children: ReactNode }) {
   return (
     <section className="set-sec" id={`st-${id}`} aria-labelledby={`st-${id}-title`}>
-      <h2 className="set-sec__title" id={`st-${id}-title`}>{title}{badge}</h2>
+      <header className="set-sec__head"><h2 className="set-sec__title" id={`st-${id}-title`}>{title}{badge}</h2>{action}</header>
       <div className="set-card">{children}</div>
+      {footer ? <p className="group-help">{footer}</p> : null}
     </section>
   );
 }
 
-/** One line: what it is (and a few words of help) on the left, its control on the right. */
-function Row({ label, hint, children }: { label: string; hint?: ReactNode; children?: ReactNode }) {
+/** Controls stay in the group; explanations belong in its footer. */
+function Row({ label, children }: { label: string; children?: ReactNode }) {
   return (
     <div className="set-row">
-      <div className="set-row__label"><b>{label}</b>{hint ? <small>{hint}</small> : null}</div>
+      <div className="set-row__label"><b>{label}</b></div>
       {children ? <div className="set-row__control">{children}</div> : null}
     </div>
   );
@@ -94,7 +96,7 @@ function KeyRow({ label, hasKey, onSave }: { label: string; hasKey: boolean; onS
   }
   return (
     <div className="set-row set-row--stack">
-      <div className="set-row__label"><b>{label}</b>{error ? <small className="set-bad">Couldn't save that key.</small> : <small>Kept on this Mac, never shown again.</small>}</div>
+      <div className="set-row__label"><b>{label}</b>{error ? <small className="set-bad">Couldn't save that key.</small> : null}</div>
       <div className="set-inline">
         <TextInput type="password" autoComplete="off" spellCheck={false} value={value} placeholder="Paste key" aria-label={label} onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void save(); }} />
         <Button variant="primary" busy={busy} disabled={!value.trim()} onClick={() => void save()}>Save</Button>
@@ -144,8 +146,8 @@ function SpeechSection() {
   const ready = system.engine === "parakeet_local" ? system.parakeetReady : system.speechKey;
   const local = system.engine === "parakeet_local";
   return (
-    <Section id="speech" title="Speech" badge={system.engine && !ready ? <Badge tone="warn">{local ? "Needs download" : "Needs key"}</Badge> : null}>
-      <Row label="Engine" hint={engineBlurb((system.engine ?? engines[0]) as EngineKind)}>
+    <Section id="speech" title="Speech" footer={<>{engineBlurb((system.engine ?? engines[0]) as EngineKind)}{local && !system.parakeetReady ? " One-time download, about 480 MB." : !local ? " Keys stay on this Mac and are never shown again." : ""}</>} badge={system.engine && !ready ? <Badge tone="warn">{local ? "Needs download" : "Needs key"}</Badge> : null}>
+      <Row label="Engine">
         <Segmented<EngineKind> label="Speech engine" value={(system.engine ?? engines[0]) as EngineKind} onChange={(engine) => void choose(engine)} options={engines.map((engine) => ({ value: engine, label: engineName(engine) }))} />
       </Row>
 
@@ -162,13 +164,13 @@ function SpeechSection() {
       ) : null}
 
       {local && !system.parakeetReady ? (
-        <Row label="Speech model" hint="One-time download, about 480 MB.">
+        <Row label="Speech model">
           <Button size="sm" variant="primary" busy={downloading} onClick={() => void download()}>{downloading ? "Downloading" : "Download"}</Button>
         </Row>
       ) : null}
 
       {!local ? (
-        <Row label="Language" hint="What people speak on your calls.">
+        <Row label="Language">
           <Select aria-label="Spoken language" value={prefs?.language ?? "en"} disabled={!prefs} onChange={(event) => void setLanguage(event.target.value)}>
             {LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language.label}</option>)}
           </Select>
@@ -221,8 +223,8 @@ function AiSection() {
 
   const provider = system.provider ?? "open_ai";
   return (
-    <Section id="ai" title="AI model" badge={system.model && !system.aiKey ? <Badge tone="warn">Needs key</Badge> : null}>
-      <Row label="Default model" hint="New copilots start with this. Each copilot can pick its own.">
+    <Section id="ai" title="AI model" footer="New copilots start with this model; each can use its own. Keys stay on this Mac." badge={system.model && !system.aiKey ? <Badge tone="warn">Needs key</Badge> : null}>
+      <Row label="Default model">
         <Select aria-label="AI model" disabled={busy || options.length === 0} value={system.model ? `${provider}|${system.model}` : ""} onChange={(event) => { const [p, ...rest] = event.target.value.split("|"); void chooseModel({ provider: p as LlmProviderKind, model: rest.join("|") }); }}>
           <option value="" disabled>Choose one</option>
           {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
@@ -261,7 +263,7 @@ function PrivacyRow() {
 
   return (
     <>
-      <Row label="Hide from screen sharing" hint="Also hides it from recordings and the Dock.">
+      <Row label="Hide from screen sharing">
         <Toggle checked={hidden ?? true} label="Hide from screen sharing" disabled={hidden === null} onChange={(next) => setPending(next)} />
       </Row>
       <Dialog
@@ -301,6 +303,7 @@ function RulesSection() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmEdit, setConfirmEdit] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
   const load = useCallback(async () => {
@@ -350,18 +353,20 @@ function RulesSection() {
 
   const status = saveState === "saving" || saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Not saved" : null;
   return (
-    <Section id="rules" title="Answer rules">
+    <Section id="rules" title="Strict rules"
+      footer="Applies to all copilots. Each copilot’s guidance adds to these rules."
+      action={<Button size="sm" variant="ghost" icon="edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit</Button>}>
       <div className="set-row set-row--stack">
-        <div className="set-row__label">
-          <b>How every answer is written</b>
-          <small>Applies to all copilots. Each copilot's guidance adds to these.</small>
-        </div>
         <div className="set-rules">
-          {rules ? <RichText text={rules.text} lines={2} /> : <Skeleton lines={2} />}
-          <Button size="sm" variant="secondary" icon="edit" disabled={!rules} onClick={() => setOpen(true)}>Edit</Button>
+          {rules ? <p className="set-rules__preview selectable" aria-label="Answer rules preview">{rules.text}</p> : <Skeleton lines={5} />}
         </div>
       </div>
       {error && !open ? <p className="set-row set-bad" role="alert">{error}</p> : null}
+
+      <Dialog open={confirmEdit} onClose={() => setConfirmEdit(false)} title="Edit strict rules?" size="sm"
+        footer={<><Button variant="ghost" onClick={() => setConfirmEdit(false)}>Cancel</Button><Button variant="primary" onClick={() => { setConfirmEdit(false); setOpen(true); }}>Continue</Button></>}>
+        <p>Changing strict rules affects every generated answer.</p>
+      </Dialog>
 
       <Sheet
         open={open}
@@ -393,22 +398,11 @@ function RulesSection() {
 
 /* -------------------------------- shortcuts -------------------------------- */
 
-const SHORTCUTS: Array<[string, string, string]> = [
-  ["⌘ ↩", "Answer", "During a call"],
-  ["⌘ K", "Screenshot answer", "Anywhere, during a call"],
-  ["⌘ ⇧ A", "Follow-up", "During a call"],
-  ["⌘ [ ⌘ ]", "Previous or next answer", "During a call"],
-  ["⌘ ⇧ H", "Hide or show Aside", "Anywhere"],
-  ["⌘ P", "Search everything", "In this window"],
-  ["⌘ \\", "Show or hide the sidebar", "In this window"],
-];
-
 function ShortcutsSection() {
   return (
-    <Section id="shortcuts" title="Shortcuts">
-      {SHORTCUTS.map(([keys, what, where]) => (
-        <Row key={keys} label={what} hint={where}><Keys combo={keys} /></Row>
-      ))}
-    </Section>
+    <section className="set-shortcuts" id="st-shortcuts" aria-label="Shortcuts">
+      <h2>Shortcuts</h2>
+      <dl>{APP_SHORTCUTS.map(([keys, what]) => <div key={keys}><dt>{what}</dt><dd>{keys}</dd></div>)}</dl>
+    </section>
   );
 }

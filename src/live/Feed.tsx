@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatClock } from "../core/format";
 import { Icon } from "../kit/Icon";
 import { AnswerCard } from "./Answer";
+import { answerPages, pageIndex } from "./navigation";
 import { useLive, useLiveUi } from "./context";
 import type { Answer, FeedItem } from "./machine";
 
@@ -14,13 +15,12 @@ function Empty({ answersOnly }: { answersOnly: boolean }) {
   const paused = useLiveUi((state) => state.paused !== null) || (mic === "off" && system === "off");
   const title = paused ? "Listening is paused" : answersOnly ? "No answers yet" : "Listening…";
   const text = paused
-    ? "Turn on You or Them."
+    ? "Turn on the microphone or system audio above."
     : answersOnly
-      ? "Answers collect here."
+      ? "Your current question and answer will appear here."
       : "Speech appears here. Questions are flagged.";
   return (
     <div className="lv-empty">
-      <span className="lv-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span>
       <b>{title}</b>
       <p>{text}</p>
     </div>
@@ -39,7 +39,7 @@ function TurnRow({ item, startedAtMs, flagged }: { item: Extract<FeedItem, { kin
   );
 }
 
-export function Feed() {
+function ConversationFeed() {
   const items = useLive((state) => state.items);
   const interim = useLive((state) => state.interim);
   const startedAtMs = useLive((state) => state.startedAtMs);
@@ -55,7 +55,7 @@ export function Feed() {
   const [away, setAway] = useState(0);
   const [atBottom, setAtBottom] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
-  /** "2 of 5" while stepping through answers with ⌘[ and ⌘]. */
+  /** "2 of 5" while stepping through answers with ⌘< and ⌘>. */
   const [step, setStep] = useState<{ at: number; of: number; tick: number } | null>(null);
 
   const answersOnly = view === "answers";
@@ -107,7 +107,7 @@ export function Feed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, interim]);
 
-  // ⌘[ and ⌘] step through answers.
+  // ⌘< and ⌘> step through answers.
   useEffect(() => {
     if (!cursor) return;
     const target = answers[cursor.index];
@@ -146,8 +146,8 @@ export function Feed() {
   const empty = shown.length === 0 && !(interim && !answersOnly);
 
   return (
-    <div className="lv-feedwrap">
-      <div ref={scroller} className="lv-feed" onScroll={onScroll} onWheel={letGo} onTouchStart={letGo} onKeyDown={letGo} role="log" aria-live="polite" aria-label="Conversation and answers" tabIndex={-1}>
+    <div className="lv-feedwrap" role="tabpanel" id="live-feed-panel" aria-label="Chat">
+      <div ref={scroller} className="lv-feed" onScroll={onScroll} onWheel={letGo} onTouchStart={letGo} onKeyDown={letGo} role="log" aria-live="polite" aria-label="Conversation and answers" tabIndex={0}>
         {empty ? <Empty answersOnly={answersOnly} /> : null}
         {shown.map((item) =>
           item.kind === "turn" ? (
@@ -181,4 +181,28 @@ export function Feed() {
       ) : null}
     </div>
   );
+}
+
+
+function FocusedAnswer() {
+  const state = useLive((state) => ({ items: state.items, question: state.question }));
+  const cursor = useLiveUi((state) => state.cursor);
+  const pending = useLive((state) => state.requestPending);
+  const screen = useLive((state) => state.nextSource === "screen");
+  const pages = useMemo(() => answerPages(state), [state.items, state.question]);
+  const page = pages[pageIndex(pages.length, cursor?.index)];
+  const id = page?.kind === "answer" ? page.answer.id : page?.question.turnId;
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => { if (box.current) box.current.scrollTop = 0; }, [id]);
+  return <div className="lv-feedwrap" role="tabpanel" id="live-feed-panel" aria-label="Answer">
+    <div ref={box} className="lv-feed" tabIndex={0} aria-live="polite" aria-label="Current question and answer">
+      {pending && screen ? <p className="lv-capture-state" role="status"><Icon name="camera" size={20} />Capturing screen…</p> : null}
+      {pending && screen ? null : page?.kind === "answer" ? <AnswerCard key={page.answer.id} answer={page.answer} latest={page === pages.at(-1)} focused /> : page?.kind === "question" ? <section className="lv-current-question" aria-label="Current question"><p className="lv-current-question__label">Question</p><p className="selectable">{page.question.text}</p><p className="lv-waiting">Choose Answer or a response length below.</p></section> : !pending ? <Empty answersOnly /> : null}
+    </div>
+  </div>;
+}
+
+export function Feed() {
+  const view = useLiveUi((state) => state.view);
+  return view === "answers" ? <FocusedAnswer /> : <ConversationFeed />;
 }

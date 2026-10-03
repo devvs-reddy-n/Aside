@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "../kit/Icon";
 import { useController, useLive } from "./context";
 import { describeAnswerError, looksLikePermissionProblem } from "./errors";
@@ -10,25 +10,33 @@ interface AlertProps {
   title: string;
   /** The one thing to do, always visible on the line. */
   fix?: { label: string; run: () => void };
-  /** The why, and any other way out; shown when the line is hovered or focused. */
+  /** Extra context and recovery actions, opened deliberately with the details button. */
   detail?: ReactNode;
   more?: ReactNode;
   onClose?: () => void;
 }
 
-/** One line (icon, what's wrong, Fix). Hovering or tabbing into it opens the details underneath. */
+/** Compact recovery stays stable while reading; details open only on request. */
 function Alert({ tone, icon, title, fix, detail, more, onClose }: AlertProps) {
   const expandable = Boolean(detail || more);
+  const [expanded, setExpanded] = useState(false);
+  const detailId = useId();
+  useEffect(() => setExpanded(false), [title]);
   return (
-    <div className="lv-alert" data-tone={tone} role={tone === "bad" ? "alert" : "status"} tabIndex={expandable ? 0 : undefined} data-expandable={expandable || undefined}>
+    <div className="lv-alert" data-tone={tone} role={tone === "bad" ? "alert" : "status"} data-open={expanded || undefined}>
       <div className="lv-alert__line">
         <Icon name={icon} size={15} />
         <b>{title}</b>
         {fix ? <button type="button" className="lv-chip" data-solid onClick={fix.run}>{fix.label}</button> : null}
+        {expandable ? (
+          <button type="button" className="lv-icon lv-icon--sm lv-alert__toggle" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpanded((value) => !value)}>
+            <Icon name="chevronDown" size={14} />
+          </button>
+        ) : null}
         {onClose ? <button type="button" className="lv-icon lv-icon--sm" aria-label="Dismiss" onClick={onClose}><Icon name="x" size={14} /></button> : null}
       </div>
       {expandable ? (
-        <div className="lv-alert__more">
+        <div className="lv-alert__more" id={detailId} inert={!expanded} aria-hidden={!expanded}>
           <div>
             {detail ? <p>{detail}</p> : null}
             {more ? <div className="lv-alert__actions">{more}</div> : null}
@@ -54,6 +62,11 @@ export function Notices() {
     return last && last.status === "error" ? last : null;
   });
 
+  // Feedback from an explicit button press must not disappear behind audio help.
+  if (notice) {
+    return <Alert tone="note" icon="info" title={notice} onClose={() => controller.dispatch({ type: "dismiss-notice" })} />;
+  }
+
   if (mic.status === "error") {
     return (
       <Alert
@@ -67,10 +80,9 @@ export function Notices() {
     );
   }
 
-  if (system.status === "silent" || system.status === "error") {
+  if (system.status === "error") {
     const permission = looksLikePermissionProblem(system.message);
     const checkAgain = async () => {
-      if (system.status === "silent") await controller.toggleChannel("system");
       await controller.toggleChannel("system");
     };
     const openSettings = () => void controller.backend.openPrivacySettings("screen");
@@ -78,7 +90,7 @@ export function Notices() {
       <Alert
         tone="warn"
         icon="alert"
-        title="Can't hear the other side"
+        title="System audio unavailable"
         fix={permission ? { label: "Open Settings", run: openSettings } : { label: "Check again", run: () => void checkAgain() }}
         detail={<>{permission ? "Allow Aside under Screen & System Audio Recording, then check again." : (system.message ?? "The system audio stream stopped.")} On AirPods? Use the built-in mic.</>}
         more={permission
@@ -101,8 +113,5 @@ export function Notices() {
     );
   }
 
-  if (notice) {
-    return <Alert tone="note" icon="info" title={notice} onClose={() => controller.dispatch({ type: "dismiss-notice" })} />;
-  }
   return null;
 }

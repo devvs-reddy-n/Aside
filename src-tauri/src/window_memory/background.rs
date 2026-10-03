@@ -243,7 +243,7 @@ pub fn init_background_worker(app: &AppHandle) {
 }
 
 /// Queues one frozen window for background summarization. Called right
-/// after `window_memory::freeze()` returns (`llm::respond_to_window`) —
+/// after `window_memory::freeze_for_answer()` returns (`llm::respond_to_window`) —
 /// before the visible answer even starts streaming, and never awaited.
 /// Silently drops the window (with a log line) if the worker was never
 /// initialized, e.g. in a test harness with no `AppHandle` setup — the

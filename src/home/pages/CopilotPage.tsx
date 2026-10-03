@@ -1,23 +1,23 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as api from "../../bridge/api";
 import type { Copilot, CopilotInput, CopilotSummary, DocType, LlmProviderKind, StoredDocument } from "../../bridge/types";
-import { lengthFor, setLengthFor, type LengthChoice } from "../../core/answerLength";
 import { formatBytes, formatDate } from "../../core/format";
 import { useStore } from "../../core/store";
 import { displayFileName, fileKind, isWebUrl, wordCount } from "../../core/text";
 import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
-import { Segmented, Select, Toggle } from "../../kit/Form";
+import { Select, Toggle } from "../../kit/Form";
 import { Icon } from "../../kit/Icon";
 import { Menu } from "../../kit/Menu";
 import { EASE_OUT, FAST } from "../../kit/motion";
+import { Popover } from "../../kit/Popover";
 import { RichText } from "../../kit/RichText";
 import { Sheet } from "../../kit/Sheet";
 import { Skeleton } from "../../kit/Skeleton";
 import { TextEditor } from "../../kit/TextEditor";
 import { toast } from "../../kit/toast";
-import { Tip } from "../../kit/Tooltip";
+import { useAutoHeight } from "../../kit/useAutoHeight";
 import { useAutosave } from "../../kit/useAutosave";
 import type { SaveState } from "../../core/autosave";
 import { onMessage } from "../bus";
@@ -50,14 +50,8 @@ function InlineTitle({ value, placeholder, className, onCommit, autoFocus, inval
   value: string; placeholder: string; className: string; onCommit: (next: string) => void; autoFocus?: boolean; invalid?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
-  const box = useRef<HTMLTextAreaElement>(null);
+  const box = useAutoHeight(draft || placeholder);
   useEffect(() => setDraft(value), [value]);
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [draft]);
   return (
     <textarea
       ref={box}
@@ -107,38 +101,21 @@ function SaveIndicator({ state }: { state: SaveState }) {
   );
 }
 
-function Chip({ ok, label, tip }: { ok: boolean | null; label: string; tip: string }) {
+function Tile({ name, title, helper, children, action }: { name: string; title: string; helper?: ReactNode; children: ReactNode; action?: ReactNode }) {
   return (
-    <Tip label={tip}>
-      <span className="ready-chip" data-ok={ok === null ? "info" : ok ? "yes" : "no"} tabIndex={0}>
-        <Icon name={ok === null ? "info" : ok ? "check" : "alert"} size={12} />
-        {label}
-      </span>
-    </Tip>
-  );
-}
-
-function Card({ title, helper, children, action }: { title: string; helper: string; children: ReactNode; action?: ReactNode }) {
-  return (
-    <section className="cp-card" aria-label={title}>
-      <header className="cp-card__head">
-        <div>
-          <h2>{title}</h2>
-          <p>{helper}</p>
-        </div>
+    <section className={`cp-tile cp-tile--${name}`} aria-label={title}>
+      <header className="cp-tile__head">
+        <div className="cp-tile__label"><h2>{title}</h2>{helper ? (
+          <Popover side="bottom" trigger={<button type="button" className="cp-info" aria-label={`About ${title}`}><Icon name="info" size={15} /></button>}>
+            <div className="cp-help">{helper}</div>
+          </Popover>
+        ) : null}</div>
         {action}
       </header>
-      <div className="cp-card__body">{children}</div>
+      <div className="cp-tile__surface">
+        <div className="cp-tile__content">{children}</div>
+      </div>
     </section>
-  );
-}
-
-function Row({ label, helper, children }: { label: string; helper?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="cp-row">
-      <div className="cp-row__label"><b>{label}</b>{helper ? <small>{helper}</small> : null}</div>
-      <div className="cp-row__control">{children}</div>
-    </div>
   );
 }
 
@@ -149,13 +126,7 @@ function TextSheet({ open, title, value, placeholder, onChange, onClose }: {
   const words = wordCount(value);
   return (
     <Sheet open={open} onClose={onClose} title={title} meta={`${words} ${words === 1 ? "word" : "words"}`}>
-      <div
-        onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") onClose();
-        }}
-      >
-        <TextEditor value={value} placeholder={placeholder} aria-label={title} autoFocus onChange={(event) => onChange(event.target.value)} />
-      </div>
+      <TextEditor value={value} placeholder={placeholder} aria-label={title} autoFocus onChange={(event) => onChange(event.target.value)} />
     </Sheet>
   );
 }
@@ -169,7 +140,7 @@ function ResumeCard({ doc, onPreview, onReplace }: { doc: StoredDocument; onPrev
         <small>{[fileKind(doc.file_name, doc.mime_type), formatBytes(doc.byte_size), `Added ${formatDate(doc.created_at_ms)}`].filter(Boolean).join(" · ")}</small>
       </div>
       <div className="file-card__actions">
-        <Button size="sm" variant="ghost" icon="eye" onClick={onPreview}>Preview</Button>
+        <Button size="sm" variant="ghost" icon="eye" aria-label="Preview resume" title="Preview resume" onClick={onPreview}>Preview</Button>
         <Button size="sm" variant="secondary" onClick={onReplace}>Replace</Button>
       </div>
     </div>
@@ -205,8 +176,6 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
   const [picking, setPicking] = useState(false);
   const [viewing, setViewing] = useState<StoredDocument | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [length, setLength] = useState<LengthChoice>(() => (copilot ? lengthFor(copilot.id) : "auto"));
   const [companyError, setCompanyError] = useState(false);
   const urlField = useRef<HTMLInputElement>(null);
   const set = <K extends keyof CopilotInput>(key: K, value: CopilotInput[K]) => setInput((current) => ({ ...current, [key]: value }));
@@ -287,7 +256,6 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
       }
       if (!savedId) {
         setSavedId(result.value.id);
-        setLengthFor(result.value.id, length);
         if (mounted.current) onCreated(result.value);
       }
       return true;
@@ -342,14 +310,10 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
 
   useEffect(() => onMessage("start-session", () => void start()));
 
-  const ready = {
-    job: Boolean(input.job_description?.trim()),
-    resume: Boolean(input.resume_id),
-  };
 
   return (
-    <div className="cp" onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 8)}>
-      <header className="cp-head" data-scrolled={scrolled || undefined}>
+    <div className="cp cp--tiles">
+      <header className="cp-head">
         <div className="cp-head__inner">
           <div className="cp-head__titles">
             <InlineTitle
@@ -361,13 +325,19 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
               onCommit={(next) => { setCompanyError(false); set("company", next || null); }}
             />
             <InlineTitle className="cp-role" value={input.target_role ?? ""} placeholder="Role" onCommit={(next) => set("target_role", next || null)} />
-            <div className="cp-chips">
-              <Chip ok={ready.job} label="Job" tip={ready.job ? "Description added." : "Add the job description so answers fit the role."} />
-              <Chip ok={ready.resume} label="Resume" tip={ready.resume ? "A resume is attached." : "Attach a resume so answers use your experience."} />
-              <Chip ok={null} label="Audio" tip="Microphone and system audio are checked when you start." />
-            </div>
+
           </div>
           <div className="cp-head__actions">
+            <label className="cp-model-control"><span>AI model</span>
+              <Select aria-label="AI model" value={modelKey} onChange={(e) => { const [provider, ...rest] = e.target.value.split("|"); setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") })); }}>
+              {options.length === 0 ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
+              {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
+            </Select>
+            </label>
+            <div className="cp-transcript-control" title="Keeps the conversation and summary in History">
+              <span>Save transcript</span>
+              <Toggle checked={input.save_transcript} label="Save transcript" onChange={(next) => set("save_transcript", next)} />
+            </div>
             <SaveIndicator state={isNew && !savedId ? "idle" : saveState} />
             {savedId && copilot ? (
               <Menu
@@ -386,99 +356,53 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
       </header>
 
       <div className="cp-body">
-        <Card title="Job" helper="What the role is about. Aside reads it before every answer.">
+        <Tile name="url" title="Job URL" helper="Import the role from its job posting.">
           <div className="cp-url">
             <Icon name="link" size={15} />
-            <input
-              ref={urlField}
-              value={importUrl}
-              placeholder="Job post URL"
-              aria-label="Job post URL"
-              aria-invalid={importError ? true : undefined}
+            <input ref={urlField} value={importUrl} placeholder="Paste job post URL" aria-label="Job post URL" aria-invalid={importError ? true : undefined}
               onChange={(event) => { setImportUrl(event.target.value); setImportError(null); }}
-              onKeyDown={(event) => { if (event.key === "Enter") void importJobPost(); }}
-            />
+              onKeyDown={(event) => { if (event.key === "Enter") void importJobPost(); }} />
             <Button size="sm" variant="secondary" busy={importing} disabled={!isWebUrl(importUrl)} onClick={() => void importJobPost()}>Import</Button>
           </div>
-          {importError ? <p className="cp-error">{importError}</p> : null}
-          <div className="cp-block">
-            <div className="cp-block__head">
-              <b>Description</b>
-              <Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("job")}>{input.job_description ? "Edit" : "Add"}</Button>
-            </div>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={importing ? "loading" : "text"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
-                {importing ? <Skeleton lines={5} /> : <RichText text={input.job_description} lines={6} empty="Paste a job post URL above, or add the description yourself." />}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </Card>
+          {importError ? <p className="cp-error" role="alert">{importError}</p> : null}
+        </Tile>
 
-        <Card title="Your background" helper="What Aside can draw on when it answers for you.">
-          <div className="cp-block">
-            <div className="cp-block__head"><b>Resume</b></div>
-            {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
-              <ResumeCard doc={resume} onPreview={() => setViewing(resume)} onReplace={() => setPicking(true)} />
-            ) : (
-              <button type="button" className="file-empty" onClick={() => setPicking(true)}>
-                <Icon name="plus" size={15} />Choose a resume
-              </button>
-            )}
-          </div>
-          <div className="cp-block">
-            <div className="cp-block__head"><b>Supporting files</b></div>
-            {chosenExtras.length > 0 ? (
-              <ul className="file-chips">
-                <AnimatePresence initial={false}>
-                  {chosenExtras.map((doc) => (
-                    <motion.li key={doc.id} layout initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: FAST }}>
-                      <Icon name="note" size={13} />
-                      <span title={doc.file_name}>{displayFileName(doc.file_name)}</span>
-                      <button type="button" aria-label={`Remove ${doc.file_name}`} onClick={() => set("document_ids", input.document_ids.filter((id) => id !== doc.id))}><Icon name="x" size={12} /></button>
-                    </motion.li>
-                  ))}
-                </AnimatePresence>
-              </ul>
-            ) : null}
-            <div className="dropzone" data-over={dropOver || undefined}>
-              <Icon name="upload" size={16} />
-              <span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
-              {extras.length > chosenExtras.length ? <Button size="sm" variant="ghost" onClick={() => setPicking(true)}>From Library</Button> : null}
-            </div>
-          </div>
-        </Card>
+        <Tile name="description" title="Description" helper="Aside reads this before every answer."
+          action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("job")}>{input.job_description ? "Edit" : "Add"}</Button>}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={importing ? "loading" : "text"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
+              {importing ? <Skeleton lines={5} /> : <RichText text={input.job_description} lines={5} expandable={false} empty="Import a job URL, or add the description yourself." />}
+            </motion.div>
+          </AnimatePresence>
+        </Tile>
 
-        <Card title="Answer style" helper="How answers sound in this copilot's calls.">
-          <div className="cp-block">
-            <div className="cp-block__head">
-              <b>Guidance</b>
-              <Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>
-            </div>
-            <RichText text={input.instructions} lines={3} empty="Tone, focus, what to lean on or avoid." />
+        <Tile name="resume" title="Resume" helper="Your experience, ready for each answer.">
+          {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
+            <ResumeCard doc={resume} onPreview={() => setViewing(resume)} onReplace={() => setPicking(true)} />
+          ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
+        </Tile>
+
+        <Tile name="supporting" title="Supporting files" helper="Add notes, project details or other useful context."
+          action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
+          {chosenExtras.length > 0 ? <ul className="file-chips">
+            {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
+              <Icon name="note" size={13} /><span title={doc.file_name}>{displayFileName(doc.file_name)}</span>
+              <button type="button" aria-label={`Remove ${doc.file_name}`} onClick={() => set("document_ids", input.document_ids.filter((id) => id !== doc.id))}><Icon name="x" size={12} /></button>
+            </li>)}
+            {chosenExtras.length > 2 ? <li><button type="button" className="cp-more-files" onClick={() => setPicking(true)}>+{chosenExtras.length - 2} more</button></li> : null}
+          </ul> : null}
+          <div className="dropzone" data-over={dropOver || undefined}>
+            <Icon name="upload" size={16} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
           </div>
-          <Row label="Default length" helper="You can still change it during the call.">
-            <Segmented<LengthChoice>
-              label="Default length"
-              value={length}
-              onChange={(next) => {
-                setLength(next);
-                if (savedId) setLengthFor(savedId, next);
-              }}
-              options={[{ value: "auto", label: "Auto" }, { value: "small", label: "Short" }, { value: "medium", label: "Medium" }, { value: "long", label: "Long" }]}
-            />
-          </Row>
-          <Row label="AI model" helper="Used for this copilot's calls. Keys are in Settings.">
-            <Select aria-label="AI model" value={modelKey} onChange={(e) => { const [provider, ...rest] = e.target.value.split("|"); setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") })); }}>
-              {options.length === 0 ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
-              {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
-            </Select>
-          </Row>
-          <Row label="Save transcript" helper="Keeps the conversation and a summary in History.">
-            <Toggle checked={input.save_transcript} label="Save transcript" onChange={(next) => set("save_transcript", next)} />
-          </Row>
-          <p className="cp-foot">Guidance is used together with your <a href={hrefFor("settings", "rules")}>Answer rules</a> in Settings.</p>
-        </Card>
+        </Tile>
+
+        <Tile name="guidance" title="Guidance" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
+          action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>}>
+          <RichText text={input.instructions} lines={5} expandable={false} empty="Set the tone and what to focus on or avoid." />
+        </Tile>
       </div>
+
+
 
       <TextSheet open={sheet === "job"} title="Job description" placeholder="Paste or write the job description. Lines starting with - become bullets." value={input.job_description ?? ""} onChange={(text) => set("job_description", text || null)} onClose={() => setSheet(null)} />
       <TextSheet open={sheet === "guidance"} title="Guidance" placeholder="Tone, focus, what to lean on or avoid. Only Aside sees this." value={input.instructions ?? ""} onChange={(text) => set("instructions", text || null)} onClose={() => setSheet(null)} />

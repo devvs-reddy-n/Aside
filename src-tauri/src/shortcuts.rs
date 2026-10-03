@@ -34,39 +34,15 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 pub const ANSWER_ACCELERATOR: &str = "CmdOrCtrl+Enter";
 /// Take a picture of the screen and ask the AI about it.
 pub const CAPTURE_ACCELERATOR: &str = "CmdOrCtrl+Shift+Enter";
-/// The live overlay's spec §10 keyboard map — the same screenshot action as
-/// [`CAPTURE_ACCELERATOR`], additive, not a replacement (the overlay's
-/// tooltip advertises ⌘K; the older ⌘⇧↩ binding is left registered too so
-/// nothing that already depends on it breaks).
-pub const SCREENSHOT_ACCELERATOR: &str = "CmdOrCtrl+K";
-/// Toggles the overlay's chat composer (spec §7). Pure UI state on the
-/// frontend — this shortcut only emits [`EVENT_OVERLAY_TOGGLE_CHAT`], it
-/// never touches the LLM by itself.
-pub const TOGGLE_CHAT_ACCELERATOR: &str = "CmdOrCtrl+Shift+A";
-/// Toggles the overlay's answer-body visibility (spec §6.1 row 7, "Collapse
-/// hides the answer body only"). Pure UI state, same as the chat toggle above.
-pub const TOGGLE_COLLAPSE_ACCELERATOR: &str = "CmdOrCtrl+H";
-/// Hide Aside from *your* screen, or bring it back. Does not change
-/// screen-share hiding (that lives in Settings only).
-pub const TOGGLE_APPEARANCE_ACCELERATOR: &str = "CmdOrCtrl+Shift+H";
-/// Steps to the previous item in the overlay's answer history (spec §6.2).
-pub const HISTORY_PREV_ACCELERATOR: &str = "CmdOrCtrl+[";
-/// Steps to the next item in the overlay's answer history (spec §6.2).
-pub const HISTORY_NEXT_ACCELERATOR: &str = "CmdOrCtrl+]";
+/// Steps through the live window's answer history.
+pub const HISTORY_PREV_ACCELERATOR: &str = "CmdOrCtrl+Shift+Comma";
+pub const HISTORY_NEXT_ACCELERATOR: &str = "CmdOrCtrl+Shift+Period";
 
 pub const EVENT_SHORTCUT_STATUS: &str = "shortcut-status";
 /// A one-line, plain-English aside shown in the panel — used when a
 /// shortcut fires but there is nothing for it to act on yet.
 pub const EVENT_SHORTCUT_NOTICE: &str = "shortcut-notice";
-/// Overlay-only events: these four accelerators do not call the LLM or any
-/// other backend state at all — they are forwarded to whichever webview is
-/// listening (only the overlay ever does) as a plain notification, and the
-/// overlay's own React state does the actual toggling/stepping. Kept as
-/// global shortcuts (routed through Rust) for the same reason every other
-/// shortcut in this file is: the overlay is rarely the focused window
-/// during a real call.
-pub const EVENT_OVERLAY_TOGGLE_CHAT: &str = "overlay-toggle-chat";
-pub const EVENT_OVERLAY_TOGGLE_COLLAPSE: &str = "overlay-toggle-collapse";
+/// History events are global so navigation works while a call app has focus.
 pub const EVENT_OVERLAY_HISTORY_PREV: &str = "overlay-history-prev";
 pub const EVENT_OVERLAY_HISTORY_NEXT: &str = "overlay-history-next";
 
@@ -86,23 +62,10 @@ pub struct ShortcutStatus(Mutex<Vec<ShortcutRegistration>>);
 
 fn definitions() -> Vec<(&'static str, &'static str)> {
     vec![
-        (ANSWER_ACCELERATOR, "Ask about the live chat"),
-        (CAPTURE_ACCELERATOR, "Look at my screen and help"),
-        (SCREENSHOT_ACCELERATOR, "Look at my screen and help"),
-        (
-            TOGGLE_CHAT_ACCELERATOR,
-            "Open or close the overlay's chat box",
-        ),
-        (
-            TOGGLE_COLLAPSE_ACCELERATOR,
-            "Show or hide the overlay's answer",
-        ),
-        (
-            TOGGLE_APPEARANCE_ACCELERATOR,
-            "Hide or show Aside on your screen",
-        ),
-        (HISTORY_PREV_ACCELERATOR, "Go to the previous answer"),
-        (HISTORY_NEXT_ACCELERATOR, "Go to the next answer"),
+        (ANSWER_ACCELERATOR, "Answer"),
+        (CAPTURE_ACCELERATOR, "Screenshot answer"),
+        (HISTORY_PREV_ACCELERATOR, "Previous answer"),
+        (HISTORY_NEXT_ACCELERATOR, "Next answer"),
     ]
 }
 
@@ -171,7 +134,7 @@ pub fn register_all(app: &AppHandle) {
 }
 
 /// Re-registers any binding macOS has quietly dropped. Runs forever, every
-/// [`HEALTH_CHECK_SECONDS`]; cheap (two `is_registered` lookups) and the only
+/// [`HEALTH_CHECK_SECONDS`]; cheap (four `is_registered` lookups) and the only
 /// thing that keeps the shortcuts alive across sleep/wake.
 pub fn spawn_health_check(app: &AppHandle) {
     let app = app.clone();
@@ -211,16 +174,7 @@ pub fn spawn_health_check(app: &AppHandle) {
 /// nothing — precisely the silently-broken state this whole session set out
 /// to eliminate. Parsing both sides normalizes the spelling away.
 fn match_accelerator(pressed: &Shortcut) -> Option<&'static str> {
-    for accel in [
-        ANSWER_ACCELERATOR,
-        CAPTURE_ACCELERATOR,
-        SCREENSHOT_ACCELERATOR,
-        TOGGLE_CHAT_ACCELERATOR,
-        TOGGLE_COLLAPSE_ACCELERATOR,
-        TOGGLE_APPEARANCE_ACCELERATOR,
-        HISTORY_PREV_ACCELERATOR,
-        HISTORY_NEXT_ACCELERATOR,
-    ] {
+    for (accel, _) in definitions() {
         if accel
             .parse::<Shortcut>()
             .map(|s| &s == pressed)
@@ -239,15 +193,7 @@ pub fn diagnostic_cmd_enter_may_call_llm() -> bool {
     true
 }
 
-/// Screen look-up (⌘⇧↩, and the additive ⌘K) may look at the screen.
-///
-/// **Flipped on 2026-08-29 (Phase B)**, was `false` from the original
-/// diagnostic-era Layer 11 work, where nothing in the frontend could
-/// actually trigger it yet. The live overlay's Screenshot pill (spec §6.1
-/// row 4) and its `⌘K` shortcut are real, owner-requested product
-/// features — see `future refs/live-helper-ui-spec.md` §6.1/§10 — so this
-/// gate now matches [`diagnostic_cmd_enter_may_call_llm`] rather than
-/// permanently blocking a feature this phase was asked to build.
+/// Screenshot answer (Command+Shift+Enter) can use the configured vision model.
 pub fn diagnostic_screen_hotkey_may_call_llm() -> bool {
     true
 }
@@ -257,16 +203,7 @@ pub fn diagnostic_screen_hotkey_may_call_llm() -> bool {
 pub fn handle(app: &AppHandle, pressed: &Shortcut) {
     match match_accelerator(pressed) {
         Some(ANSWER_ACCELERATOR) => answer_current_question(app),
-        Some(CAPTURE_ACCELERATOR) | Some(SCREENSHOT_ACCELERATOR) => capture_and_analyze(app),
-        Some(TOGGLE_CHAT_ACCELERATOR) => {
-            let _ = app.emit(EVENT_OVERLAY_TOGGLE_CHAT, ());
-        }
-        Some(TOGGLE_COLLAPSE_ACCELERATOR) => {
-            let _ = app.emit(EVENT_OVERLAY_TOGGLE_COLLAPSE, ());
-        }
-        Some(TOGGLE_APPEARANCE_ACCELERATOR) => {
-            crate::stealth::toggle_on_screen(app);
-        }
+        Some(CAPTURE_ACCELERATOR) => capture_and_analyze(app),
         Some(HISTORY_PREV_ACCELERATOR) => {
             let _ = app.emit(EVENT_OVERLAY_HISTORY_PREV, ());
         }
@@ -379,10 +316,6 @@ mod tests {
 
     #[test]
     fn cmd_enter_and_the_screen_hotkey_can_both_call_the_model() {
-        // Both gates are `true` as of Phase B (the live overlay's real
-        // Screenshot pill + ⌘K) — this test used to assert the screen gate
-        // was off; see `diagnostic_screen_hotkey_may_call_llm`'s doc
-        // comment for why that changed.
         assert!(diagnostic_cmd_enter_may_call_llm());
         assert!(diagnostic_screen_hotkey_may_call_llm());
     }
@@ -416,39 +349,19 @@ mod tests {
     }
 
     #[test]
-    fn hide_from_your_screen_is_a_registered_shortcut() {
-        let desc = definitions()
-            .into_iter()
-            .find(|(accel, _)| *accel == TOGGLE_APPEARANCE_ACCELERATOR)
-            .expect("⌘⇧H must be registered")
-            .1
-            .to_lowercase();
-        assert!(
-            desc.contains("your screen"),
-            "product copy for ⌘⇧H must say it hides Aside on your screen, got {desc}"
-        );
-        assert!(
-            !desc.contains("screen sharing"),
-            "⌘⇧H is appearance, not screen-share hiding: {desc}"
-        );
+    fn only_the_four_requested_bindings_are_registered() {
+        let keys: Vec<_> = definitions().into_iter().map(|(key, _)| key).collect();
+        assert_eq!(keys, vec!["CmdOrCtrl+Enter", "CmdOrCtrl+Shift+Enter",
+            "CmdOrCtrl+Shift+Comma", "CmdOrCtrl+Shift+Period"]);
     }
 
     #[test]
-    fn cmd_enter_copy_says_live_chat() {
-        let desc = definitions()
-            .into_iter()
-            .find(|(accel, _)| *accel == ANSWER_ACCELERATOR)
-            .expect("⌘↩ must be registered")
-            .1
-            .to_lowercase();
-        assert!(
-            desc.contains("live chat"),
-            "product copy for ⌘↩ is the live chat, got {desc}"
-        );
-        assert!(
-            !desc.contains("they"),
-            "⌘↩ must not be described as last Them: {desc}"
-        );
+    fn removed_shortcuts_cannot_dispatch_an_action() {
+        for old in ["CmdOrCtrl+K", "CmdOrCtrl+Shift+A", "CmdOrCtrl+H",
+            "CmdOrCtrl+Shift+H", "CmdOrCtrl+[", "CmdOrCtrl+]",
+            "CmdOrCtrl+P", "CmdOrCtrl+Q", "CmdOrCtrl+ArrowLeft", "CmdOrCtrl+ArrowRight"] {
+            assert_eq!(match_accelerator(&old.parse().unwrap()), None, "{old}");
+        }
     }
 
     #[test]
@@ -523,17 +436,7 @@ mod tests {
 
     #[test]
     fn every_overlay_only_accelerator_parses_and_round_trips() {
-        // The four overlay-toggle accelerators plus the additive ⌘K
-        // screenshot binding — same round-trip guarantee as the original
-        // two, since they go through the exact same parse-then-compare
-        // dispatch path.
-        for accel in [
-            SCREENSHOT_ACCELERATOR,
-            TOGGLE_CHAT_ACCELERATOR,
-            TOGGLE_COLLAPSE_ACCELERATOR,
-            HISTORY_PREV_ACCELERATOR,
-            HISTORY_NEXT_ACCELERATOR,
-        ] {
+        for accel in [HISTORY_PREV_ACCELERATOR, HISTORY_NEXT_ACCELERATOR] {
             let pressed: Shortcut = accel.parse().expect("must be a valid accelerator");
             assert_eq!(
                 match_accelerator(&pressed),

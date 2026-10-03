@@ -12,7 +12,7 @@ import { looksLikeQuestion } from "../core/questions.ts";
 
 export type ChannelKey = "mic" | "system";
 /** off = you turned it off · starting = warming up · on = listening
- *  silent = on, but nothing heard yet (often a macOS permission) · error = failed */
+ *  silent = on, but nothing heard yet (a normal quiet state) · error = failed */
 export type ChannelStatus = "off" | "starting" | "on" | "silent" | "error";
 export type AnswerSource = "window" | "screen" | "typed";
 export type AnswerLengthChoice = "auto" | "small" | "medium" | "long";
@@ -74,6 +74,8 @@ export interface LiveState {
   offline: string | null;
   /** A gentle one-line heads-up (never an error). */
   notice: string | null;
+  /** A button request is waiting for the backend to start or finish. */
+  requestPending: boolean;
   nextSource: AnswerSource;
   nextLength: AnswerLengthChoice;
   ended: Recap | null;
@@ -85,6 +87,7 @@ export type LiveAction =
   | { type: "seed-transcript"; turns: LiveTranscriptTurn[]; atMs: number }
   | { type: "transcript"; channel: ChannelKey; text: string; isFinal: boolean; atMs: number }
   | { type: "answer-requested"; source: AnswerSource; length: AnswerLengthChoice }
+  | { type: "answer-request-settled" }
   | { type: "answer-started"; question: string; atMs: number }
   | { type: "answer-cleaned"; cleaned: string }
   | { type: "answer-delta"; text: string }
@@ -115,6 +118,7 @@ export function initialLiveState(now = Date.now()): LiveState {
     question: null,
     offline: null,
     notice: null,
+    requestPending: false,
     nextSource: "window",
     nextLength: "auto",
     ended: null,
@@ -195,7 +199,10 @@ export function reduce(state: LiveState, action: LiveAction): LiveState {
     }
 
     case "answer-requested":
-      return { ...state, nextSource: action.source, nextLength: action.length };
+      return { ...state, requestPending: true, nextSource: action.source, nextLength: action.length };
+
+    case "answer-request-settled":
+      return { ...state, requestPending: false, nextSource: "window", nextLength: "auto" };
 
     case "answer-started": {
       const [id, counter] = nextId(state, "a");
@@ -331,10 +338,10 @@ export type LivePhase = "ended" | "answering" | "question" | "offline" | "silent
 
 export function derivePhase(state: LiveState): LivePhase {
   if (state.ended) return "ended";
-  if (state.items.some((item) => item.kind === "answer" && item.status === "streaming")) return "answering";
+  if (isAnswering(state)) return "answering";
   if (state.question) return "question";
   if (state.offline) return "offline";
-  if (state.channels.system.status === "silent" || state.channels.system.status === "error") return "silent";
+  if (state.channels.system.status === "error") return "silent";
   const micOff = state.channels.mic.status === "off" || state.channels.mic.status === "error";
   const systemOff = state.channels.system.status === "off";
   if (micOff && systemOff) return "paused";
@@ -346,10 +353,15 @@ export function answersOf(state: LiveState): Answer[] {
 }
 
 export function isAnswering(state: LiveState): boolean {
-  return state.items.some((item) => item.kind === "answer" && item.status === "streaming");
+  return state.requestPending || state.items.some((item) => item.kind === "answer" && item.status === "streaming");
 }
 
 /** The question an answer should be retried with, if any (typed follow-ups only). */
 export function retryQuestion(answer: Answer): string | null {
   return answer.source === "typed" && answer.question.trim() ? answer.question : null;
+}
+
+/** Real activity only; late meter/VAD events cannot light a stopped channel. */
+export function channelHasActivity(view: ChannelView): boolean {
+  return (view.status === "on" || view.status === "silent") && (view.speaking || view.level > HEARD_SOMETHING);
 }

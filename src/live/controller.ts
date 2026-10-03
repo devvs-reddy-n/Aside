@@ -1,10 +1,8 @@
 import type { OverlayPrefs } from "../bridge/types";
-import { createStore, type Store } from "../core/store";
-import { takeHandedOffLength } from "../core/answerLength";
-import { loadLaunchPrefs, saveLaunchPrefs } from "../core/launchPrefs";
+import { createStore, type Store } from "../core/store.ts";
+import { loadLaunchPrefs, saveLaunchPrefs } from "../core/launchPrefs.ts";
 import type { LiveBackend, ShortcutName } from "./backend";
 import {
-  answersOf,
   initialLiveState,
   isAnswering,
   reduce,
@@ -13,7 +11,8 @@ import {
   type ChannelKey,
   type LiveAction,
   type LiveState,
-} from "./machine";
+} from "./machine.ts";
+import { answerPages, pageIndex } from "./navigation.ts";
 import type { AnswerLength } from "../bridge/api";
 
 /** Everything about the live window that is about the window itself, not the call. */
@@ -23,13 +22,10 @@ export interface LiveUi {
   ending: boolean;
   screenshotBusy: boolean;
   /** Bumped to ask the footer to focus its follow-up box. */
-  askTick: number;
-  /** Which answer ⌘[ / ⌘] last stepped to (0 = oldest), with a tick so repeats re-scroll. */
+  /** Which answer ⌘← / ⌘→ last stepped to (0 = oldest), with a tick so repeats re-scroll. */
   cursor: { index: number; tick: number } | null;
   /** "all" shows what was said and the answers; "answers" hides the running transcript. */
   view: "all" | "answers";
-  /** The length the Answer button asks for. */
-  length: "auto" | "small" | "medium" | "long";
   /** Ears that were on when listening was paused, so Resume can turn the same ones back on. */
   paused: ChannelKey[] | null;
 }
@@ -48,20 +44,18 @@ export interface LiveController {
   retry: (answer: Answer) => Promise<void>;
   end: () => Promise<void>;
   changePrefs: (patch: Partial<OverlayPrefs>) => void;
-  focusAsk: () => void;
   stepAnswer: (direction: -1 | 1) => void;
   setView: (view: "all" | "answers") => void;
-  setLength: (length: LiveUi["length"]) => void;
   /** Stops both ears, or turns back on the ones that were on. */
   togglePause: () => Promise<void>;
   /** Puts the window back at its normal size, in a place where all of it shows. */
   resetWindow: () => Promise<void>;
 }
 
-const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 97, font_px: 13, language: "en" };
+const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 82, font_px: 13, language: "en" };
 
-/** The live window is never less than 94% solid, so answers stay readable over a busy screen. Older saved values below that are lifted here. */
-export const MIN_OPACITY = 94;
+/** Native frosting softens the desktop; answer cards carry their own readable surface. */
+export const MIN_OPACITY = 82;
 const withReadableOpacity = (prefs: OverlayPrefs): OverlayPrefs => ({ ...prefs, opacity_pct: Math.max(MIN_OPACITY, Math.min(100, prefs.opacity_pct)) });
 
 export function createLiveController(backend: LiveBackend): LiveController {
@@ -71,20 +65,34 @@ export function createLiveController(backend: LiveBackend): LiveController {
     prefs: DEFAULT_PREFS,
     ending: false,
     screenshotBusy: false,
-    askTick: 0,
     cursor: null,
     view: "all",
-    length: "auto",
     paused: null,
   });
   let saveTimer: number | undefined;
 
-  const dispatch = (action: LiveAction) => live.update((state) => reduce(state, action));
+  const dispatch = (action: LiveAction) => {
+    const previousQuestion = live.get().question?.turnId;
+    live.update((state) => reduce(state, action));
+    if (action.type === "answer-started" || (live.get().question && live.get().question?.turnId !== previousQuestion)) ui.set({ cursor: null });
+  };
 
   const requestAnswer = async (source: "window" | "screen" | "typed", length: AnswerLength | "auto", run: () => Promise<{ ok: boolean; error?: string }>) => {
     dispatch({ type: "answer-requested", source, length });
-    const result = await run();
-    if (!result.ok) dispatch({ type: "trigger-failed", message: result.error ?? "Aside could not start that answer." });
+    const failed = (message: string) => {
+      if (source === "screen") dispatch({ type: "answer-error", message, atMs: Date.now() });
+      else dispatch({ type: "trigger-failed", message });
+    };
+    try {
+      const result = await run();
+      if (!result.ok) failed(result.error ?? "Aside could not start that answer.");
+      return result.ok;
+    } catch (error) {
+      failed(error instanceof Error ? error.message : "Aside could not start that answer.");
+      return false;
+    } finally {
+      dispatch({ type: "answer-request-settled" });
+    }
   };
 
   const controller: LiveController = {
@@ -105,9 +113,7 @@ export function createLiveController(backend: LiveBackend): LiveController {
           if (on) dispatch({ type: "channel-started", channel, device: on.device });
         }
         const launch = loadLaunchPrefs();
-        // The copilot's default answer length, handed over by the Start panel (once).
-        const length = takeHandedOffLength() ?? "auto";
-        ui.set({ booted: true, prefs: withReadableOpacity(boot.prefs), view: launch.answersOnly ? "answers" : "all", length });
+        ui.set({ booted: true, prefs: withReadableOpacity(boot.prefs), view: launch.answersOnly ? "answers" : "all" });
       })();
       return () => {
         stopListening();
@@ -132,14 +138,14 @@ export function createLiveController(backend: LiveBackend): LiveController {
 
     async answer(length) {
       if (isAnswering(live.get())) return;
-      const remembered = ui.get().length;
-      const chosen: AnswerLength | null = length ?? (remembered === "auto" ? null : remembered);
+      // Length applies to this request only. The main Answer action always uses auto.
+      const chosen = length ?? null;
       await requestAnswer("window", chosen ?? "auto", () => backend.answerWindow(chosen));
     },
 
     async screenshot() {
       if (isAnswering(live.get()) || ui.get().screenshotBusy) return;
-      ui.set({ screenshotBusy: true });
+      ui.set({ screenshotBusy: true, view: "answers", cursor: null });
       await requestAnswer("screen", "auto", () => backend.answerScreenshot());
       ui.set({ screenshotBusy: false });
     },
@@ -148,13 +154,10 @@ export function createLiveController(backend: LiveBackend): LiveController {
       const question = text.trim();
       if (!question || isAnswering(live.get())) return false;
       const sessionId = live.get().session?.id ?? null;
-      let ok = true;
-      await requestAnswer("typed", "auto", async () => {
+      return requestAnswer("typed", "auto", async () => {
         const result = await backend.ask(question, sessionId);
-        ok = result.ok;
         return result.ok ? { ok: true } : { ok: false, error: result.error };
       });
-      return ok;
     },
 
     async retry(answer) {
@@ -190,18 +193,9 @@ export function createLiveController(backend: LiveBackend): LiveController {
       }, 300);
     },
 
-    focusAsk() {
-      void backend.focusWindow();
-      ui.set((state) => ({ askTick: state.askTick + 1 }));
-    },
-
     setView(view) {
       ui.set({ view });
       saveLaunchPrefs({ answersOnly: view === "answers" });
-    },
-
-    setLength(length) {
-      ui.set({ length });
     },
 
     async togglePause() {
@@ -225,17 +219,16 @@ export function createLiveController(backend: LiveBackend): LiveController {
     },
 
     stepAnswer(direction) {
-      const count = answersOf(live.get()).length;
+      const count = answerPages(live.get()).length;
       if (count === 0) return;
-      const current = ui.get().cursor?.index ?? count;
+      const current = pageIndex(count, ui.get().cursor?.index);
       const index = Math.max(0, Math.min(count - 1, current + direction));
-      ui.set((state) => ({ cursor: { index, tick: (state.cursor?.tick ?? 0) + 1 } }));
+      ui.set((state) => ({ view: "answers", cursor: { index, tick: (state.cursor?.tick ?? 0) + 1 } }));
     },
   };
 
   function onShortcut(name: ShortcutName) {
-    if (name === "toggleChat") controller.focusAsk();
-    else if (name === "previous" || name === "next") controller.stepAnswer(name === "previous" ? -1 : 1);
+    controller.stepAnswer(name === "previous" ? -1 : 1);
   }
 
   return controller;

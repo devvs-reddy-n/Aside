@@ -1,16 +1,9 @@
+import { APP_SHORTCUTS } from "../core/shortcuts";
 import { useEffect, useRef, useState } from "react";
 import * as api from "../bridge/api";
 import { Icon } from "../kit/Icon";
 import { useController, useLiveUi } from "./context";
 import { MIN_OPACITY } from "./controller";
-
-const SHORTCUTS: Array<[string, string]> = [
-  ["⌘↩", "Answer"],
-  ["⌘K", "Screenshot answer"],
-  ["⌘⇧A", "Ask a follow-up"],
-  ["⌘[  ⌘]", "Previous / next answer"],
-  ["⌘⇧H", "Hide from your screen"],
-];
 
 const MIN_FONT = 12;
 const MAX_FONT = 20;
@@ -116,7 +109,7 @@ export function Menu({ onClose, anchor }: { onClose: () => void; anchor: React.R
 
       <div className="lv-menu__sep" />
       <dl className="lv-keys">
-        {SHORTCUTS.map(([keys, what]) => (
+        {APP_SHORTCUTS.map(([keys, what]) => (
           <div key={keys}><dt>{what}</dt><dd><kbd>{keys}</kbd></dd></div>
         ))}
       </dl>

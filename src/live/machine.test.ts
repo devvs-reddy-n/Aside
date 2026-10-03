@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   answersOf,
+  channelHasActivity,
   derivePhase,
   initialLiveState,
   isAnswering,
@@ -126,7 +127,8 @@ test("'no audio heard' turns a listening channel silent, and real sound recovers
   const started = run([{ type: "channel-started", channel: "system", device: "Speakers" }]);
   const silent = reduce(started, { type: "channel-notice", channel: "system", text: "No audio heard from this device yet." });
   assert.equal(silent.channels.system.status, "silent");
-  assert.equal(derivePhase(silent), "silent");
+  assert.equal(derivePhase(silent), "listening");
+  assert.equal(silent.notice, null);
   const recovered = reduce(silent, { type: "channel-level", channel: "system", rms: 0.05 });
   assert.equal(recovered.channels.system.status, "on");
   assert.equal(recovered.channels.system.message, null);
@@ -172,4 +174,24 @@ test("seeding the transcript only fills an empty feed", () => {
   assert.equal(seeded.items.length, 1);
   const again = reduce(seeded, { type: "seed-transcript", atMs: 6, turns: [{ channel: "mic", text: "x" }] });
   assert.equal(again.items.length, 1);
+});
+
+
+test("audio activity follows each channel and stops for quiet, muted and failed channels", () => {
+  let state = run([
+    { type: "channel-started", channel: "mic", device: "Mic" },
+    { type: "channel-started", channel: "system", device: "Speakers" },
+    { type: "channel-level", channel: "mic", rms: 0.04 },
+  ]);
+  assert.equal(channelHasActivity(state.channels.mic), true);
+  assert.equal(channelHasActivity(state.channels.system), false);
+  state = reduce(state, { type: "channel-level", channel: "mic", rms: 0.0001 });
+  state = reduce(state, { type: "channel-vad", channel: "system", speaking: true });
+  assert.equal(channelHasActivity(state.channels.mic), false);
+  assert.equal(channelHasActivity(state.channels.system), true);
+  state = reduce(state, { type: "channel-vad", channel: "system", speaking: false });
+  assert.equal(channelHasActivity(state.channels.system), false);
+  for (const status of ["off", "starting", "error"] as const) {
+    assert.equal(channelHasActivity({ ...state.channels.system, status, level: 0.5, speaking: true }), false);
+  }
 });

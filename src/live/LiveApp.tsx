@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { windows } from "../bridge/api";
 import { formatClock } from "../core/format";
 import { Icon } from "../kit/Icon";
 import { ToastHost } from "../kit/toast";
@@ -10,6 +9,7 @@ import { Header } from "./Header";
 import { useRoom } from "./hooks";
 import { Notices } from "./Notices";
 import { Strip } from "./Strip";
+import { ResizeHandles } from "./ResizeHandles";
 import { Footer } from "./Tray";
 
 function EndedPanel() {
@@ -31,11 +31,10 @@ function EndedPanel() {
 
 function Dock() {
   const room = useRoom();
-  const tiny = room.height === "tiny";
   return (
     <div className="lv-dock" data-w={room.width} data-h={room.height}>
-      <Header room={room} />
-      {tiny ? null : <Strip room={room} />}
+      <Header />
+      <Strip />
       <Notices />
       <Feed />
       <Footer room={room} />
@@ -51,6 +50,7 @@ function Frame() {
   return (
     <div className="lv-root" data-w={room.width} style={style}>
       <Dock />
+      <ResizeHandles />
     </div>
   );
 }
@@ -61,18 +61,6 @@ export function LiveApp({ controller }: { controller: LiveController }) {
     document.documentElement.classList.add("live-window");
     return controller.start();
   }, [controller]);
-
-  // ⌘Q asks to quit from here too; the confirmation itself appears in the main window.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "q") {
-        event.preventDefault();
-        void windows.requestQuit();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   return (
     <LiveProvider controller={controller}>

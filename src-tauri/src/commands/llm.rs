@@ -200,7 +200,7 @@ pub async fn trigger_answer(
 }
 
 /// The overlay's Screenshot pill (spec §6.1 row 4) — a button a mouse can
-/// click, doing exactly what `shortcuts.rs`'s ⌘K/⌘⇧↩ global-shortcut path
+/// click, doing exactly what `shortcuts.rs`'s ⌘⇧↩ global-shortcut path
 /// (`capture_and_analyze`) already does, since a global shortcut's Rust
 /// handler isn't itself something a frontend `onClick` can invoke directly.
 /// Both paths end at the same `llm::respond_to_screenshot`, so a screenshot

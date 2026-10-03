@@ -29,9 +29,10 @@ export function Sheet({ open, onClose, title, meta, children, footer, width = 60
                 transition={{ duration: SLOW, ease: EASE_OUT }}
               >
                 <header className="sheet__head">
-                  <D.Title className="sheet__title">{title}</D.Title>
-                  {meta ? <span className="sheet__meta">{meta}</span> : null}
-                  <span className="grow" />
+                  <div className="sheet__heading">
+                    <D.Title className="sheet__title">{title}</D.Title>
+                    {meta ? <span className="sheet__meta">{meta}</span> : null}
+                  </div>
                   <D.Close asChild>
                     <IconButton icon="x" label="Close" size="sm" />
                   </D.Close>

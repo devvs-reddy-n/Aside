@@ -37,8 +37,8 @@ pub enum OverlayMode {
     Capsule,
 }
 
-const DOCK_MIN_WIDTH: f64 = 340.0;
-const DOCK_MIN_HEIGHT: f64 = 260.0;
+pub(super) const DOCK_MIN_WIDTH: f64 = 340.0;
+pub(super) const DOCK_MIN_HEIGHT: f64 = 260.0;
 const CAPSULE_MIN_WIDTH: f64 = 340.0;
 const CAPSULE_MIN_HEIGHT: f64 = 64.0;
 /// Starting size: the docked column, sized so the whole footer (Answer,
@@ -92,6 +92,11 @@ pub fn open_overlay(app: AppHandle) -> Result<(), String> {
             // the frontend (`--ov-*` tokens, `backdrop-filter`), not by the OS
             // window frame.
             .transparent(true)
+            .effects(tauri::window::EffectsBuilder::new()
+                .effects([tauri::window::Effect::Sidebar, tauri::window::Effect::Mica])
+                .state(tauri::window::EffectState::Active)
+                .radius(30.0)
+                .build())
             .decorations(false)
             .always_on_top(true)
             .resizable(true)
@@ -340,12 +345,10 @@ const DEFAULT_LANGUAGE: &str = "en";
 
 const MIN_ZOOM: u32 = 80;
 const MAX_ZOOM: u32 = 160;
-/// Spec §0's hard rule: "Opacity floor at 55%. Never allow a near-invisible
-/// overlay." Enforced here, not just in the frontend stepper, so nothing
-/// (a stray direct `invoke` call, a future bug in the stepper) can ever
-/// persist a value below it.
-const MIN_OPACITY: u32 = 55;
-const MAX_OPACITY: u32 = 95;
+/// Keep text readable over the native frosted backdrop. Match the frontend
+/// slider so saved values and the displayed control never disagree.
+const MIN_OPACITY: u32 = 82;
+const MAX_OPACITY: u32 = 100;
 const MIN_FONT_PX: u32 = 12;
 const MAX_FONT_PX: u32 = 20;
 

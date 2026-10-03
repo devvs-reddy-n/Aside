@@ -1038,12 +1038,12 @@ pub async fn respond_to_window(
     let Some(claim) = try_begin_user_answer(&app) else {
         return Ok(());
     };
-    let frozen = crate::window_memory::freeze(&app);
-    marks.frozen_at = Some(std::time::Instant::now());
-    if frozen.is_empty() {
+    let Some(selected) = crate::window_memory::freeze_for_answer(&app) else {
         drop(claim);
         return Err(crate::window_memory::EMPTY_WINDOW_NOTICE.to_string());
-    }
+    };
+    marks.frozen_at = Some(std::time::Instant::now());
+    let frozen = selected.window;
     // Queued right after freeze, before the answer even starts streaming —
     // never awaited here, and never awaited after the answer finishes
     // either. See `window_memory::background`'s doc comment for the
@@ -1054,7 +1054,9 @@ pub async fn respond_to_window(
     let history_session_id = crate::active_session::get(&app)
         .filter(|session| session.save_transcript)
         .and_then(|_| session_id);
-    crate::window_memory::enqueue_window(&app, history_session_id, frozen.clone());
+    if selected.is_new {
+        crate::window_memory::enqueue_window(&app, history_session_id, frozen.clone());
+    }
     window_answer_with_claim(app, session_id, frozen, claim, marks, length).await;
     Ok(())
 }

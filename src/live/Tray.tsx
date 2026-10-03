@@ -1,71 +1,49 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Icon } from "../kit/Icon";
 import { useController, useLive, useLiveUi } from "./context";
+import type { AnswerLength } from "../bridge/api";
 import type { Room } from "./hooks";
 import { isAnswering } from "./machine";
 
-function QuestionCard() {
-  const controller = useController();
-  const question = useLive((state) => state.question);
-  const answering = useLive(isAnswering);
-  if (!question || answering) return null;
-  return (
-    <section className="lv-question" aria-label="Question detected" key={question.turnId + question.text.length}>
-      <p className="lv-question__tag"><Icon name="spark" size={14} />Question detected</p>
-      <blockquote className="selectable">{question.text}</blockquote>
-      <div className="lv-question__actions">
-        <button type="button" className="lv-btn" data-primary onClick={() => void controller.answer()}>Answer this<kbd>⌘↩</kbd></button>
-        <button type="button" className="lv-btn" data-quiet onClick={() => controller.dispatch({ type: "dismiss-question" })}>Not now</button>
-      </div>
-    </section>
-  );
-}
-
-const LENGTHS: Array<["auto" | "small" | "medium" | "long", string, string]> = [
-  ["small", "Short", "Short answers"],
-  ["medium", "Med", "Medium-length answers"],
-  ["long", "Long", "Long answers"],
+const LENGTHS: Array<[AnswerLength, string, string]> = [
+  ["small", "Short", "Generate a short answer"],
+  ["medium", "Medium", "Generate a medium-length answer"],
+  ["long", "Long", "Generate a detailed answer"],
 ];
 
-/** The bottom edge: ask for an answer, pick its length, take a screenshot, or type a follow-up. It never scrolls away. */
+/** The bottom edge: generate an automatic or fixed-length answer, take a screenshot, or type a follow-up. It never scrolls away. */
 export function Footer({ room }: { room: Room }) {
   const controller = useController();
   const answering = useLive(isAnswering);
   const shotBusy = useLiveUi((state) => state.screenshotBusy);
-  const length = useLiveUi((state) => state.length);
-  const askTick = useLiveUi((state) => state.askTick);
-  /** While a detected question is on screen, its "Answer this" is the one blue button; this one steps back. */
-  const questionShowing = useLive((state) => state.question !== null) && !answering;
+  const [askOpen, setAskOpen] = useState(false);
+  const askButton = useRef<HTMLButtonElement>(null);
   const [text, setText] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const short = room.height !== "regular";
 
-  useEffect(() => {
-    if (askTick > 0) input.current?.focus();
-  }, [askTick]);
+  useEffect(() => { if (askOpen) input.current?.focus(); }, [askOpen]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     const question = text.trim();
     if (!question || answering) return;
     const ok = await controller.ask(question);
-    if (ok) setText("");
+    if (ok) setText((current) => current.trim() === question ? "" : current);
   }
 
   const answerButton = (
-    <button type="button" className="lv-btn lv-answer-btn" data-primary={questionShowing ? undefined : ""} data-quiet={questionShowing ? "" : undefined} disabled={answering} onClick={() => void controller.answer()} title="Answer the latest question  ⌘↩">
-      {answering ? <span className="lv-spin" aria-hidden="true" /> : <Icon name="play" size={13} />}
-      <span>{answering ? "Answering…" : "Answer"}</span>
-      {answering ? null : <kbd>⌘↩</kbd>}
+    <button type="button" className="lv-btn lv-answer-btn" data-primary disabled={answering} aria-busy={answering || undefined} aria-label="Answer automatically" onClick={() => void controller.answer()} title="Answer — length adapts to the question  ⌘↩">
+      {answering ? <span className="lv-spin" aria-hidden="true" /> : <Icon name="play" size={24} />}
     </button>
   );
   const shotButton = (
-    <button type="button" className="lv-icon lv-icon--boxed" disabled={answering || shotBusy} onClick={() => void controller.screenshot()} aria-label="Screenshot answer" title="Screenshot answer  ⌘K">
+    <button type="button" className="lv-icon lv-icon--boxed" disabled={answering || shotBusy} onClick={() => void controller.screenshot()} aria-label="Screenshot answer" title="Screenshot answer  ⌘⇧↩">
       {shotBusy ? <span className="lv-spin" aria-hidden="true" /> : <Icon name="camera" size={17} />}
     </button>
   );
   const composer = (
-    <form className="lv-ask" onSubmit={(event) => void submit(event)}>
+    <form className="lv-ask" id="live-follow-up" onSubmit={(event) => void submit(event)} onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); setAskOpen(false); askButton.current?.focus(); } }}>
       <input
         ref={input}
         value={text}
@@ -83,24 +61,18 @@ export function Footer({ room }: { room: Room }) {
 
   return (
     <div className="lv-tray">
-      <QuestionCard />
       <footer className="lv-foot" data-compact={short || undefined}>
-        {short ? (
-          <div className="lv-foot__row">{answerButton}{shotButton}{composer}</div>
-        ) : (
-          <>
-            <div className="lv-foot__row">
-              {answerButton}
-              <div className="lv-seg lv-seg--len" role="group" aria-label="Answer length">
-                {LENGTHS.map(([value, label, title]) => (
-                  <button key={value} type="button" title={title} aria-pressed={length === value} onClick={() => controller.setLength(length === value ? "auto" : value)}>{label}</button>
-                ))}
-              </div>
-              {shotButton}
-            </div>
-            {composer}
-          </>
-        )}
+        {askOpen ? composer : null}
+        <div className="lv-foot__row lv-foot__answers">
+          <div className="lv-length-actions" role="group" aria-label="Answer at a specific length">
+            {LENGTHS.map(([value, label, title]) => (
+              <button key={value} type="button" className="lv-btn lv-length-btn" disabled={answering} title={title} onClick={() => void controller.answer(value)}>{label}</button>
+            ))}
+          </div>
+          <button ref={askButton} type="button" className="lv-icon lv-icon--boxed" aria-label={askOpen ? "Close question input" : "Ask a question"} title="Ask a question" aria-expanded={askOpen} aria-controls="live-follow-up" onClick={() => setAskOpen((open) => !open)}><Icon name={askOpen ? "x" : "chat"} size={16} /></button>
+          {shotButton}
+          {answerButton}
+        </div>
       </footer>
     </div>
   );

@@ -56,9 +56,7 @@ pub fn run() {
         .plugin(shortcuts::plugin())
         .menu(|handle| lifecycle::build_menu(handle))
         .on_menu_event(|app, event| {
-            if event.id() == lifecycle::QUIT_MENU_ID {
-                lifecycle::request_quit(app);
-            }
+            lifecycle::handle_menu(app, event.id().as_ref());
         })
         .manage(commands::AudioState::default())
         .manage(commands::SystemAudioState::default())
@@ -152,6 +150,7 @@ pub fn run() {
             commands::past_sessions::delete_session,
             commands::overlay::open_overlay,
             commands::overlay::resize_overlay,
+            commands::overlay_resize::drag_resize_overlay,
             commands::overlay::set_overlay_mode,
             commands::overlay::get_overlay_size,
             commands::overlay::hide_main_window,

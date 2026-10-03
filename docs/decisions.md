@@ -276,3 +276,104 @@ This is the compact record of decisions that still affect the product. Supersede
 - **Library and History rows have no icon tiles.** Library keeps a plain type icon. History drops the per-company monogram; it stays in the sidebar.
 - **Sidebar folding still animates its width.** The design checker flags this, but the main pane must resize anyway, so it stays.
 
+
+## 2026-09-26 — finish the existing UI redesign against the owner's screenshots
+
+The checkout already contained the six-phase redesign, so this pass preserved its two-pane architecture, automatic saving, Library and side-panel editors. It replaced the Copilot page's large outer boxes with open sections, widened the reading area, and fixed text height on resize at a shared component level. Full primary names wrap; short sidebar role previews keep their full tooltip.
+
+Recovery details now require a deliberate click rather than moving the live layout on hover. Extra help and the question card can scroll in tiny windows to preserve the footer. Narrow live controls retain labels and audio meters; redundant icons yield space. Short existing transitions remain, with reduced-motion styles respected. Panel headers place long context below the title.
+
+Reference availability was checked directly: neither named Repo1-Natively nor Repo2-OpenCluely directory exists. `references/README.md` identifies the current vendored app as Assistant. Compared `references/src/renderer/src/windows/dashboard/dashboard.css` and `references/src/renderer/src/windows/overlay/overlay.css`: adapted compact navigation, a fixed answer surface, 140–180 ms feedback, and reduced-motion intent. Decorative drifting glows would compete with call reading and were not adopted. No reference code copied. Earlier records naming Repo1 reflect older checkout states.
+
+Design rationale: native familiarity and clear hierarchy, following Apple Human Interface Guidelines (https://developer.apple.com/design/human-interface-guidelines/) and progressive disclosure (https://www.nngroup.com/articles/progressive-disclosure/). The existing CONTEXT/CURRENT files remain the product/design context; no additional standing design documents were created, per the owner's documentation rule.
+
+## 2026-09-26 — execute the remaining prompt interactions
+
+Preserve the redesigned visual system and complete its keyboard/recovery paths. Added bounded keyboard sidebar resizing, clear-filter feedback, keyboard live tabs and a focusable feed. Keep the compact rail button below the native titlebar area. Start setup links close their panel when navigating. Stabilized the live menu close callback so the clock's once-per-second render cannot reset focus. The empty-answer illustration is still; real audio meters remain active.
+
+Compared the available Assistant reference's dashboard keyboard handling and overlay's distinction between decorative animation and real RMS meters. The named Natively/OpenCluely directories are still absent. No source copied. Frontend only; saved-data format, call pipeline and providers unchanged.
+
+Packaging follow-up: iCloud reattached root FinderInfo during the script's recursive attribute clearing. Removing only root FinderInfo immediately before signature verification succeeded. The build script now does this last and on its retry; strict signature checks are unchanged. This is a packaging correction, not a change to permissions or app security policy.
+Immediate metadata removal was insufficient during a fresh copy. Verification now makes at most six strict attempts, separated by two seconds; it still fails if no strict check passes. This avoids changing signature policy while accommodating iCloud's repeated metadata writes.
+
+
+## 2026-09-26 — one-response length buttons and free live resizing
+
+The owner wants Answer to choose its length from the question, and Short/Med/Long to generate immediately rather than set a preference. Removed the default row, local preference helper, duplication copying and startup handoff. Existing backend automatic and manual-length prompts already support this distinction; no new provider or prompt behavior was needed. The footer always keeps all four actions visible, including short windows. Request-pending state prevents rapid duplicate clicks, and is cleared even when a request fails or is ignored.
+
+The named Natively and OpenCluely directories are still absent. Compared the available Assistant reference's `LengthBar.tsx`: it sends a one-response `forceLength` immediately, which matches the owner's intended interaction. Its WindowManager enables resizing and restores bounds with platform window support. Aside keeps its own layout and adapts that interaction, without copying reference source.
+
+Source inspection found Tao 0.35.3's macOS `drag_resize_window` returns NotSupported. Eight transparent edge/corner targets use Tauri's native command on Windows; on Mac, a bounded worker tracks the held left mouse button and pointer position, applying size/position through Tauri. It reads mouse state only during the requested drag, installs no global listener and adds no library dependency. Minimum remains 340×260 to preserve controls; either dimension can grow independently. Pure geometry tests cover every direction, the minimum and negative monitor coordinates. Native dragging still requires a real app check.
+
+
+## 2026-09-26 — repair repeated answers and manual length requests
+
+The previous UI-only verification missed a real backend behavior: freezing a speech window empties it, so a second click (often a length button) failed unless more speech had arrived. Retain the last frozen window in session memory and use it whenever a new freeze is empty. A new nonempty window replaces it. Both start and end already reset that state. Only fresh windows enter background summarization; repeats do not duplicate memory. Reusing the input requests another model answer, not a byte-for-byte cached response.
+
+The named Natively/OpenCluely references remain absent. The available Assistant TranscriptStore falls back to the latest question lines when its new slice is empty; its ChatService puts manual length in a system instruction. Aside adapts those behaviors using its whole frozen window and per-request system suffix, without copying source. The stable prompt prefix is preserved, but the complete system message now varies by manual length. AUTO receives no suffix.
+
+Request notices now outrank audio help, so an empty first request or other command failure cannot look like a dead button. The owner requested compact right alignment for all four buttons; removed Answer's flex growth. Rollback is local to window selection, prompt suffix and footer CSS; no stored data migration or schema change is involved.
+
+
+## 2026-09-26 — compact live controls, two reading modes and cancellable ending
+
+The owner requested icon-only audio controls in the header, a hidden question field, separate single-answer and live-chat modes, and one-click ending with time to cancel. Answer pages are derived from the existing answer history plus any unanswered question; no new persisted data is needed. Previous/next navigation clamps to available pages and new answers return to the latest. The input opens above the fixed toolbar and preserves draft text after failure. Ending uses one four-second timer with explicit Cancel/Escape; clicking elsewhere does not silently cancel it.
+
+The named Natively/OpenCluely directories are absent. Compared the available Assistant `ChatBar.tsx` (draft preservation and screenshot action), `NavBar.tsx` (compact audio controls) and `ScreenCapture.ts` (capture failure and window restoration). Its double-confirm ending differs from the owner's explicit request, so Aside uses a cancel delay. Its capture selects the overlay display; Aside still captures the primary display. No source was copied.
+
+Screenshot now immediately reveals progress and creates a retryable error card on failure. Mac screen-permission preflight catches denied captures that contain wallpaper rather than a blank frame. A ten-second capture timeout restores hidden windows even if the blocking OS capture stalls; a late result is discarded. Streaming provider errors and responses with no visible text now fail explicitly. The exact reported native failure remains unverified; these are concrete silent-failure repairs, not a claim that its sole cause was reproduced. Rollback is local to these controls and capture/stream handling, without schema changes.
+
+
+## 2026-09-26 — reference-inspired glass without changing Aside’s palette
+
+The owner explicitly wants the supplied sketch’s control treatment while retaining Aside’s colors. The working files already contained the new arrangement with a jade palette; retained the arrangement and changed its material tokens to blue/neutral light and dark glass. Short/Medium/Long share one divided surface but remain three immediate actions, with no selected length. Type, screenshot and the larger play button follow them at bottom right. Answer/Chat replace the company name. Small controls receive blur/highlights/shadows; the readable pane avoids full-window blur because of the existing WebKit rendering constraint. Inset focus rings avoid clipping inside the joined group. Reduced transparency uses solid control surfaces.
+
+The named Natively/OpenCluely directories are still absent. Compared available Assistant NavBar, LengthBar and ChatBar for separate drag/control areas, direct length actions and typed/screenshot handling. Kept Aside’s existing actions and cancellation behavior, applying only the owner’s requested arrangement/material changes. No reference code copied. No persistence/backend changes; rollback is limited to live components/styles.
+
+
+## 2026-09-26 — normal silence, meaningful activity and sharper controls
+
+Silence is not a capture failure. Suppress the quiet-audio banner and amber icon while preserving recovery help for actual errors. Each icon reads only its own existing RMS/speech signals, gated by an enabled channel state. A short color/shadow transition smooths changes; no looping animation invents activity. The available Assistant Waveform similarly uses real RMS levels and stops when muted. Named Natively/OpenCluely directories remain absent; no source copied.
+
+Retain the requested glass and blue palette but reduce bevel/shadow weight, tighten the header and simplify control corners. Raise the live reading-surface opacity floor to 99% to suppress distracting background text. Remove the decorative empty-state waveform because the header now communicates actual activity. This is a local UI/state change with no capture, persistence or schema change; rollback is confined to these components/styles and activity helper.
+
+
+## 2026-09-26 — Settings fits in one desktop page
+
+The owner requested an iOS Settings-style hierarchy, neutral colors, smaller descriptions, five rules-preview lines and Edit above the preview. Used compact inset groups and two desktop columns so all six sections remain available together. Labels use 12.5px, helper text 11px, section headings 14px and the page title 21px. Dark uses readable light/gray text on black/gray surfaces; light uses black/gray text on white/gray. Removed doubled border/shadow outlines and the nested rules box. The full rules remain accessible in Edit; the preview is five 18px lines without a faded last half.
+
+Compared Apple’s official lists-and-tables guidance (https://developer.apple.com/design/human-interface-guidelines/lists-and-tables) and the available Assistant settings rows. The named Natively/OpenCluely repositories are absent. Assistant uses separate setting tabs, which would conflict with the owner’s all-sections-at-once request, so retained one page. No reference code copied. At very narrow pane widths the page stacks and may scroll to preserve access; never hide content to fake a fit. Changes are confined to Settings markup/styles and do not change stored data or settings handlers.
+
+## 2026-09-26 — Grouped controls, separate help, four app shortcuts
+
+Follow the owner’s iOS Settings/Mail references: explanations sit below groups in smaller gray type; blue selection covers a whole sidebar row with white content. Use the same neutral surfaces and hierarchy on Copilot, Library, History and Settings. Keep the previously requested blue glass live controls. Balance Settings across two columns, preserving five rules lines and access to full editing.
+
+The only app shortcuts are Command+Enter, Command+Shift+Enter, Command+Left and Command+Right. Remove old event handlers and hints, including extra native window-menu accelerators; keep standard text editing keys. Preserve search through a sidebar button and window actions through clickable menus. No storage migration; rollback can be limited to these UI/shortcut changes without touching saved data.
+
+Both named reference repositories are absent. The available Assistant reference uses grouped settings and a centralized hotkey manager with registration feedback. Retain Aside’s Rust registration/health checks and adapt shared shortcut labels; the owner’s exact four bindings take precedence over that reference’s larger map. No reference source copied.
+
+
+## 2026-09-26 — shared glass and separate Copilot tiles
+
+The owner requested glossier controls over a translucent window, rounder corners, five separate Copilot tiles and header model/transcript controls. Use one shared light/dark material with native macOS Sidebar vibrancy (Windows Mica where supported) behind translucent web surfaces. The available Assistant WindowManager similarly separates native material from web fallback; both named comparison repositories are still absent. No reference source copied.
+
+Supersedes the earlier 99% live reading floor: live opacity is now genuinely adjustable from 82–100%, with more opaque answer cards and a solid reduced-transparency fallback. The Copilot desktop overview fits the main window minimum; centered disclosure arrows open full reading panels so arbitrary text does not grow the overview. Additional supporting files remain in Manage. Existing edit/save/import handlers and data formats are retained. Changes can be rolled back by removing the shared glass layer/native effects and restoring the Copilot presentation, without migrating saved data.
+
+
+## 2026-09-26 - opaque vertical workspace and native text keys
+
+Refinement preserves blue accent, system type, existing data and edit actions. Design direction: predictable Operate layout (variance 3, motion 3, density 5); use spacing, solid neutral gradients and offset shadows for depth, not desktop bleed-through. User explicitly replaces prior translucency, tile grid and expand arrows. Main window is fixed; existing screen-fit safety remains for smaller displays. Live sizing is unchanged. Five-line previews normalize whitespace only for display; saved text and full editors retain original formatting.
+
+Settings follows the requested vertical order and plain shortcut list. Strict rules Edit is guarded by the requested seven-word warning. Shared dialogs now use the existing Radix package, portal above sheets/menus, and focus the owning native window. This removes the old lower-layer warning failure without permanent always-on-top changes. Native menus guard main Zoom/fullscreen.
+
+Command+< / > means Shift+Comma/Period on the owner's keyboard. Remove Command+Left/Right registration so normal Mac text editing wins. Tests reject old arrow bindings. Both named reference repositories remain absent; compared available Assistant window ownership/opaque-surface and centralized hotkey patterns. No source copied. No schema changes; rollback is limited to presentation, dialog and window/shortcut settings.
+
+
+## 2026-09-26 - outside headings and more readable type
+
+Move Copilot headings and existing actions outside raised panels; Settings already follows this structure. Increase type modestly and use the established secondary-gray token in previews and full text editors, including Strict rules. Keep five lines and original saved text. Stack all four Settings shortcuts in one column. The named reference directories remain absent; retain the available reference's separation of section labels and content without copying source. This is a local presentation change with no data migration or handler changes.
+
+
+## 2026-09-26 - narrower reading area and contextual help
+
+Cap Copilot and Settings content panels at 752px while keeping the fixed native window. Use a shared opaque gray editor-fill token in both themes. Reuse the existing Radix Popover for all five Copilot section explanations, so help works by click/keyboard and the Guidance link remains usable. Keep actual import errors inline rather than hiding them in help. Named comparison repos remain absent; compared available Assistant settings surface/description styles. No copied source or saved-data changes.

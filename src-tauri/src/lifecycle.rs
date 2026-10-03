@@ -1,7 +1,7 @@
 //! App-wide hide, quit, and relaunch.
 //!
-//! The title-bar minus hides Aside the same way ⌘⇧H does. The title-bar
-//! cross, the Aside menu's Quit item, and ⌘Q all ask first, then quit.
+//! The title-bar minus hides Aside. The title-bar
+//! cross and the Aside menu's Quit item ask first, then quit.
 //! Changing screen-share hiding relaunches so Dock and menu-bar policy
 //! apply from a fresh process.
 
@@ -63,8 +63,34 @@ pub fn confirm_quit(app: AppHandle) {
     app.exit(0);
 }
 
-/// Same menu as Tauri's default, except Quit is our item (asks first)
-/// instead of the OS predefined Quit (which terminates immediately).
+/// Clickable window commands; all custom key bindings live in shortcuts.rs.
+pub fn handle_menu(app: &AppHandle, id: &str) {
+    if id == QUIT_MENU_ID {
+        request_quit(app);
+        return;
+    }
+    if id == "aside-hide" {
+        crate::stealth::toggle_on_screen(app);
+        return;
+    }
+    let window = app.webview_windows().into_values()
+        .find(|window| window.is_focused().unwrap_or(false))
+        .or_else(|| app.get_webview_window("main"));
+    if let Some(window) = window {
+        match id {
+            "aside-minimize" => { let _ = window.minimize(); }
+            "aside-maximize" if window.label() != "main" => {
+                if window.is_maximized().unwrap_or(false) { let _ = window.unmaximize(); }
+                else { let _ = window.maximize(); }
+            }
+            "aside-close" => { let _ = window.close(); }
+            "aside-fullscreen" if window.label() != "main" => { let _ = window.set_fullscreen(!window.is_fullscreen().unwrap_or(false)); }
+            _ => {}
+        }
+    }
+}
+
+/// Menu actions have no app accelerators. Standard text editing remains native.
 pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let pkg_info = app.package_info();
     let config = app.config();
@@ -76,7 +102,15 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         ..Default::default()
     };
 
-    let quit = MenuItem::with_id(app, QUIT_MENU_ID, "Quit Aside", true, Some("CmdOrCtrl+Q"))?;
+    let quit = MenuItem::with_id(app, QUIT_MENU_ID, "Quit Aside", true, None::<&str>)?;
+
+    let minimize = MenuItem::with_id(app, "aside-minimize", "Minimize", true, None::<&str>)?;
+    let maximize = MenuItem::with_id(app, "aside-maximize", "Zoom", true, None::<&str>)?;
+    let close = MenuItem::with_id(app, "aside-close", "Close Window", true, None::<&str>)?;
+    #[cfg(target_os = "macos")]
+    let fullscreen = MenuItem::with_id(app, "aside-fullscreen", "Toggle Full Screen", true, None::<&str>)?;
+    #[cfg(target_os = "macos")]
+    let hide = MenuItem::with_id(app, "aside-hide", "Hide Aside", true, None::<&str>)?;
 
     let window_menu = Submenu::with_id_and_items(
         app,
@@ -84,11 +118,11 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "Window",
         true,
         &[
-            &PredefinedMenuItem::minimize(app, None)?,
-            &PredefinedMenuItem::maximize(app, None)?,
+            &minimize,
+            &maximize,
             #[cfg(target_os = "macos")]
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::close_window(app, None)?,
+            &close,
         ],
     )?;
 
@@ -116,8 +150,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
                     &PredefinedMenuItem::separator(app)?,
                     &PredefinedMenuItem::services(app, None)?,
                     &PredefinedMenuItem::separator(app)?,
-                    &PredefinedMenuItem::hide(app, None)?,
-                    &PredefinedMenuItem::hide_others(app, None)?,
+                    &hide,
                     &PredefinedMenuItem::separator(app)?,
                     &quit,
                 ],
@@ -134,7 +167,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
                 "File",
                 true,
                 &[
-                    &PredefinedMenuItem::close_window(app, None)?,
+                    &close,
                     #[cfg(not(target_os = "macos"))]
                     &quit,
                 ],
@@ -158,7 +191,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
                 app,
                 "View",
                 true,
-                &[&PredefinedMenuItem::fullscreen(app, None)?],
+                &[&fullscreen],
             )?,
             &window_menu,
             &help_menu,

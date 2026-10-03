@@ -11,6 +11,7 @@ import { createLiveController } from "./live/controller";
 import { tauriBackend } from "./live/backend";
 import { LiveApp } from "./live/LiveApp";
 import { applyStoredTheme } from "./theme/theme";
+import "./theme/glass.css";
 
 applyStoredTheme();
 
@@ -46,7 +47,7 @@ function pickRoot() {
 // Motion follows the Mac's Reduce Motion setting everywhere.
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <MotionConfig reducedMotion="user">
+    <MotionConfig reducedMotion="user" transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
       <TooltipProvider>{pickRoot()}</TooltipProvider>
     </MotionConfig>
   </StrictMode>,

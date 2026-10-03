@@ -110,13 +110,23 @@ if [ "$signed" -ne 1 ]; then
   exit 1
 fi
 
-# Fail loudly rather than shipping an invalid signature. This is the check that
-# would have caught the unsigned bundle the day it was introduced.
-strip_xattrs
-if ! codesign --verify --strict --verbose=2 "./Aside.app" 2>&1; then
-  echo "NOTE  first strict verify failed; re-stripping xattrs and retrying once" >&2
-  strip_xattrs
-  codesign --verify --strict --verbose=2 "./Aside.app"
+# iCloud may restore FinderInfo for several seconds after the bundle is copied.
+# Keep strict verification; only retry the known metadata race for a bounded time.
+verified=0
+for attempt in 1 2 3 4 5 6; do
+  xattr -d com.apple.FinderInfo "./Aside.app" 2>/dev/null || true
+  if codesign --verify --strict --verbose=2 "./Aside.app"; then
+    verified=1
+    break
+  fi
+  if [ "$attempt" -lt 6 ]; then
+    echo "NOTE  strict verification failed; retrying after iCloud metadata settles" >&2
+    sleep 2
+  fi
+done
+if [ "$verified" -ne 1 ]; then
+  echo "FAIL  strict signature verification failed after retries" >&2
+  exit 1
 fi
 
 ACTUAL_ID="$(codesign -dvvv "./Aside.app" 2>&1 | sed -n 's/^Identifier=//p')"

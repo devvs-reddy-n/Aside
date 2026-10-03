@@ -15,7 +15,7 @@
 //!
 //! Default is on. The Settings toggle is the only on/off for this flag.
 //! Changing it saves the flag and relaunches so Dock / menu-bar policy
-//! apply from the first frame. ⌘⇧H is a different control: it hides or
+//! apply from the first frame. Window visibility is separate: it hides or
 //! shows Aside on *your* screen (`toggle_on_screen`) without changing
 //! screen-share hiding.
 
@@ -71,7 +71,7 @@ pub fn apply_to_window(window: &WebviewWindow, enabled: bool) {
     // The whole point of being invisible to a meeting share is that Aside
     // can still float above the meeting itself. Without this it behaves
     // like an ordinary window and disappears the moment another app is
-    // clicked into or made fullscreen — leaving ⌘⇧H (`toggle_on_screen`)
+    // clicked into or made fullscreen — leaving explicit window hiding
     // as the *only* thing that should ever make it go away. The overlay
     // already stays on top unconditionally for its own reason (it floats
     // over a live call regardless of this setting), so it must be left out
@@ -101,7 +101,7 @@ pub fn apply_to_all_windows(app: &AppHandle, enabled: bool) {
 }
 
 /// Dock + menu bar only. Must not hide the windows themselves — that is
-/// ⌘⇧H (`toggle_on_screen`). We do **not** call `set_dock_visibility`:
+/// handled by `toggle_on_screen`. We do **not** call `set_dock_visibility`:
 /// that uses `TransformProcessType` to UIElement, which takes the windows
 /// off the screen with the Dock icon. Accessory policy plus `LSUIElement`
 /// already removes the Dock icon and the Aside menus.
@@ -189,9 +189,13 @@ pub async fn capture_without_aside(
     if hide {
         tokio::time::sleep(std::time::Duration::from_millis(HIDE_FOR_CAPTURE_MS)).await;
     }
-    tauri::async_runtime::spawn_blocking(grab)
-        .await
-        .map_err(|e| format!("Screen capture failed: {e}"))?
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        tauri::async_runtime::spawn_blocking(grab),
+    )
+    .await
+    .map_err(|_| "Screen capture timed out. Check Screen & System Audio Recording access and try again.".to_string())?
+    .map_err(|e| format!("Screen capture failed: {e}"))?
 }
 
 #[tauri::command]
@@ -269,13 +273,13 @@ fn bundle_path_from_binary(exe: &std::path::Path) -> Option<std::path::PathBuf> 
     (bundle.extension().and_then(|ext| ext.to_str()) == Some("app")).then_some(bundle)
 }
 
-/// Title-bar minus — same action as ⌘⇧H.
+/// Title-bar minus toggles visibility on your screen.
 #[tauri::command(rename = "toggle_on_screen")]
 pub fn toggle_on_screen_command(app: AppHandle) {
     toggle_on_screen(&app);
 }
 
-/// Labels of windows ⌘⇧H hid, so the next press can bring back exactly
+/// Labels of windows hidden by the visibility control, so it can restore exactly
 /// those and not a window the person had already closed.
 #[derive(Default)]
 pub struct OnScreenHidden(Mutex<Vec<String>>);
@@ -299,7 +303,7 @@ pub enum OnScreenAction {
     Show(Vec<String>),
 }
 
-/// ⌘⇧H — hide Aside from *your* screen, or bring it back. Does not change
+/// The window visibility control — hide Aside from *your* screen, or bring it back. Does not change
 /// screen-share hiding, the Dock, or Activity Monitor. Capture keeps running.
 pub fn toggle_on_screen(app: &AppHandle) {
     let state = app.state::<OnScreenHidden>();

@@ -40,21 +40,20 @@ export function answerToText(answer: Answer): string {
 /** What was asked, in a short line: the cleaned-up question if Aside made one, otherwise the words as heard. */
 function askedLine(answer: Answer): string | null {
   const text = (answer.cleanedQuestion ?? answer.question).trim();
-  if (!text || answer.source === "screen") return null;
-  return text.length > 220 ? `…${text.slice(-217)}` : text;
+  return text || null;
 }
 
-export function AnswerCard({ answer, latest, flash }: { answer: Answer; latest: boolean; flash?: boolean }) {
+export function AnswerCard({ answer, latest, flash, focused = false }: { answer: Answer; latest: boolean; flash?: boolean; focused?: boolean }) {
   const controller = useController();
   const [copied, setCopied] = useState(false);
   /** null = follow the default (the newest answer is open, older ones fold up). */
   const [openChoice, setOpenChoice] = useState<boolean | null>(null);
   const streaming = answer.status === "streaming";
-  const open = openChoice ?? latest;
+  const open = focused || (openChoice ?? latest);
   const parsed = parseAnswerText(forParsing(answer.text, streaming));
   const asked = askedLine(answer);
   const friendly = answer.error ? describeAnswerError(answer.error) : null;
-  const foldable = !streaming && answer.status === "done" && !latest;
+  const foldable = !focused && !streaming && answer.status === "done" && !latest;
 
   function copy() {
     void navigator.clipboard
@@ -104,6 +103,7 @@ export function AnswerCard({ answer, latest, flash }: { answer: Answer; latest: 
           <footer className="lv-card__foot">
             <span className="lv-oops"><Icon name="alert" size={15} /><span><b>{friendly.title}</b>{friendly.hint ? <small>{friendly.hint}</small> : null}</span></span>
             <button type="button" className="lv-chip" data-solid onClick={() => void controller.retry(answer)}><Icon name="refresh" size={14} />Try again</button>
+            {friendly.screenPermission ? <button type="button" className="lv-chip" onClick={() => void controller.backend.openPrivacySettings("screen")}>Open System Settings</button> : null}
             {friendly.settings ? <button type="button" className="lv-chip" onClick={() => void controller.backend.openMain()}>Open Aside</button> : null}
           </footer>
         ) : answer.status === "done" && answer.canned ? (

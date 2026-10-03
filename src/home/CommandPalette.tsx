@@ -29,7 +29,7 @@ const SETTINGS: Array<[string, string]> = [
   ["general", "Screen sharing"],
 ];
 
-/** Everything in one searchable list, opened with ⌘P. */
+/** Everything in one searchable list, opened from the sidebar search button. */
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -40,20 +40,7 @@ export function CommandPalette() {
   const docs = useStore(libraryStore, (state) => state.docs);
   const sessions = useStore(historyStore, (state) => state.sessions);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "p") {
-        event.preventDefault();
-        setOpen((current) => !current);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    const stop = onMessage("open-palette", () => setOpen(true));
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      stop();
-    };
-  }, []);
+  useEffect(() => onMessage("open-palette", () => setOpen(true)), []);
 
   useEffect(() => {
     if (!open) return;

@@ -23,6 +23,7 @@
         "maxWidth": 1600,
         "maxHeight": 1040,
         "visible": true,
+        "transparent": false,
         "decorations": true,
         "contentProtected": true,
         "skipTaskbar": true,
@@ -31,7 +32,10 @@
         "trafficLightPosition": {
           "x": 18,
           "y": 24
-        }
+        },
+        "resizable": false,
+        "maximizable": false,
+        "fullscreen": false
       }
     ],
     "security": {

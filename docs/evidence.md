@@ -141,3 +141,151 @@ The build can emit existing unused-code warnings. The bundle script also strips 
 ## Recording rule
 
 Add only the command, test, inspection, or owner observation that actually occurred, together with its result. Do not treat a planned check as evidence.
+
+## 2026-09-26 — screenshot-led UI finishing pass
+
+- Startup: read CONTEXT.md/CURRENT.md; git status and diff were clean, latest commit `fb1f93c`. The newer redesign was already committed before this pass.
+- `npm run build`: passed (TypeScript + Vite); existing >500 kB chunk warning remains.
+- `cargo build` in `src-tauri/`: passed, 0.67 seconds.
+- `npm test`: 56 passed, 0 failed, including existing stylesheet syntax guard. Repeated after the compact-window corrections; again 56 passed.
+- `./scripts/build-app.sh`: completed after UI edits. Root Aside.app refreshed; codesign reported valid on disk and satisfied its designated requirement. Build log `/tmp/aside-ui-refresh-build.log`. Ad-hoc signing still carries the existing permission-reset limitation.
+- Impeccable mechanical detector on changed source: one warning, the inherited sidebar width transition. Removed that transition so drag resizing responds directly. Detector was not used as a substitute for visual inspection.
+- Browser demo review via the app's browser controls: Copilot light/dark, Library, History, Settings, job editor, Start panel; workspace at 1180×860 and 960×640. Edited demo company to “OneMain Financial · Customer Experience and Operations” and role to “Senior Call Delivery Analyst, Contact Center Technology and Reporting.” At the smaller size title client/scroll heights were 68/68 and 48/48; no hidden lines. Sidebar company wrapped across three lines. All edits used made-up demo state, not the owner's saved copilots.
+- The first visual pass found Start's heading compressed by long metadata and the live Transcript tab clipped. Corrected panel header grouping and narrow live control spacing. Confirmed the Start heading stays on one line with full company/role below it at 960×640.
+- Live `?demo=live&scn=silent`: inspected at 360×400; clicked Show details and resized to minimum 340×260. Details expanded with aria-expanded=true, closed content is inert/aria-hidden. Header bounds 11–55px, alert 57–128.4px, question card 143.4–201px, footer 201–249px: footer remains within the 260px window. At 400×640, Answers and Transcript had matching client/scroll widths of 64 and 74px; neither label was clipped.
+- Browser console error query returned an empty list. `git diff --check` passed, actual source diff reviewed.
+- Not checked in this pass: real native windows/calls, screen-sharing protection, live providers, real uploads/exports, or simulated OS Reduce Motion. Existing Reduce Motion CSS remains in place and disables the new disclosure movement.
+
+## 2026-09-26 — design prompt execution and interaction verification
+
+- Startup read CONTEXT/CURRENT and reviewed the uncommitted finishing pass; latest committed base remains `fb1f93c`.
+- `npm test`: 56 passed, 0 failed. `npm run build`: passed with the existing large-chunk warning. `cargo build`: passed in 0.64 seconds.
+- Browser demo at 960×640: Resize sidebar Right changed 240→250; End then Right stayed at 300; Home changed to 220. Collapsed rail inspected visually; its toggle is below the reserved native-titlebar strip.
+- Live demo at 360×400: Left on Transcript selected and focused Answers; Right returned to Transcript. Empty waveform computed animation-name was `none`.
+- Options menu: Tab focused Pause listening at call clock 0:37; it retained focus through 1:18, including subsequent header timer renders. Escape closed the menu and returned focus to Window options.
+- At 340×260 with expanded recovery help: footer bottom remained 249px; the content panel retained its accessible name even though the tabs are hidden at this tiny height. Browser error log was empty.
+- Setup links and no-match filter recovery were source-reviewed; their full error-state flows were not browser exercised. Real audio/providers and OS Reduce Motion were not tested in this pass.
+- First two `./scripts/build-app.sh` runs built the release app successfully but failed strict verification when iCloud reattached root `com.apple.FinderInfo`. Direct `xattr -d com.apple.FinderInfo ./Aside.app` followed by `codesign --verify --strict --verbose=2 ./Aside.app` passed. Adjusted packaging to remove that root attribute immediately before verification and on retry; strict validation is retained.
+- Reviewed actual diff; `git diff --check` passed. Available Assistant reference keyboard handling and real-meter motion inspected; named Natively/OpenCluely folders remain missing.
+- The immediate root-only retry still lost the race in the next full build. Changed verification to six strict attempts, two seconds apart, deleting only root FinderInfo each time. This keeps verification strict and gives iCloud a bounded interval to settle. Final build result is in `/tmp/aside-prompt-build-fixed.log`.
+
+
+## 2026-09-26 — immediate length actions and resize edges
+
+- Removed setup Default length and all imports/call sites of the local answer-length preference. `rg` found no remaining Default length, setLength, lengthFor or handoff references in source.
+- Added controller tests for all three one-response lengths followed by automatic Answer, pending/streaming duplicate-click guards, failed and ignored requests, and rejected typed requests. The first test run exposed the previously unguarded pre-stream interval; fixed it. Final `npm test`: 61 passed, 0 failed (`/tmp/aside-answer-actions-tests.log`).
+- `npm run build` passed after all native resize wiring; existing large-chunk warning remains. `cargo build` passed. `cargo test --lib overlay_resize`: 3 passed, covering all eight directions, minimum sizes/opposite anchor, large sizes and negative monitor coordinates. An earlier `cargo test --lib length` ran three unrelated name matches; it is not evidence of AI answer-length quality.
+- Browser demo at 400×640: Short immediately showed a streaming answer tagged Short, all answer actions disabled during streaming. A subsequent Answer produced an answer without a fixed-length tag. At 340×260, Med immediately started an answer tagged Medium. Demo content is canned and is not proof of provider length compliance.
+- Minimum 340×260 with expanded audio help: all four actions and follow-up/screenshot remain visible. Footer bounds 167–249px, action heights 28px (Short/Med/Long) and 32px (Answer). All length buttons have no aria-pressed state. All eight resize areas passed DOM hit testing with the correct direction cursors.
+- Workspace demo at 960×640: Answer style contains Guidance, AI model and Save transcript; Default length is absent.
+- Reviewed Tauri/Tao source: native macOS resize dragging is NotSupported. Added a Mac drag tracker instead of shipping no-op handles; Windows retains its existing native command. Neither real native dragging nor real model answers was exercised. No live Aside process was available in the app inventory.
+- Reference comparison: named repos absent; inspected Assistant LengthBar and WindowManager. No reference source copied.
+- Final preview check: Long immediately started a response tagged Long; browser error log was empty. Temporary tabs were closed and viewport restored.
+- Final `./scripts/build-app.sh` completed with exit 0. Root `Aside.app` refreshed; strict codesign verification reported valid on disk and satisfied its designated requirement. Log: `/tmp/aside-live-actions-native-build.log`. Actual diff reviewed and `git diff --check` passed. The app was not launched into a real call.
+
+
+## 2026-09-26 — reported broken answer buttons: backend repair
+
+- Startup read CONTEXT/CURRENT and checked status, diff and latest log; prior work remained uncommitted on redesign-dock.
+- Traced frontend click → trigger_window_answer → respond_to_window → freeze. Confirmed the first freeze consumed speech and the next empty freeze returned an error. The old canned browser backend always supplied a question, so it could not expose this defect.
+- `cargo test --lib window_memory`: 65 passed, 0 failed. New cases exercise repeated automatic and all manual lengths after consumption, new speech replacing the replay, session reset, late finals of a frozen interim, and length directives taking priority without leaking into AUTO. Tests use production window selection and prompt assembly; no cloud calls.
+- `npm test`: 61 passed, 0 failed (`/tmp/aside-replay-frontend-tests.log`). `npm run build` passed with the existing chunk-size warning. `cargo build` passed in 9.76 seconds.
+- Browser layout at 400×640: Short/Med/Long/Answer occupy x90–379 inside a row x21–379; Answer width 131.5px, so the group is compact and right-aligned. At 340×260, all four buttons and the follow-up/screenshot row remain visible, including the Answering state. Short started a demo response immediately; this canned response is not evidence of real-model length compliance.
+- Reviewed actual Rust selection/prompt/caller changes and footer/error notice changes. Reference comparison used Assistant TranscriptStore and ChatService; no source copied. Native provider output was not exercised.
+- `./scripts/build-app.sh` completed, exit 0; root Aside.app refreshed and strict signature verification passed. Log `/tmp/aside-replay-fix-build.log`. Browser console errors were empty; preview tabs closed and viewport restored. `git diff --check` passed.
+
+
+## 2026-09-26 — live modes, compact controls and screenshot recovery
+
+- Read startup context/status and reviewed checkout diff/log. Named reference directories remain absent; compared the available Assistant ChatBar, NavBar and ScreenCapture. No source copied.
+- `npm test`: 64 passed, 0 failed (`/tmp/aside-live-modes-final-tests.log`). New cases cover one-question/answer navigation, latest-page selection, immediate screenshot state and visible capture failures.
+- `cargo test --lib llm::openai`: 23 passed. A local HTTP test checks the actual vision request contains an image URL and exercises text success, empty DONE, streamed provider error and empty EOF. Uses synthetic data and a local server, with no real key, screen or cloud request.
+- `npm run build` and `cargo build` passed. Existing Vite large-chunk warning remains.
+- Browser demo: header audio icons, Answer/Chat switching, popup input above actions with focus, immediate Capturing screen feedback and one-card history (Previous showed 1 / 2 with exactly one answer). At 340×260, footer bounds were y205–249 and all controls fit inside the dock. At 400×640 the popup occupied y547–579 above controls y587–619. Browser error log empty.
+- End clicked once then Cancel: session continued beyond the delay. Separate final-code test clicked End once with no cancellation; later snapshot showed Ended and Session ended. An earlier end test was invalidated by source hot reload and was not used as evidence.
+- `./scripts/build-app.sh` completed with exit 0; root Aside.app refreshed and strict signature verification passed. Log: `/tmp/aside-live-modes-build.log`.
+- Actual diff reviewed; `git diff --check` passed. Native capture/permission behavior and real provider response remain unverified. UI screenshot success uses the canned demo and is not evidence of actual screen capture.
+
+
+## 2026-09-26 — blue glass live controls
+
+- Startup context/status, git diff and recent commits reviewed. Existing uncommitted glass-layout work preserved; green material replaced with the requested existing blue/neutral palette.
+- `npm test`: 64 passed (`/tmp/aside-glass-tests.log`). `npm run build` passed (`/tmp/aside-glass-frontend-build.log`), with the existing large-chunk warning. `cargo build` passed in 0.72 s.
+- Impeccable detector run once over Header, Strip, Tray and live.css: no findings. Actual component/style diff reviewed; `git diff --check` passed.
+- Browser demo: light 400×640, light/dark minimum 340×260, light wide 600×460. All footer controls fit the minimum: x25.8–317, bottom 237 within 260px. At 600×460, footer controls occupy x267.8–577, confirming right alignment. Company absent; Answer/Chat in header. Popup field opens above toolbar. End/Cancel operates. Medium immediately creates a Medium answer; play creates an auto answer. No length button has aria-pressed. Browser error log empty.
+- Theme restored to Light after the temporary dark preview. These are browser/demo checks, not native glass or real-provider validation. No cloud calls or native audio sessions run.
+- `./scripts/build-app.sh` completed with exit 0; root Aside.app refreshed and strict signature verification passed after the existing iCloud metadata retry. Log: `/tmp/aside-glass-app-build.log`. Preview tabs closed and viewport reset.
+
+
+## 2026-09-26 — refined live UI and activity indicators
+
+- Startup context, current status, git status/diff/log reviewed. Impeccable craft guidance reused; compared available Assistant Waveform real-level/muted behavior. Named comparison repositories remain absent.
+- `npm test`: 65 passed, 0 failed (`/tmp/aside-audio-glow-tests.log`). Added independent-channel activity coverage including speech-only activity, quiet samples and stale values on muted/starting/failed channels. Silence reports listening with no notice.
+- `npm run build` passed (`/tmp/aside-audio-glow-web-build.log`); existing large-chunk warning remains. `cargo build` passed in 0.72 s. Design detector: no findings. Actual diff reviewed and `git diff --check` passed.
+- Browser demo at 400×640: silent system audio produced zero alerts; microphone alone had data-active and blue glow while system remained neutral. Muting mic removed its activity. Computed reading background alpha is 0.99.
+- Browser demo at 340×260: system alone glowed after muting mic; footer stayed inside the dock, bottom 249px. Blue palette and compact joined actions retained. These synthetic audio checks do not establish native microphone/system activity timing.
+- Mic-failure browser scenario still showed recovery help and no false mic glow; browser error log empty. Preview closed and viewport restored. `./scripts/build-app.sh` completed with exit 0; root Aside.app refreshed and strict signature verification passed after the existing iCloud metadata retries (`/tmp/aside-audio-glow-app-build.log`).
+
+
+## 2026-09-26 — compact Settings and five-line rules preview
+
+- Read startup context/status and checked git status/diff/log. Compared official Apple grouped-list guidance and available Assistant settings CSS; requested named reference directories remain absent. Reused Impeccable craft guidance.
+- `npm test`: 65 passed (`/tmp/aside-settings-tests.log`). `npm run build` passed (`/tmp/aside-settings-web-build.log`) with the existing chunk warning. `cargo build` passed in 0.60 s. Detector run once: no findings. Actual diff reviewed; `git diff --check` passed.
+- Browser at 1180×822 light: all groups visible. Initial 960×640 dark pass exposed excess height with the Speechmatics missing-key field; fixed spacing as one batch. Final 960×640: page client/scroll height both 588px. Final 836×822 light: both 770px, horizontal client/scroll width both 616px. All six sections and all seven shortcuts remain visible.
+- Rules preview height 90px with 18px line height (five lines). Edit top at y130 precedes preview y197; clicking it opened the full Answer rules textbox. Done closed it. Theme restored to Light. Browser error log empty. These are demo checks, not native settings/key persistence tests.
+- Final `./scripts/build-app.sh` completed with exit 0; root Aside.app refreshed and strict signature verification passed after the existing iCloud metadata retry (`/tmp/aside-settings-app-build.log`). Final responsive 960×640 check still had client/scroll height 588px. Preview closed and viewport restored.
+
+## 2026-09-26 — UI consistency and shortcut cleanup
+
+- `npm run build` passed (existing bundle-size advisory remains).
+- `npm test`: 65 passed.
+- `cargo build` passed.
+- `cargo test shortcuts::tests --lib`: 16 passed, including only-four registration definitions, arrow parse/dispatch and rejection of removed keys.
+- `cargo test lifecycle::tests --lib`: 5 passed.
+- `git diff --check` passed; reviewed shortcut/menu routing, removed frontend listeners, shared labels, Settings structure, color tokens and page CSS.
+- `impeccable detect src/home src/live src/theme src/main.tsx`: exit 0, no output/findings (`/tmp/aside-consistency-design-scan.log`).
+- Browser inspected light Settings at 1180×822, dark at 960×640 and narrower light at 836×822. Detected General overflow at 640px height, then moved it to the right column. Final 960×640 with empty Speechmatics key input: page/scroll heights 588/588, all six groups visible, no row overflow. Rules preview height 90px (five 18px lines); Edit opens full editor. Help DOM nodes lie outside control cards.
+- Copilot/Library/History visual inspection: common neutral groups and readable metadata; selected sidebar labels white on RGB(49,88,217). Sidebar Search opens searchable content after removing its old shortcut.
+- Live browser at 400×640 and 340×260: controls visible, four shortcut hints, Short generates a demo answer. No console errors. Does not validate real global keys, capture/provider calls, native menu clicks or native audio.
+- `./scripts/build-app.sh` completed successfully; root `Aside.app` refreshed, signature valid on disk and designated requirement satisfied. Log: `/tmp/aside-consistency-app-build.log`.
+
+
+## 2026-09-26 — shared glass and Copilot tiles
+
+- Reviewed current state and existing diff; compared available Assistant WindowManager native-vibrancy/fallback approach. Both requested reference repositories remain absent.
+- `npm run build` and `cargo build` passed. `npm test`: 65 passed (`/tmp/aside-tiles-tests.log`). `cargo test commands::overlay::tests --lib`: 8 passed, including size and opacity bounds.
+- `impeccable detect src/theme/glass.css src/home/pages/CopilotPage.tsx src/kit/RichText.tsx`: exit 0, no findings (`/tmp/aside-tiles-design.log`). Reviewed actual tile, RichText, material and native-window changes.
+- Browser: light/dark Copilot 1180×860; long description at 960×640 had page client/scroll heights 588/588, all five tiles visible. Centered description arrow opened all 14 test bullets in a reading panel. Corrected wide header wrapping, then confirmed model/transcript/Start all aligned at y56. Resume Preview accessible label checked.
+- Settings 960×640 client/scroll heights 588/588. Shared material inspected on dark Library/History. No browser errors.
+- Live 400×640 and 340×260 inspected. Minimum footer spans x29.8–321 and ends y241 inside the 340×260 viewport; dock inset 6px. Opacity slider changed from 82 to 100 and computed background became opaque RGB(29,29,31). No browser errors. Demo only, no real audio or provider call.
+- First rebuilt Mac bundle launched after quitting the idle prior version. Native main-window frost, rounded frame, five independent tiles and header controls visually inspected with saved content. Native description arrow opened full text. No saved content changed; no real session started. Windows material and native live-window appearance untested.
+- Final `./scripts/build-app.sh`: exit 0, root Aside.app refreshed and strict signature verification passed after the existing iCloud metadata retry (`/tmp/aside-glass-final-build.log`). Existing Vite chunk-size advisory remains. Reduced-transparency specificity fix is in this final bundle; ordinary native appearance had already been checked in the preceding build.
+- Final post-build strict verification hit the known iCloud FinderInfo reattachment; removed only that bundle metadata and repeated deep/strict verification successfully. Final `git diff --check` passed. Temporary preview tabs closed, viewport reset and dev server stopped.
+
+
+## 2026-09-26 - opaque vertical layout and punctuation shortcuts
+
+- Startup context/status and git status/diff/log reviewed. Reused Impeccable session context, read layout/craft-floor, applied relevant Design Taste refinement guidance. Named reference repos absent; read available Assistant WindowManager/hotkeys patterns.
+- `npm run build` passed (existing large-chunk advisory); `cargo build` passed. 65 frontend tests passed (`/tmp/aside-opaque-tests.log`); 16 shortcut tests and 5 lifecycle tests passed. Old Command+Arrow combinations rejected by dispatch tests; punctuation bindings parse/round-trip.
+- Detector returned no findings (`/tmp/aside-opaque-design.log`). Reviewed actual changes to previews, Settings order/warning, dialog portal/layering, window config/menu guards and shortcut definitions; `git diff --check` passed.
+- Browser first pass found inherited title flex-basis inflating vertical header; removed it and tightened tile spacing. Confirming clean load at 1180×860 with long company title: Copilot page/scroll heights 792/792, all five tiles share x262. Long synthetic Description/Guidance previews measured 90px with 18px lines and clamp 5, no expand controls. User native content was not edited.
+- Light/dark Settings inspected. Section DOM order matches requested order; plain shortcut text contains Command+< and >. Seven-word warning opens; Continue opens editor. Reset confirmation visibly above editor; Cancel returns to it. Browser error log empty.
+- Final root Mac bundle relaunched after quitting idle prior version. Real saved Copilot content shows opaque raised panes, vertical tiles and five-line previews. AX reports zoom disabled. In real description editor, Command+Right then Command+Shift+Left selected the visual line, demonstrating native text movement; Command+Left also sent with no history activation. No text edited. Native Strict rules warning shown in foreground and dismissed.
+- `./scripts/build-app.sh` final exit 0; root Aside.app refreshed and strict signature verification passed after known iCloud metadata retries (`/tmp/aside-opaque-final-build.log`). Windows and global punctuation history navigation during a live session not exercised. No actual audio/provider calls. Temporary browser tab closed and viewport reset.
+
+
+## 2026-09-26 - heading and typography refinement
+
+- Inspected supplied screenshot, current components/styles, current status and git state. Reused prior skill context and re-read craft-floor. Named comparison repositories remain absent.
+- `npm run build` and `cargo build` passed. No new behavior tests for this presentation-only change. `git diff --check` and targeted design detector passed without findings.
+- Browser 1180×860: all five headings measured outside their panel, each heading bottom 4px above panel top. Copilot and Settings page/scroll heights both 792/792. Light previews gray RGB(98,98,103); dark editor RGB(165,165,170). Rules preview 13px; full editor 15px. All shortcut entries share x317 and progress vertically at y496/518/540/562. Light Copilot and dark Settings visually inspected; rules warning and editor open successfully.
+- Final `./scripts/build-app.sh` completed with exit 0, root Aside.app refreshed and strict signature verification passed (`/tmp/aside-type-final-build.log`). Browser errors empty; temporary tab closed and viewport reset. This typography pass was browser-verified; the new bundle was not relaunched.
+
+
+## 2026-09-26 - narrower panels, gray fields, section info
+
+- Inspected current state, supplied screenshot, diff and shared Popover/editor components. Named comparison repositories remain absent; checked available Assistant settings CSS.
+- `npm run build`, `cargo build`, `git diff --check` and targeted design detector passed. Presentation-only changes use existing Popover behavior; no new tests added.
+- Browser 1180×860: Copilot panel and Settings grid width 752px; both page/scroll heights 792/792. Copilot has no helper footers and five info buttons. Each opened its corresponding explanation and Escape closed it; Guidance retained the Answer rules link.
+- Dark Copilot gray fill RGB(41,44,52); light Strict rules preview/editor RGB(230,232,237). Full rules editor padding 12px/14px. Visually checked dark Copilot/help popup and light rules editor. No user data edited.
+- `./scripts/build-app.sh` completed with exit 0; root Aside.app refreshed and strict signature verification passed (`/tmp/aside-info-app-build.log`). Browser error log empty; tab closed and viewport reset. Native bundle not relaunched for this presentation pass.

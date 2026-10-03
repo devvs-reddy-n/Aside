@@ -7,23 +7,12 @@ import { Dialog } from "../kit/Dialog";
 
 /**
  * The window uses the Mac's own red/yellow/green buttons now. What is left
- * here is the "Quit Aside?" question, asked for ⌘Q from anywhere.
+ * here is the "Quit Aside?" question, opened by the window close button or app menu.
  */
 export function QuitGuard() {
   const [asking, setAsking] = useState(false);
 
   useEffect(() => onEvent(QUIT_REQUESTED_EVENT, () => setAsking(true)), []);
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "q") {
-        event.preventDefault();
-        setAsking(true);
-        void api.windows.requestQuit();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   return (
     <Dialog

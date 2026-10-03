@@ -141,7 +141,7 @@ pub struct WindowPreview {
     pub last_log: Option<PressLog>,
 }
 
-pub const EMPTY_WINDOW_NOTICE: &str = "Nothing to send yet — talk first, then press Command+Enter.";
+pub const EMPTY_WINDOW_NOTICE: &str = "No speech to answer yet. Speak a question or type one below.";
 
 #[cfg(test)]
 mod tests {

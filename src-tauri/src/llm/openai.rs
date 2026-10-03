@@ -289,6 +289,7 @@ async fn stream_prebuilt_body(
     let mut decoder = SseDecoder::new();
     let mut stream = resp.bytes_stream();
     let mut saw_sse = false;
+    let mut saw_text = false;
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("{provider_label}: stream read error: {e}"))?;
         let text = String::from_utf8_lossy(&chunk);
@@ -298,10 +299,16 @@ async fn stream_prebuilt_body(
                 sink.on_sse_event();
             }
             if event.data.trim() == "[DONE]" {
-                return Ok(());
+                return if saw_text { Ok(()) } else { Err(format!("{provider_label}: the AI returned no readable answer. Please try again.")) };
+            }
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&event.data) {
+                if let Some(error) = value.get("error") {
+                    return Err(format!("{provider_label}: {}", error.get("message").and_then(|m| m.as_str()).unwrap_or("The AI stream failed.")));
+                }
             }
             if let Some(delta) = extract_delta(&event.data) {
                 if !delta.is_empty() {
+                    saw_text |= !delta.trim().is_empty();
                     sink.on_model_text(&delta);
                     sink.on_delta(&delta);
                 }
@@ -310,7 +317,7 @@ async fn stream_prebuilt_body(
             }
         }
     }
-    Ok(())
+    if saw_text { Ok(()) } else { Err(format!("{provider_label}: the AI stream ended without an answer. Please try again.")) }
 }
 
 // --- Vision (⌘⇧↩ "look at my screen", 2026-08-25) ---
@@ -398,6 +405,55 @@ impl LlmProvider for OpenAiProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn vision_http_stream_surfaces_errors_and_empty_responses() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        #[derive(Default)]
+        struct TextSink(String);
+        impl AnswerSink for TextSink {
+            fn on_delta(&mut self, text: &str) { self.0.push_str(text); }
+            fn on_done(&mut self, _: bool) {}
+            fn on_error(&mut self, _: &str) {}
+        }
+        for (events, expected_error) in [
+            ("data: {\"choices\":[{\"delta\":{\"content\":\"Screen answer\"}}]}\n\ndata: [DONE]\n\n", None),
+            ("data: [DONE]\n\n", Some("no readable answer")),
+            ("data: {\"error\":{\"message\":\"Vision model unavailable\"}}\n\n", Some("Vision model unavailable")),
+            ("", Some("ended without an answer")),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let server = std::thread::spawn(move || {
+                let (mut socket, _) = listener.accept().unwrap();
+                socket.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+                let mut request = Vec::new();
+                let mut buffer = [0_u8; 4096];
+                loop {
+                    let count = socket.read(&mut buffer).unwrap();
+                    assert!(count > 0);
+                    request.extend_from_slice(&buffer[..count]);
+                    if let Some(header_end) = request.windows(4).position(|part| part == b"\r\n\r\n") {
+                        let header = String::from_utf8_lossy(&request[..header_end]);
+                        let length: usize = header.lines().find_map(|line| line.to_lowercase().strip_prefix("content-length:").map(|value| value.trim().parse().unwrap())).unwrap();
+                        if request.len() >= header_end + 4 + length {
+                            let body: serde_json::Value = serde_json::from_slice(&request[header_end + 4..header_end + 4 + length]).unwrap();
+                            assert_eq!(body["messages"][1]["content"][1]["image_url"]["url"], "data:image/jpeg;base64,test-image");
+                            break;
+                        }
+                    }
+                }
+                write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", events.len(), events).unwrap();
+            });
+            let mut sink = TextSink::default();
+            let body = build_vision_request_body(VISION_MODEL, "test-image", None, None);
+            let result = stream_prebuilt_body(&reqwest::Client::new(), &format!("http://{address}"), "test-key", "test-provider", body, &mut sink).await;
+            server.join().unwrap();
+            if let Some(message) = expected_error { assert!(result.unwrap_err().contains(message)); }
+            else { assert!(result.is_ok()); assert_eq!(sink.0, "Screen answer"); }
+        }
+    }
 
     #[test]
     fn request_body_has_stream_true_and_both_messages() {

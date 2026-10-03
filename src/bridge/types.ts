@@ -412,7 +412,7 @@ export interface AnswerRules {
 
 /** Mirrors `commands::overlay::OverlayPrefs` — the More menu's Zoom/
  *  Opacity/Font-size steppers (spec §9 rows 3-5), persisted locally, not
- *  per session. `opacity_pct` can never come back below 55 — enforced on
+ *  per session. `opacity_pct` can never come back below 82 — enforced on
  *  the Rust side (`clamp_prefs`), not just by the stepper's own min/max. */
 export interface OverlayPrefs {
   zoom_pct: number;

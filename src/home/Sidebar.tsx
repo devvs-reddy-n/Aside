@@ -10,6 +10,7 @@ import { SPRING } from "../kit/motion";
 import { Tip } from "../kit/Tooltip";
 import { copilotsStore, loadCopilots } from "./data";
 import { hrefFor, navigate, useRoute, type PageId } from "./router";
+import { send } from "./bus";
 import { StatusPill } from "./StatusPill";
 
 const KEY = "aside-sidebar-v1";
@@ -93,26 +94,10 @@ export function Sidebar() {
     void loadCopilots();
   }, []);
 
-  // ⌘\ folds the sidebar to a rail of icons and back.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.metaKey && event.key === "\\") {
-        event.preventDefault();
-        setLayout((current) => {
-          const next = { ...current, collapsed: !current.collapsed };
-          saveLayout(next);
-          return next;
-        });
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   const copilots = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = layout.collapsed ? "" : query.trim().toLowerCase();
     return items.filter((copilot) => !hiddenIds.includes(copilot.id) && (!term || `${copilot.company ?? ""} ${copilot.name} ${copilot.target_role ?? ""}`.toLowerCase().includes(term)));
-  }, [items, hiddenIds, query]);
+  }, [items, hiddenIds, query, layout.collapsed]);
   const total = items.length - hiddenIds.length;
   const selectedCopilot = route.page === "copilots" ? route.param ?? copilots[0]?.id ?? null : null;
   const rail = layout.collapsed;
@@ -145,7 +130,6 @@ export function Sidebar() {
         <IconButton
           icon="sidebar"
           label={rail ? "Show sidebar" : "Hide sidebar"}
-          hint="⌘\"
           size="sm"
           onClick={() => setLayout((current) => {
             const next = { ...current, collapsed: !current.collapsed };
@@ -153,6 +137,7 @@ export function Sidebar() {
             return next;
           })}
         />
+        <IconButton icon="search" label="Search everything" size="sm" onClick={() => send("open-palette")} />
       </div>
 
       <LayoutGroup id="sidebar">
@@ -182,6 +167,9 @@ export function Sidebar() {
                 </Tip>
               </li>
             ) : null}
+            {!rail && total > 0 && copilots.length === 0 ? (
+              <li className="sb__empty" role="status">No matching copilots. <button type="button" onClick={() => setQuery("")}>Clear filter</button></li>
+            ) : null}
             {!rail && total === 0 ? <li className="sb__empty">None yet</li> : null}
           </ul>
         </div>
@@ -204,7 +192,22 @@ export function Sidebar() {
         <StatusPill compact={rail} />
       </div>
 
-      {rail ? null : <div className="sb__resize" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" onPointerDown={startResize} />}
+      {rail ? null : <div
+        className="sb__resize" role="separator" aria-orientation="vertical" aria-label="Resize sidebar"
+        tabIndex={0} aria-valuemin={MIN} aria-valuemax={MAX} aria-valuenow={layout.width}
+        aria-valuetext={`${layout.width} pixels wide`} onPointerDown={startResize}
+        onKeyDown={(event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          const key = event.key;
+          setLayout((current) => {
+            const width = key === "Home" ? MIN : key === "End" ? MAX : Math.min(MAX, Math.max(MIN, current.width + (key === "ArrowRight" ? 10 : -10)));
+            const next = { ...current, width };
+            saveLayout(next);
+            return next;
+          });
+        }}
+      />}
     </nav>
   );
 }

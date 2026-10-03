@@ -50,6 +50,7 @@ struct Inner {
     memory: SessionMemory,
     press_count: u32,
     last_log: Option<PressLog>,
+    last_answer_window: Option<ConversationWindow>,
 }
 
 #[derive(Default)]
@@ -95,23 +96,35 @@ pub fn clear(app: &AppHandle) {
     *guard = Inner::default();
 }
 
-/// Freeze the open window. Later appends start the next window.
-pub fn freeze(app: &AppHandle) -> ConversationWindow {
+/// A fresh speech window, or the last window when the person presses again.
+/// Repeats must not be queued a second time for background memory processing.
+pub struct AnswerWindow {
+    pub window: ConversationWindow,
+    pub is_new: bool,
+}
+
+impl Inner {
+    fn freeze_for_answer(&mut self, end: u64) -> Option<AnswerWindow> {
+        let start = if self.open.is_empty()
+            && self.live.me.interim.is_empty()
+            && self.live.other.interim.is_empty()
+        { end } else { self.open_started_ms };
+        let frozen = live::freeze_with_live(&mut self.open, &mut self.live, start, end);
+        self.open_started_ms = end;
+        if frozen.is_empty() {
+            return self.last_answer_window.clone().map(|window| AnswerWindow { window, is_new: false });
+        }
+        // Remember the input before requesting an answer, so a provider failure
+        // can be retried and a length action can reuse the same spoken question.
+        self.last_answer_window = Some(frozen.clone());
+        Some(AnswerWindow { window: frozen, is_new: true })
+    }
+}
+
+pub fn freeze_for_answer(app: &AppHandle) -> Option<AnswerWindow> {
     let state = app.state::<WindowMemory>();
     let mut guard = state.0.lock().unwrap_or_else(|p| p.into_inner());
-    let end = now_ms();
-    let start = if guard.open.is_empty()
-        && guard.live.me.interim.is_empty()
-        && guard.live.other.interim.is_empty()
-    {
-        end
-    } else {
-        guard.open_started_ms
-    };
-    let Inner { open, live, .. } = &mut *guard;
-    let frozen = live::freeze_with_live(open, live, start, end);
-    guard.open_started_ms = end;
-    frozen
+    guard.freeze_for_answer(now_ms())
 }
 
 pub fn preview(app: &AppHandle) -> WindowPreview {
@@ -326,7 +339,7 @@ fn load_default_context_from_store(
 /// (`parsed`) is plain visible-answer text only now (no `context_update`),
 /// and this window's own contribution to memory is instead already queued
 /// (`background::enqueue_window`, called from `llm::respond_to_window`
-/// right after `freeze()`) for the asynchronous cheap-model pipeline in
+/// right after `freeze_for_answer()`) for the asynchronous cheap-model pipeline in
 /// `background.rs` — which is what actually mutates `memory` and fires its
 /// own `window-memory` event once it lands. This function only logs and
 /// bumps `press_count`.
@@ -369,6 +382,54 @@ pub fn note_press(
 mod fixtures {
     use super::*;
     use crate::window_memory::parse::StreamParser;
+
+    fn speak(state: &mut Inner, text: &str, is_final: bool, at: u64) {
+        live::apply_event(&mut state.open, &mut state.live, Speaker::Other, text, is_final, at);
+    }
+
+    #[test]
+    fn repeat_answer_and_all_lengths_reuse_the_consumed_window() {
+        let mut state = Inner::default();
+        assert!(state.freeze_for_answer(1).is_none());
+        speak(&mut state, "How do you build reliable systems?", true, 2);
+        let first = state.freeze_for_answer(3).unwrap();
+        assert!(first.is_new);
+        let defaults = DefaultContext::default();
+        for (index, length) in [None, Some(LengthOverride::Small), Some(LengthOverride::Medium), Some(LengthOverride::Long), None].into_iter().enumerate() {
+            let repeated = state.freeze_for_answer(4 + index as u64).unwrap();
+            assert_eq!(repeated.window, first.window);
+            assert!(!repeated.is_new, "replays must not duplicate background memory");
+            let request = prompt::build_prompt_with_length(&defaults, &state.memory, &repeated.window, length);
+            assert!(request.user.contains("How do you build reliable systems?"));
+            assert_eq!(request.system.contains("ANSWER LENGTH OVERRIDE"), length.is_some());
+        }
+    }
+
+    #[test]
+    fn new_speech_replaces_the_replay_and_a_new_session_forgets_it() {
+        let mut state = Inner::default();
+        speak(&mut state, "First question?", true, 1);
+        state.freeze_for_answer(2).unwrap();
+        speak(&mut state, "Second question?", true, 3);
+        let next = state.freeze_for_answer(4).unwrap();
+        assert!(next.is_new);
+        assert_eq!(next.window.render(), "Other: Second question?");
+        assert_eq!(state.freeze_for_answer(5).unwrap().window, next.window);
+        // This is the same reset used by window_memory::clear at session boundaries.
+        state = Inner::default();
+        assert!(state.freeze_for_answer(6).is_none());
+    }
+
+    #[test]
+    fn an_interim_then_its_final_is_not_mistaken_for_a_new_question() {
+        let mut state = Inner::default();
+        speak(&mut state, "How does it work?", false, 1);
+        let first = state.freeze_for_answer(2).unwrap();
+        speak(&mut state, "How does it work?", true, 3);
+        let repeated = state.freeze_for_answer(4).unwrap();
+        assert!(!repeated.is_new);
+        assert_eq!(repeated.window, first.window);
+    }
 
     /// Fix C: `storage::facts` rows (briefing/document/regex-extracted, not
     /// touching an `AppHandle` — this codebase has no `tauri::test` mock-app

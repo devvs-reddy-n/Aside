@@ -1,4 +1,4 @@
-/** "⌘ ⇧ A" → three little keys. */
+/** "⌘ ⇧ ↩" → three little keys. */
 export function Keys({ combo }: { combo: string }) {
   return (
     <span className="keys" aria-label={combo.replace(/\s+/g, " ")}>

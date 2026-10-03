@@ -1,6 +1,6 @@
 /**
  * Tiny one-way messages between parts of the workspace window, for actions
- * started far from where they happen (the ⌘P palette asking the copilot page
+ * started far from where they happen (the search palette asking the copilot page
  * to open its Start checks, for example).
  */
 export type BusMessage = "start-session" | "add-files" | "open-palette";

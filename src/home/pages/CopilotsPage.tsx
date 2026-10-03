@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import * as api from "../../bridge/api";
 import type { Copilot, CopilotInput, CopilotSummary } from "../../bridge/types";
-import { lengthFor, setLengthFor } from "../../core/answerLength";
 import { useStore } from "../../core/store";
 import { EmptyState } from "../../kit/Bits";
 import { Button } from "../../kit/Button";
@@ -52,13 +51,12 @@ export function CopilotsPage({ selectedId }: { selectedId: string | null }) {
     });
   }
 
-  async function duplicate(from: CopilotSummary, copy: CopilotInput) {
+  async function duplicate(copy: CopilotInput) {
     const result = await saveCopilot(null, copy);
     if (!result.ok) {
       toast(result.error, { tone: "bad" });
       return;
     }
-    setLengthFor(result.value.id, lengthFor(from.id));
     toast("Copilot duplicated", { tone: "ok" });
     navigate("copilots", result.value.id);
   }
@@ -81,7 +79,7 @@ export function CopilotsPage({ selectedId }: { selectedId: string | null }) {
             navigate("copilots", saved.id);
           }}
           onDelete={() => selected && remove(selected)}
-          onDuplicate={(copy) => selected && void duplicate(selected, copy)}
+          onDuplicate={(copy) => selected && void duplicate(copy)}
           onStart={setStarting}
         />
       ) : (

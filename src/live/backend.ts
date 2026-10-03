@@ -20,7 +20,9 @@ import type {
 import type { AnswerLength, Result } from "../bridge/api";
 import type { ChannelKey, LiveAction } from "./machine";
 
-export type ShortcutName = "toggleChat" | "toggleCollapse" | "previous" | "next";
+export type ResizeDirection = Parameters<ReturnType<typeof getCurrentWindow>["startResizeDragging"]>[0];
+
+export type ShortcutName = "previous" | "next";
 
 export interface Boot {
   session: ActiveSessionInfo | null;
@@ -51,7 +53,7 @@ export interface LiveBackend {
   /** Puts the window back at its normal size, somewhere all of it shows. */
   resetWindow(): Promise<void>;
   focusWindow(): Promise<void>;
-  startResize(): void;
+  startResize(direction: ResizeDirection): void;
   openMain(): Promise<void>;
   openPrivacySettings(pane: PrivacyPane): Promise<void>;
 }
@@ -108,8 +110,6 @@ export const tauriBackend: LiveBackend = {
       onEvent<ActiveSessionInfo>(SESSION_EVENTS.started, (info) => dispatch({ type: "session-started", info, atMs: Date.now() })),
       onEvent<null>(SESSION_EVENTS.ended, () => dispatch({ type: "session-ended", atMs: Date.now() })),
       onEvent<string>("shortcut-notice", (text) => dispatch({ type: "notice", text })),
-      onEvent(OVERLAY_SHORTCUT_EVENTS.toggleChat, () => onShortcut("toggleChat")),
-      onEvent(OVERLAY_SHORTCUT_EVENTS.toggleCollapse, () => onShortcut("toggleCollapse")),
       onEvent(OVERLAY_SHORTCUT_EVENTS.historyPrev, () => onShortcut("previous")),
       onEvent(OVERLAY_SHORTCUT_EVENTS.historyNext, () => onShortcut("next")),
     );
@@ -155,8 +155,9 @@ export const tauriBackend: LiveBackend = {
       // Focus is a nicety; typing still works once the person clicks in.
     }
   },
-  startResize() {
-    void getCurrentWindow().startResizeDragging("SouthEast").catch(() => undefined);
+  startResize(direction) {
+    if (/Mac/i.test(navigator.platform)) void api.windows.dragResizeOverlay(direction);
+    else void getCurrentWindow().startResizeDragging(direction).catch(() => undefined);
   },
   async openMain() {
     await api.windows.showMain();

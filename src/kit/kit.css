@@ -285,7 +285,8 @@
   background: var(--surface);
   box-shadow: var(--e3);
 }
-.sheet__head { display: flex; flex: none; align-items: center; gap: 10px; height: 56px; padding: 0 12px 0 24px; border-bottom: 1px solid var(--border); }
+.sheet__head { display: flex; flex: none; align-items: flex-start; gap: 12px; min-height: 56px; padding: 16px 12px 16px 24px; border-bottom: 1px solid var(--border); }
+.sheet__heading { display: grid; flex: 1; min-width: 0; gap: 4px; overflow-wrap: anywhere; }
 .sheet__title { font-size: 16px; font-weight: 600; }
 .sheet__meta { color: var(--text-3); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .sheet__body { flex: 1; min-height: 0; padding: 20px 24px; overflow-y: auto; }

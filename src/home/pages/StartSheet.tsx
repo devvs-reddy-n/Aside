@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as api from "../../bridge/api";
 import type { ChannelId, CopilotSummary } from "../../bridge/types";
 import { openPrivacySettings } from "../../bridge/system";
-import { handOffLength } from "../../core/answerLength";
 import { useStore } from "../../core/store";
 import { Button } from "../../kit/Button";
 import { Icon } from "../../kit/Icon";
@@ -110,10 +109,10 @@ export function StartSheet({ copilot, onClose }: { copilot: CopilotSummary; onCl
   const ai = aiProblem(system);
   const staticRows: CheckRow[] = [
     speech
-      ? { id: "speech", label: "Speech", tone: "bad", detail: speech, action: <a className="pf-fix" href={hrefFor("settings", "speech")}>Set up</a> }
+      ? { id: "speech", label: "Speech", tone: "bad", detail: speech, action: <a className="pf-fix" onClick={onClose} href={hrefFor("settings", "speech")}>Set up</a> }
       : { id: "speech", label: "Speech", tone: "ok", detail: `${engineName(system.engine!)} is ready` },
     ai
-      ? { id: "ai", label: "AI model", tone: "bad", detail: ai, action: <a className="pf-fix" href={hrefFor("settings", "ai")}>Set up</a> }
+      ? { id: "ai", label: "AI model", tone: "bad", detail: ai, action: <a className="pf-fix" onClick={onClose} href={hrefFor("settings", "ai")}>Set up</a> }
       : { id: "ai", label: "AI model", tone: "ok", detail: modelLabel(copilot.llm_provider, copilot.llm_model) },
     copilot.has_resume
       ? { id: "resume", label: "Resume", tone: "ok", detail: copilot.document_count > 1 ? `Attached, plus ${copilot.document_count - 1} more file${copilot.document_count === 2 ? "" : "s"}` : "Attached" }
@@ -123,7 +122,7 @@ export function StartSheet({ copilot, onClose }: { copilot: CopilotSummary; onCl
     ...staticRows.map((row, index) => (index < revealed ? row : { ...row, tone: "waiting" as Tone, detail: "Waiting", action: undefined })),
     audioRow("mic", probes.mic, () => void runProbes(["mic"])),
     audioRow("system", probes.system, () => void runProbes(["system"])),
-    ...(system.hidden === false ? [{ id: "privacy", label: "Screen sharing", tone: "warn" as Tone, detail: "Aside is visible to people you share your screen with.", action: <a className="pf-fix" href={hrefFor("settings", "general")}>Change</a> }] : []),
+    ...(system.hidden === false ? [{ id: "privacy", label: "Screen sharing", tone: "warn" as Tone, detail: "Aside is visible to people you share your screen with.", action: <a className="pf-fix" onClick={onClose} href={hrefFor("settings", "general")}>Change</a> }] : []),
   ];
 
   const checking = rows.some((row) => row.tone === "waiting" || row.tone === "checking");
@@ -136,7 +135,6 @@ export function StartSheet({ copilot, onClose }: { copilot: CopilotSummary; onCl
     // A test still listening must fully let go of the audio before the call takes it.
     abort.current?.abort();
     await probing.current;
-    handOffLength(copilot.id);
     setLaunch({ kind: "running", step: "session" });
     const result = await prepareCall(copilot.id, { onStep: (step) => setLaunch({ kind: "running", step }) });
     if (!result.ok) return setLaunch({ kind: "error", message: result.error });

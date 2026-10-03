@@ -80,6 +80,17 @@ pub const BLANK_FRAME_MESSAGE: &str = "Aside can't see your screen yet. Open Sys
 pub fn capture_primary_display() -> Result<CapturedImage, String> {
     use xcap::Monitor;
 
+    #[cfg(target_os = "macos")]
+    {
+        #[link(name = "CoreGraphics", kind = "framework")]
+        extern "C" { fn CGPreflightScreenCaptureAccess() -> bool; }
+        // A denied capture can contain wallpaper rather than a black frame;
+        // pixel variation alone cannot tell whether window content is visible.
+        if !unsafe { CGPreflightScreenCaptureAccess() } {
+            return Err(BLANK_FRAME_MESSAGE.to_string());
+        }
+    }
+
     let monitors = Monitor::all().map_err(|e| format!("could not list displays: {e}"))?;
     let monitor = monitors
         .into_iter()
