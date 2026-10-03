@@ -17,9 +17,8 @@ import { wordCount } from "../../core/text";
 import { toast } from "../../kit/toast";
 import { refreshSystem, systemStore } from "../data";
 import { ENGINE_ORDER, LANGUAGES, engineBlurb, engineName, engineNeedsKey, modelLabel, providerLabel } from "../labels";
-import { useTheme, type ThemePreference } from "../../theme/theme";
 
-const SECTIONS = ["speech", "ai", "rules", "appearance", "shortcuts", "general"] as const;
+const SECTIONS = ["speech", "ai", "rules", "shortcuts", "general"] as const;
 
 /** Grouped preferences in two compact columns, with a readable hierarchy. */
 export function SettingsPage({ section }: { section: string | null }) {
@@ -34,7 +33,6 @@ export function SettingsPage({ section }: { section: string | null }) {
       <header className="pg-head"><h1>Settings</h1></header>
       {!backendAvailable() ? <Callout tone="warn">Open Aside.app to change settings.</Callout> : null}
       <div className="set-grid">
-        <Section id="appearance" title="Appearance"><ThemeRow /></Section>
         <Section id="general" title="Hide from screen sharing" footer="Also hides Aside from recordings and the Dock."><PrivacyRow /></Section>
         <AiSection />
         <SpeechSection />
@@ -281,17 +279,6 @@ function PrivacyRow() {
         <p>{pending ? "People you share your screen with won't see Aside." : "Aside will show up in screen shares and recordings."} Aside closes and reopens to apply this.</p>
       </Dialog>
     </>
-  );
-}
-
-/* ------------------------------- appearance ------------------------------- */
-
-function ThemeRow() {
-  const { preference, setPreference } = useTheme();
-  return (
-    <Row label="Theme">
-      <Segmented<ThemePreference> label="Theme" value={preference} onChange={setPreference} options={[{ value: "system", label: "Auto" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />
-    </Row>
   );
 }
 

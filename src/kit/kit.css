@@ -237,8 +237,6 @@
   place-items: center;
   padding: 24px;
   background: rgba(10, 10, 14, 0.24);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
   animation: fade var(--fast) var(--ease-std);
 }
 .dialog {
@@ -271,7 +269,7 @@
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 
 /* ---------- Sheet (right side) ---------- */
-.sheet-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(10, 10, 14, 0.2); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(14, 14, 16, 0.28); }
 .sheet {
   position: fixed;
   top: 0;

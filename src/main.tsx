@@ -10,10 +10,12 @@ import { HomeApp } from "./home/HomeApp";
 import { createLiveController } from "./live/controller";
 import { tauriBackend } from "./live/backend";
 import { LiveApp } from "./live/LiveApp";
-import { applyStoredTheme } from "./theme/theme";
-import "./theme/glass.css";
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
+import { applyTheme } from "./theme/theme";
+import "./theme/bento.css";
 
-applyStoredTheme();
+applyTheme();
 
 // Development-only: a pretend call so the live window can be checked in a plain browser tab.
 const DemoLive = import.meta.env.DEV ? lazy(() => import("./live/demo")) : null;

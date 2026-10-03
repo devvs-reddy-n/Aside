@@ -29,7 +29,7 @@ const ANSWER = [
 function makeBackend(scn: string | null): LiveBackend {
   let dispatch: (action: LiveAction) => void = () => undefined;
   const on: Record<ChannelKey, boolean> = { mic: scn !== "mic", system: true };
-  let prefs: OverlayPrefs = { zoom_pct: 100, opacity_pct: 82, font_px: 13, language: "en" };
+  let prefs: OverlayPrefs = { zoom_pct: 100, opacity_pct: 96, font_px: 13, language: "en" };
   let streamTimer: number | undefined;
 
   const stream = (question: string) => {

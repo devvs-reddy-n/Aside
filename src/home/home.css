@@ -44,7 +44,6 @@
 .sb[data-rail] .sb-item { justify-content: center; padding: 6px; }
 
 .mono { display: inline-grid; flex: none; place-items: center; border-radius: 7px; background: hsl(var(--h) 72% 93%); color: hsl(var(--h) 52% 32%); font-weight: 650; letter-spacing: -0.02em; }
-:root[data-theme="dark"] .mono { background: hsl(var(--h) 32% 22%); color: hsl(var(--h) 75% 82%); }
 
 /* ---------- Status pill + popover ---------- */
 .status-pill { display: inline-flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: var(--r-s); background: none; color: var(--text-2); font-size: 13px; font-weight: 520; transition: background var(--fast); }
@@ -180,7 +179,7 @@
 /* ---------- Copilot: grouped content and help outside each group ---------- */
 .cp { container-type: inline-size; flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 .cp-head { position: sticky; top: 0; z-index: 5; border-bottom: 1px solid transparent; background: var(--bg); transition: border-color var(--base) var(--ease-std), background-color var(--base) var(--ease-std); }
-.cp-head[data-scrolled] { border-bottom-color: var(--border); background: color-mix(in srgb, var(--bg) 92%, transparent); -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%); }
+.cp-head[data-scrolled] { border-bottom-color: var(--border); background: var(--bg); }
 .cp-head__inner { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--s4); width: 100%; max-width: 948px; min-height: 64px; margin: 0 auto; padding: 6px 24px 14px; }
 .cp-head__titles { display: grid; flex: 1 1 320px; gap: 2px; min-width: 0; }
 .cp-head__actions { display: flex; flex: 1 0 auto; justify-content: flex-end; align-items: center; gap: var(--s2); padding-top: 4px; }

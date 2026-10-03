@@ -1,53 +1,51 @@
 /*
- * Aside design tokens. One accent (indigo-blue), cool neutrals, the Mac's own
- * font. The theme code stamps data-theme="light" or "dark" on <html>.
- *
- * The second half of each block keeps the older token names alive as aliases,
- * so every screen reads from this one palette.
+ * Aside design tokens: the Bento look. One light workspace (no dark mode):
+ * white tiles on a light-grey ground, soft corners, bold tight type in Geist,
+ * one cobalt accent. The live window uses its own clear style (live.css).
  */
 :root {
   color-scheme: light;
 
   /* palette */
-  --bg: #f3f3f5;
+  --bg: #ececea;
   --surface: #ffffff;
-  --surface-muted: #f1f1f3;
-  --border: rgba(0, 0, 0, 0.07);
-  --border-strong: rgba(0, 0, 0, 0.13);
-  --text: #171719;
-  --text-2: #626267;
-  --text-3: #68686d;
-  --selection: #3158d9;
-  --accent: #3d5afe;
-  --accent-hover: #2f4af0;
+  --surface-muted: #f4f4f2;
+  --border: rgba(14, 14, 16, 0.07);
+  --border-strong: rgba(14, 14, 16, 0.14);
+  --text: #0e0e10;
+  --text-2: #55555c;
+  --text-3: #626268;
+  --selection: #2448ff;
+  --accent: #2448ff;
+  --accent-hover: #1a3ae6;
   --on-accent: #ffffff;
-  --accent-ink: #2b44d9;
-  --accent-soft: rgba(61, 90, 254, 0.09);
-  --accent-soft-2: rgba(61, 90, 254, 0.18);
-  --success: #1f9d55;
-  --success-ink: #16753f;
-  --warning: #c27803;
-  --warning-ink: #8a5502;
-  --danger: #d93a3a;
-  --danger-ink: #b12b2b;
-  --hover: rgba(11, 11, 15, 0.045);
-  --press: rgba(11, 11, 15, 0.08);
+  --accent-ink: #1d3bd6;
+  --accent-soft: rgba(36, 72, 255, 0.09);
+  --accent-soft-2: rgba(36, 72, 255, 0.18);
+  --success: #17a34a;
+  --success-ink: #11733a;
+  --warning: #b86e00;
+  --warning-ink: #7f4c00;
+  --danger: #d92d20;
+  --danger-ink: #b42318;
+  --hover: rgba(14, 14, 16, 0.05);
+  --press: rgba(14, 14, 16, 0.09);
 
   /* shape */
-  --r-s: 8px;
-  --r-m: 12px;
-  --r-l: 16px;
+  --r-s: 12px;
+  --r-m: 16px;
+  --r-l: 22px;
   --r-pill: 999px;
 
-  /* depth: soft shadow in light; border and lighter surface in dark */
-  --e1: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 1px var(--border);
-  --e2: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
-  --e3: 0 24px 60px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--border);
+  /* depth: tiles sit flat; only floating things (menus, panels) cast a shadow */
+  --e1: 0 1px 0 rgba(14, 14, 16, 0.04);
+  --e2: 0 12px 32px rgba(14, 14, 16, 0.12), 0 0 0 1px rgba(14, 14, 16, 0.05);
+  --e3: 0 28px 64px rgba(14, 14, 16, 0.2), 0 0 0 1px rgba(14, 14, 16, 0.06);
 
   /* type */
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
-  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* spacing (4-pt) */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s14: 56px;
@@ -60,13 +58,13 @@
   --ease-std: cubic-bezier(0.2, 0, 0, 1);
 
   /* code */
-  --code-bg: #ffffff;
-  --code-head: #f7f7f8;
-  --code-num: #9a9ba3;
-  --tok-key: #2b44d9;
-  --tok-str: #16753f;
-  --tok-com: #6e6f78;
-  --tok-num: #a2560a;
+  --code-bg: #0e0e10;
+  --code-head: #1a1a1d;
+  --code-num: #77777f;
+  --tok-key: #8aa2ff;
+  --tok-str: #7ee2a8;
+  --tok-com: #8d8d95;
+  --tok-num: #ffb86b;
 
   /* ---- aliases for older names ---- */
   --page: var(--bg);
@@ -84,20 +82,20 @@
   --blue-ink: var(--accent-ink);
   --wash: var(--accent-soft);
   --wash-2: var(--accent-soft-2);
-  --card: color-mix(in srgb, var(--accent) 5%, var(--surface));
-  --blue-soft: rgba(61, 90, 254, 0.16);
+  --card: var(--surface);
+  --blue-soft: rgba(36, 72, 255, 0.16);
   --green: var(--success);
   --green-ink: var(--success-ink);
-  --green-wash: rgba(31, 157, 85, 0.1);
-  --green-line: rgba(31, 157, 85, 0.28);
+  --green-wash: rgba(23, 163, 74, 0.12);
+  --green-line: rgba(23, 163, 74, 0.3);
   --amber: var(--warning);
   --amber-ink: var(--warning-ink);
-  --amber-wash: rgba(194, 120, 3, 0.1);
-  --amber-line: rgba(194, 120, 3, 0.3);
+  --amber-wash: rgba(184, 110, 0, 0.12);
+  --amber-line: rgba(184, 110, 0, 0.3);
   --red: var(--danger);
   --red-ink: var(--danger-ink);
-  --red-wash: rgba(217, 58, 58, 0.08);
-  --red-line: rgba(217, 58, 58, 0.28);
+  --red-wash: rgba(217, 45, 32, 0.09);
+  --red-line: rgba(217, 45, 32, 0.28);
   --shadow-1: var(--e1);
   --shadow-2: var(--e2);
   --shadow-3: var(--e3);
@@ -108,48 +106,4 @@
   --t-slow: var(--slow);
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #111112;
-  --surface: #1d1d1f;
-  --surface-muted: #28282b;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text: #f2f2f3;
-  --text-2: #a5a5aa;
-  --text-3: #98989e;
-  --accent: #6e86ff;
-  --accent-hover: #8699ff;
-  --on-accent: #0b0b0f;
-  --accent-ink: #a7b5ff;
-  --accent-soft: rgba(110, 134, 255, 0.14);
-  --accent-soft-2: rgba(110, 134, 255, 0.26);
-  --success: #34c172;
-  --success-ink: #6fd89c;
-  --warning: #e0941f;
-  --warning-ink: #f0b95e;
-  --danger: #f05757;
-  --danger-ink: #ff8c8c;
-  --hover: rgba(255, 255, 255, 0.055);
-  --press: rgba(255, 255, 255, 0.09);
 
-  --e1: 0 0 0 1px var(--border);
-  --e2: 0 0 0 1px var(--border-strong), 0 8px 24px rgba(0, 0, 0, 0.35);
-  --e3: 0 0 0 1px var(--border-strong), 0 24px 60px rgba(0, 0, 0, 0.55);
-
-  --code-bg: #111114;
-  --code-head: #18181c;
-  --code-num: #5f606a;
-  --tok-key: #a7b5ff;
-  --tok-str: #6fd89c;
-  --tok-com: #8a8b94;
-  --tok-num: #f0b95e;
-
-  --blue-soft: rgba(110, 134, 255, 0.22);
-  --green-wash: rgba(52, 193, 114, 0.12);
-  --green-line: rgba(52, 193, 114, 0.3);
-  --amber-wash: rgba(224, 148, 31, 0.12);
-  --amber-line: rgba(224, 148, 31, 0.32);
-  --red-wash: rgba(240, 87, 87, 0.12);
-  --red-line: rgba(240, 87, 87, 0.32);
-}

@@ -24,7 +24,6 @@ const SETTINGS: Array<[string, string]> = [
   ["speech", "Speech"],
   ["ai", "AI model"],
   ["rules", "Answer rules"],
-  ["appearance", "Appearance"],
   ["shortcuts", "Shortcuts"],
   ["general", "Screen sharing"],
 ];

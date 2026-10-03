@@ -73,13 +73,13 @@ export function Menu({ onClose, anchor }: { onClose: () => void; anchor: React.R
         </span>
       </div>
       <label className="lv-menu__row">
-        <span>Opacity</span>
+        <span>Tile opacity</span>
         <input
           type="range"
           min={MIN_OPACITY}
           max={MAX_OPACITY}
           value={prefs.opacity_pct}
-          aria-label="Window opacity"
+          aria-label="Tile opacity"
           onChange={(event) => controller.changePrefs({ opacity_pct: Number(event.target.value) })}
         />
       </label>

@@ -52,10 +52,10 @@ export interface LiveController {
   resetWindow: () => Promise<void>;
 }
 
-const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 82, font_px: 13, language: "en" };
+const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 96, font_px: 13, language: "en" };
 
 /** Native frosting softens the desktop; answer cards carry their own readable surface. */
-export const MIN_OPACITY = 82;
+export const MIN_OPACITY = 90;
 const withReadableOpacity = (prefs: OverlayPrefs): OverlayPrefs => ({ ...prefs, opacity_pct: Math.max(MIN_OPACITY, Math.min(100, prefs.opacity_pct)) });
 
 export function createLiveController(backend: LiveBackend): LiveController {

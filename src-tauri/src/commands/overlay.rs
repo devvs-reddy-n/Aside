@@ -88,15 +88,10 @@ pub fn open_overlay(app: AppHandle) -> Result<(), String> {
     let window =
         WebviewWindowBuilder::new(&app, OVERLAY_LABEL, WebviewUrl::App("index.html".into()))
             .title("Aside")
-            // Transparent + no decorations: the dark-glass chrome is drawn by
-            // the frontend (`--ov-*` tokens, `backdrop-filter`), not by the OS
-            // window frame.
+            // Transparent + no decorations + no native blur: the window itself
+            // is fully clear, and the frontend draws each control and the
+            // reading area as its own solid white tile.
             .transparent(true)
-            .effects(tauri::window::EffectsBuilder::new()
-                .effects([tauri::window::Effect::Sidebar, tauri::window::Effect::Mica])
-                .state(tauri::window::EffectState::Active)
-                .radius(30.0)
-                .build())
             .decorations(false)
             .always_on_top(true)
             .resizable(true)
@@ -339,15 +334,16 @@ const KEY_FONT: &str = "overlay_font_px";
 const KEY_LANGUAGE: &str = "overlay_language";
 
 const DEFAULT_ZOOM: u32 = 100;
-const DEFAULT_OPACITY: u32 = 82;
+const DEFAULT_OPACITY: u32 = 96;
 const DEFAULT_FONT_PX: u32 = 13;
 const DEFAULT_LANGUAGE: &str = "en";
 
 const MIN_ZOOM: u32 = 80;
 const MAX_ZOOM: u32 = 160;
-/// Keep text readable over the native frosted backdrop. Match the frontend
-/// slider so saved values and the displayed control never disagree.
-const MIN_OPACITY: u32 = 82;
+/// How solid the live window's tiles are. The window behind them is clear, so
+/// the floor keeps text readable over anything. Match the frontend slider so
+/// saved values and the displayed control never disagree.
+const MIN_OPACITY: u32 = 90;
 const MAX_OPACITY: u32 = 100;
 const MIN_FONT_PX: u32 = 12;
 const MAX_FONT_PX: u32 = 20;
@@ -473,7 +469,7 @@ mod tests {
         });
         assert_eq!(
             saved.opacity_pct, MIN_OPACITY,
-            "opacity must clamp up to the 55% floor"
+            "opacity must clamp up to the 90% floor"
         );
     }
 
@@ -494,7 +490,7 @@ mod tests {
     fn defaults_match_the_spec_exactly() {
         let defaults = OverlayPrefs::default();
         assert_eq!(defaults.zoom_pct, 100);
-        assert_eq!(defaults.opacity_pct, 82);
+        assert_eq!(defaults.opacity_pct, 96);
         assert_eq!(defaults.font_px, 13);
         assert_eq!(defaults.language, "en");
     }
