@@ -1,9 +1,9 @@
 import type { SVGProps } from "react";
 import {
-  ArrowDown, ArrowRight, ArrowUp, AudioLines, Briefcase, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
-  CircleAlert, CircleCheck, Clock, Code, Command, Copy, CopyPlus, Download, Ellipsis, ExternalLink, Eye, FileText, Files,
-  History, Info, Keyboard, LayoutGrid, LibraryBig, Link, List, LoaderCircle, Maximize2, MessageSquare, Mic, Minus, Monitor, Moon,
-  PanelLeft, Pause, Pencil, Play, Plus, RefreshCw, Search, Settings, Shield, Sparkles, Square, Sun, TriangleAlert, Trash2,
+  ArrowDown, ArrowRight, ArrowUp, AudioLines, Bot, Briefcase, Building2, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
+  CircleAlert, CircleCheck, Clock, Code, Command, Copy, CopyPlus, Download, Ellipsis, ExternalLink, Eye, File, FileText, Files, Folder,
+  History, Info, Keyboard, LayoutGrid, LayoutList, LibraryBig, Lightbulb, Link, List, LoaderCircle, Maximize2, MessageCircleQuestion, MessageSquare, MessagesSquare, Mic, Minus, Monitor, Moon,
+  PanelLeft, Pause, Pencil, Play, Plus, RefreshCw, ScanText, ScrollText, Search, Settings, Shield, Sparkles, Square, Sun, TriangleAlert, Trash2,
   Undo2, Upload, Users, Volume2, WifiOff, X, Zap, type LucideIcon,
 } from "lucide-react";
 
@@ -72,6 +72,16 @@ const ICONS = {
   sidebar: PanelLeft,
   loader: LoaderCircle,
   screen: Monitor,
+  building: Building2,
+  bot: Bot,
+  folder: Folder,
+  bulb: Lightbulb,
+  file: File,
+  scroll: ScrollText,
+  question: MessageCircleQuestion,
+  layoutFocus: LayoutList,
+  layoutThread: MessagesSquare,
+  layoutPrompter: ScanText,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS | "mark";

@@ -4,11 +4,11 @@ import * as api from "../../bridge/api";
 import { backendAvailable } from "../../bridge/runtime";
 import type { AnswerRules, EngineKind, LlmProviderKind, OverlayPrefs } from "../../bridge/types";
 import { useStore } from "../../core/store";
-import { Badge, Callout } from "../../kit/Bits";
+import { Badge, Callout, ToneIcon, type Tone } from "../../kit/Bits";
 import { Button } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Segmented, Select, TextInput, Toggle } from "../../kit/Form";
-import { Icon } from "../../kit/Icon";
+import { Icon, type IconName } from "../../kit/Icon";
 import { Sheet } from "../../kit/Sheet";
 import { Skeleton } from "../../kit/Skeleton";
 import { TextEditor } from "../../kit/TextEditor";
@@ -30,10 +30,10 @@ export function SettingsPage({ section }: { section: string | null }) {
 
   return (
     <div className="hm-page set">
-      <header className="pg-head"><h1>Settings</h1></header>
+      <header className="pg-head"><span className="pg-icon" aria-hidden="true"><Icon name="gear" size={22} strokeWidth={1.75} /></span><h1>Settings</h1></header>
       {!backendAvailable() ? <Callout tone="warn">Open Aside.app to change settings.</Callout> : null}
       <div className="set-grid">
-        <Section id="general" title="Hide from screen sharing" footer="Also hides Aside from recordings and the Dock."><PrivacyRow /></Section>
+        <Section id="general" title="Hide from screen sharing" tone="blue" icon="shield" footer="Also hides Aside from recordings and the Dock."><PrivacyRow /></Section>
         <AiSection />
         <SpeechSection />
         <ShortcutsSection />
@@ -44,12 +44,15 @@ export function SettingsPage({ section }: { section: string | null }) {
 }
 
 /** A title above a card. The badge only appears when something needs doing. */
-function Section({ id, title, badge, action, footer, children }: { id: string; title: string; badge?: ReactNode; action?: ReactNode; footer?: ReactNode; children: ReactNode }) {
+function Section({ id, title, tone, icon, badge, action, footer, children }: { id: string; title: string; tone: Tone; icon: IconName; badge?: ReactNode; action?: ReactNode; footer?: ReactNode; children: ReactNode }) {
   return (
-    <section className="set-sec" id={`st-${id}`} aria-labelledby={`st-${id}-title`}>
-      <header className="set-sec__head"><h2 className="set-sec__title" id={`st-${id}-title`}>{title}{badge}</h2>{action}</header>
-      <div className="set-card">{children}</div>
-      {footer ? <p className="group-help">{footer}</p> : null}
+    <section className="set-sec tcard" data-tone={tone} id={`st-${id}`} aria-labelledby={`st-${id}-title`}>
+      <ToneIcon tone={tone} icon={icon} />
+      <div className="tcard__main">
+        <header className="set-sec__head"><h2 className="set-sec__title" id={`st-${id}-title`}>{title}{badge}</h2>{action}</header>
+        <div className="set-card">{children}</div>
+        {footer ? <p className="group-help">{footer}</p> : null}
+      </div>
     </section>
   );
 }
@@ -144,7 +147,7 @@ function SpeechSection() {
   const ready = system.engine === "parakeet_local" ? system.parakeetReady : system.speechKey;
   const local = system.engine === "parakeet_local";
   return (
-    <Section id="speech" title="Speech" footer={<>{engineBlurb((system.engine ?? engines[0]) as EngineKind)}{local && !system.parakeetReady ? " One-time download, about 480 MB." : !local ? " Keys stay on this Mac and are never shown again." : ""}</>} badge={system.engine && !ready ? <Badge tone="warn">{local ? "Needs download" : "Needs key"}</Badge> : null}>
+    <Section id="speech" title="Speech" tone="green" icon="mic" footer={<>{engineBlurb((system.engine ?? engines[0]) as EngineKind)}{local && !system.parakeetReady ? " One-time download, about 480 MB." : !local ? " Keys stay on this Mac and are never shown again." : ""}</>} badge={system.engine && !ready ? <Badge tone="warn">{local ? "Needs download" : "Needs key"}</Badge> : null}>
       <Row label="Engine">
         <Segmented<EngineKind> label="Speech engine" value={(system.engine ?? engines[0]) as EngineKind} onChange={(engine) => void choose(engine)} options={engines.map((engine) => ({ value: engine, label: engineName(engine) }))} />
       </Row>
@@ -221,7 +224,7 @@ function AiSection() {
 
   const provider = system.provider ?? "open_ai";
   return (
-    <Section id="ai" title="AI model" footer="New copilots start with this model; each can use its own. Keys stay on this Mac." badge={system.model && !system.aiKey ? <Badge tone="warn">Needs key</Badge> : null}>
+    <Section id="ai" title="AI model" tone="purple" icon="bot" footer="New copilots start with this model; each can use its own. Keys stay on this Mac." badge={system.model && !system.aiKey ? <Badge tone="warn">Needs key</Badge> : null}>
       <Row label="Default model">
         <Select aria-label="AI model" disabled={busy || options.length === 0} value={system.model ? `${provider}|${system.model}` : ""} onChange={(event) => { const [p, ...rest] = event.target.value.split("|"); void chooseModel({ provider: p as LlmProviderKind, model: rest.join("|") }); }}>
           <option value="" disabled>Choose one</option>
@@ -340,7 +343,7 @@ function RulesSection() {
 
   const status = saveState === "saving" || saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Not saved" : null;
   return (
-    <Section id="rules" title="Strict rules"
+    <Section id="rules" title="Strict rules" tone="rose" icon="scroll"
       footer="Applies to all copilots. Each copilot’s guidance adds to these rules."
       action={<Button size="sm" variant="ghost" icon="edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit</Button>}>
       <div className="set-row set-row--stack">
@@ -387,9 +390,8 @@ function RulesSection() {
 
 function ShortcutsSection() {
   return (
-    <section className="set-shortcuts" id="st-shortcuts" aria-label="Shortcuts">
-      <h2>Shortcuts</h2>
-      <dl>{APP_SHORTCUTS.map(([keys, what]) => <div key={keys}><dt>{what}</dt><dd>{keys}</dd></div>)}</dl>
-    </section>
+    <Section id="shortcuts" title="Shortcuts" tone="amber" icon="keyboard">
+      <dl className="set-shortcuts">{APP_SHORTCUTS.map(([keys, what]) => <div key={keys}><dt>{what}</dt><dd>{keys}</dd></div>)}</dl>
+    </Section>
   );
 }

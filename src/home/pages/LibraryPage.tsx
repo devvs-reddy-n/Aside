@@ -5,7 +5,7 @@ import type { DocType, StoredDocument } from "../../bridge/types";
 import { formatBytes, formatDate, plural } from "../../core/format";
 import { useStore } from "../../core/store";
 import { displayFileName, fileKind, guessDocType } from "../../core/text";
-import { Callout, EmptyState } from "../../kit/Bits";
+import { Callout, EmptyState, FileTile } from "../../kit/Bits";
 import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Field, Segmented, TextInput } from "../../kit/Form";
@@ -73,7 +73,7 @@ function FileItem({ doc, uses, view, onOpen, onDelete }: { doc: StoredDocument; 
       transition={{ duration: FAST }}
     >
       <button type="button" className="lib-item__main" onClick={onOpen}>
-        <span className="lib-item__icon" data-kind={doc.doc_type} aria-hidden="true"><Icon name={doc.doc_type === "resume" ? "doc" : "note"} size={18} /></span>
+        <span className="lib-item__icon" data-kind={doc.doc_type}><FileTile kind={fileKind(doc.file_name, doc.mime_type)} /></span>
         <span className="lib-item__text">
           <b title={doc.file_name}>{displayFileName(doc.file_name)}</b>
           <small>{meta(doc)}</small>
@@ -170,6 +170,7 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
   return (
     <div className="hm-page lib">
       <header className="pg-head">
+        <span className="pg-icon" aria-hidden="true"><Icon name="library" size={22} strokeWidth={1.75} /></span>
         <h1>Library <span className="pg-count tabular">{counts.all}</span></h1>
         <div className="pg-head__actions">
           <Button variant="secondary" icon="note" onClick={() => setPasting(true)}>Paste text</Button>

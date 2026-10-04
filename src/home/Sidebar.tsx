@@ -71,7 +71,7 @@ function CopilotRow({ copilot, current, rail }: { copilot: CopilotSummary; curre
   const link = (
     <a className="sb-item sb-item--copilot" href={hrefFor("copilots", copilot.id)} aria-current={current ? "page" : undefined} aria-label={rail ? title : undefined}>
       {current ? <Highlight /> : null}
-      <Monogram name={title} />
+      <Monogram name={title} size={30} />
       {rail ? null : (
         <span className="sb-item__text">
           <b>{title}</b>

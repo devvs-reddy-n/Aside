@@ -8,7 +8,8 @@ import { displayFileName, fileKind, isWebUrl, wordCount } from "../../core/text"
 import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Select, Toggle } from "../../kit/Form";
-import { Icon } from "../../kit/Icon";
+import { FileTile, ToneIcon, type Tone } from "../../kit/Bits";
+import { Icon, type IconName } from "../../kit/Icon";
 import { Menu } from "../../kit/Menu";
 import { EASE_OUT, FAST } from "../../kit/motion";
 import { Popover } from "../../kit/Popover";
@@ -101,18 +102,20 @@ function SaveIndicator({ state }: { state: SaveState }) {
   );
 }
 
-function Tile({ name, title, helper, children, action }: { name: string; title: string; helper?: ReactNode; children: ReactNode; action?: ReactNode }) {
+/** One copilot section: a pastel card with its round coloured icon, heading, help and content. */
+function Tile({ name, title, tone, icon, helper, children, action }: { name: string; title: string; tone: Tone; icon: IconName; helper?: ReactNode; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className={`cp-tile cp-tile--${name}`} aria-label={title}>
-      <header className="cp-tile__head">
-        <div className="cp-tile__label"><h2>{title}</h2>{helper ? (
-          <Popover side="bottom" trigger={<button type="button" className="cp-info" aria-label={`About ${title}`}><Icon name="info" size={15} /></button>}>
-            <div className="cp-help">{helper}</div>
-          </Popover>
-        ) : null}</div>
-        {action}
-      </header>
-      <div className="cp-tile__surface">
+    <section className={`cp-tile cp-tile--${name} tcard`} data-tone={tone} aria-label={title}>
+      <ToneIcon tone={tone} icon={icon} />
+      <div className="tcard__main">
+        <header className="cp-tile__head">
+          <div className="cp-tile__label"><h2>{title}</h2>{helper ? (
+            <Popover side="bottom" trigger={<button type="button" className="cp-info" aria-label={`About ${title}`}><Icon name="info" size={15} /></button>}>
+              <div className="cp-help">{helper}</div>
+            </Popover>
+          ) : null}</div>
+          {action}
+        </header>
         <div className="cp-tile__content">{children}</div>
       </div>
     </section>
@@ -134,14 +137,14 @@ function TextSheet({ open, title, value, placeholder, onChange, onClose }: {
 function ResumeCard({ doc, onPreview, onReplace }: { doc: StoredDocument; onPreview: () => void; onReplace: () => void }) {
   return (
     <div className="file-card">
-      <span className="file-card__icon" aria-hidden="true"><Icon name="doc" size={18} /></span>
+      <FileTile kind={fileKind(doc.file_name, doc.mime_type)} />
       <div className="file-card__text">
         <b title={doc.file_name}>{displayFileName(doc.file_name)}</b>
         <small>{[fileKind(doc.file_name, doc.mime_type), formatBytes(doc.byte_size), `Added ${formatDate(doc.created_at_ms)}`].filter(Boolean).join(" · ")}</small>
       </div>
       <div className="file-card__actions">
-        <Button size="sm" variant="ghost" icon="eye" aria-label="Preview resume" title="Preview resume" onClick={onPreview}>Preview</Button>
-        <Button size="sm" variant="secondary" onClick={onReplace}>Replace</Button>
+        <Button size="sm" variant="secondary" icon="eye" aria-label="Preview resume" title="Preview resume" onClick={onPreview}>Preview</Button>
+        <Button size="sm" variant="primary" onClick={onReplace}>Replace</Button>
       </div>
     </div>
   );
@@ -315,6 +318,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
     <div className="cp cp--tiles">
       <header className="cp-head">
         <div className="cp-head__inner">
+          <span className="cp-avatar" aria-hidden="true"><Icon name="building" size={30} strokeWidth={1.75} /></span>
           <div className="cp-head__titles">
             <InlineTitle
               className="cp-title"
@@ -328,7 +332,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
 
           </div>
           <div className="cp-head__actions">
-            <label className="cp-model-control"><span>AI model</span>
+            <label className="cp-model-control"><Icon name="bot" size={17} /><span>AI model</span>
               <Select aria-label="AI model" value={modelKey} onChange={(e) => { const [provider, ...rest] = e.target.value.split("|"); setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") })); }}>
               {options.length === 0 ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
               {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
@@ -349,14 +353,14 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
                 ]}
               />
             ) : null}
-            <Button variant="primary" iconRight="arrow" disabled={!savedId} onClick={() => void start()}>Start session</Button>
+            <Button variant="primary" className="cp-start" icon="play" iconRight="arrow" disabled={!savedId} onClick={() => void start()}>Start session</Button>
           </div>
         </div>
         {companyError ? <p className="cp-error" role="alert">Add a company name first.</p> : null}
       </header>
 
       <div className="cp-body">
-        <Tile name="url" title="Job URL" helper="Import the role from its job posting.">
+        <Tile name="url" title="Job URL" tone="blue" icon="link" helper="Import the role from its job posting.">
           <div className="cp-url">
             <Icon name="link" size={15} />
             <input ref={urlField} value={importUrl} placeholder="Paste job post URL" aria-label="Job post URL" aria-invalid={importError ? true : undefined}
@@ -367,7 +371,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
           {importError ? <p className="cp-error" role="alert">{importError}</p> : null}
         </Tile>
 
-        <Tile name="description" title="Description" helper="Aside reads this before every answer."
+        <Tile name="description" title="Description" tone="green" icon="doc" helper="Aside reads this before every answer."
           action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("job")}>{input.job_description ? "Edit" : "Add"}</Button>}>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={importing ? "loading" : "text"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
@@ -376,13 +380,13 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
           </AnimatePresence>
         </Tile>
 
-        <Tile name="resume" title="Resume" helper="Your experience, ready for each answer.">
+        <Tile name="resume" title="Resume" tone="purple" icon="file" helper="Your experience, ready for each answer.">
           {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
             <ResumeCard doc={resume} onPreview={() => setViewing(resume)} onReplace={() => setPicking(true)} />
           ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
         </Tile>
 
-        <Tile name="supporting" title="Supporting files" helper="Add notes, project details or other useful context."
+        <Tile name="supporting" title="Supporting files" tone="amber" icon="folder" helper="Add notes, project details or other useful context."
           action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
           {chosenExtras.length > 0 ? <ul className="file-chips">
             {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
@@ -392,11 +396,11 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
             {chosenExtras.length > 2 ? <li><button type="button" className="cp-more-files" onClick={() => setPicking(true)}>+{chosenExtras.length - 2} more</button></li> : null}
           </ul> : null}
           <div className="dropzone" data-over={dropOver || undefined}>
-            <Icon name="upload" size={16} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
+            <Icon name="upload" size={18} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
           </div>
         </Tile>
 
-        <Tile name="guidance" title="Guidance" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
+        <Tile name="guidance" title="Guidance" tone="rose" icon="bulb" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
           action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>}>
           <RichText text={input.instructions} lines={5} expandable={false} empty="Set the tone and what to focus on or avoid." />
         </Tile>

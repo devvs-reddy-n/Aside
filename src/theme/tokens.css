@@ -1,50 +1,91 @@
 /*
- * Aside design tokens: the Bento look. One light workspace (no dark mode):
- * white tiles on a light-grey ground, soft corners, bold tight type in Geist,
- * one cobalt accent. The live window uses its own clear style (live.css).
+ * Aside design tokens: the soft pastel look. One light workspace (no dark
+ * mode): a calm blue-lavender gradient behind slightly see-through white
+ * panels, five pastel section colours, navy text and one blue accent.
+ * Nothing blurs the desktop; the gradient is painted by the app itself.
+ * The live window uses its own panel style (live.css).
  */
 :root {
   color-scheme: light;
 
   /* palette */
-  --bg: #ececea;
+  --bg: #eceff8;
+  --bg-gradient:
+    radial-gradient(900px 620px at 100% -4%, rgba(167, 139, 250, 0.34), transparent 62%),
+    radial-gradient(760px 560px at -6% 108%, rgba(125, 170, 255, 0.26), transparent 60%),
+    linear-gradient(160deg, #f1f3fb 0%, #e9edf8 52%, #efebf9 100%);
   --surface: #ffffff;
-  --surface-muted: #f4f4f2;
-  --border: rgba(14, 14, 16, 0.07);
-  --border-strong: rgba(14, 14, 16, 0.14);
-  --text: #0e0e10;
-  --text-2: #55555c;
-  --text-3: #626268;
-  --selection: #2448ff;
-  --accent: #2448ff;
-  --accent-hover: #1a3ae6;
+  --surface-muted: #f3f5fb;
+  --panel: rgba(255, 255, 255, 0.62);
+  --panel-strong: rgba(255, 255, 255, 0.86);
+  --panel-edge: rgba(255, 255, 255, 0.8);
+  --field: rgba(255, 255, 255, 0.78);
+  --field-edge: rgba(27, 31, 59, 0.09);
+  --border: rgba(27, 31, 59, 0.08);
+  --border-strong: rgba(27, 31, 59, 0.15);
+  --text: #1b1f3b;
+  --text-2: #50556f;
+  --text-3: #62677f;
+  --navy: #1f2338;
+  --selection: #1f2338;
+  --accent: #3366ff;
+  --accent-hover: #2a57e6;
   --on-accent: #ffffff;
-  --accent-ink: #1d3bd6;
-  --accent-soft: rgba(36, 72, 255, 0.09);
-  --accent-soft-2: rgba(36, 72, 255, 0.18);
-  --success: #17a34a;
-  --success-ink: #11733a;
-  --warning: #b86e00;
-  --warning-ink: #7f4c00;
-  --danger: #d92d20;
-  --danger-ink: #b42318;
-  --hover: rgba(14, 14, 16, 0.05);
-  --press: rgba(14, 14, 16, 0.09);
+  --accent-ink: #2347c9;
+  --accent-soft: rgba(51, 102, 255, 0.1);
+  --accent-soft-2: rgba(51, 102, 255, 0.2);
+  --accent-gradient: linear-gradient(135deg, #3a6bff 0%, #4a5dff 55%, #5b4cf0 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #2f60f5 0%, #4052f0 55%, #5040e0 100%);
+  --success: #16a34a;
+  --success-ink: #13693a;
+  --warning: #e08a00;
+  --warning-ink: #8a4b00;
+  --danger: #dc3545;
+  --danger-ink: #b0202f;
+  --hover: rgba(27, 31, 59, 0.05);
+  --press: rgba(27, 31, 59, 0.09);
+
+  /* section colours: card tint, icon circle, tinted button, solid button */
+  --tone-blue-bg: rgba(234, 240, 253, 0.86);
+  --tone-blue-soft: #dce6fd;
+  --tone-blue-icon: #2f63f0;
+  --tone-blue-ink: #1d3fae;
+  --tone-blue-solid: #2f5ce0;
+  --tone-green-bg: rgba(231, 246, 237, 0.88);
+  --tone-green-soft: #d1eedb;
+  --tone-green-icon: #18a058;
+  --tone-green-ink: #14603a;
+  --tone-green-solid: #15803d;
+  --tone-purple-bg: rgba(240, 236, 252, 0.88);
+  --tone-purple-soft: #e2dafb;
+  --tone-purple-icon: #6d4fe0;
+  --tone-purple-ink: #4c2aa8;
+  --tone-purple-solid: #6a3fdc;
+  --tone-amber-bg: rgba(252, 246, 230, 0.9);
+  --tone-amber-soft: #fbe8c2;
+  --tone-amber-icon: #e08300;
+  --tone-amber-ink: #874400;
+  --tone-amber-solid: #b45309;
+  --tone-rose-bg: rgba(252, 236, 240, 0.9);
+  --tone-rose-soft: #fbd9e0;
+  --tone-rose-icon: #e5484d;
+  --tone-rose-ink: #9c1736;
+  --tone-rose-solid: #cc2b4a;
 
   /* shape */
-  --r-s: 12px;
-  --r-m: 16px;
-  --r-l: 22px;
+  --r-s: 10px;
+  --r-m: 14px;
+  --r-l: 18px;
   --r-pill: 999px;
 
-  /* depth: tiles sit flat; only floating things (menus, panels) cast a shadow */
-  --e1: 0 1px 0 rgba(14, 14, 16, 0.04);
-  --e2: 0 12px 32px rgba(14, 14, 16, 0.12), 0 0 0 1px rgba(14, 14, 16, 0.05);
-  --e3: 0 28px 64px rgba(14, 14, 16, 0.2), 0 0 0 1px rgba(14, 14, 16, 0.06);
+  /* depth: soft, navy-tinted */
+  --e1: 0 1px 2px rgba(27, 31, 59, 0.05), 0 6px 18px rgba(27, 31, 59, 0.05);
+  --e2: 0 14px 36px rgba(27, 31, 59, 0.14), 0 0 0 1px rgba(27, 31, 59, 0.05);
+  --e3: 0 28px 70px rgba(27, 31, 59, 0.22), 0 0 0 1px rgba(27, 31, 59, 0.06);
 
   /* type */
-  --font: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --font-display: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --font: "Plus Jakarta Sans Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans Variable", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   --mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* spacing (4-pt) */
@@ -58,13 +99,13 @@
   --ease-std: cubic-bezier(0.2, 0, 0, 1);
 
   /* code */
-  --code-bg: #0e0e10;
-  --code-head: #1a1a1d;
-  --code-num: #77777f;
-  --tok-key: #8aa2ff;
-  --tok-str: #7ee2a8;
-  --tok-com: #8d8d95;
-  --tok-num: #ffb86b;
+  --code-bg: #161a2e;
+  --code-head: #1f2440;
+  --code-num: #7d82a0;
+  --tok-key: #9db4ff;
+  --tok-str: #86e2b0;
+  --tok-com: #a3a8c3;
+  --tok-num: #ffbe7a;
 
   /* ---- aliases for older names ---- */
   --page: var(--bg);
@@ -83,27 +124,32 @@
   --wash: var(--accent-soft);
   --wash-2: var(--accent-soft-2);
   --card: var(--surface);
-  --blue-soft: rgba(36, 72, 255, 0.16);
+  --blue-soft: rgba(51, 102, 255, 0.16);
   --green: var(--success);
   --green-ink: var(--success-ink);
-  --green-wash: rgba(23, 163, 74, 0.12);
-  --green-line: rgba(23, 163, 74, 0.3);
+  --green-wash: rgba(22, 163, 74, 0.12);
+  --green-line: rgba(22, 163, 74, 0.3);
   --amber: var(--warning);
   --amber-ink: var(--warning-ink);
-  --amber-wash: rgba(184, 110, 0, 0.12);
-  --amber-line: rgba(184, 110, 0, 0.3);
+  --amber-wash: rgba(224, 138, 0, 0.13);
+  --amber-line: rgba(224, 138, 0, 0.32);
   --red: var(--danger);
   --red-ink: var(--danger-ink);
-  --red-wash: rgba(217, 45, 32, 0.09);
-  --red-line: rgba(217, 45, 32, 0.28);
+  --red-wash: rgba(220, 53, 69, 0.1);
+  --red-line: rgba(220, 53, 69, 0.28);
   --shadow-1: var(--e1);
   --shadow-2: var(--e2);
   --shadow-3: var(--e3);
-  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px color-mix(in srgb, var(--accent) 40%, transparent);
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
   --ease: var(--ease-out);
   --t-fast: var(--fast);
   --t-med: var(--base);
   --t-slow: var(--slow);
 }
 
-
+/* One tone per section: components read --t-* and never name a colour. */
+[data-tone="blue"] { --t-bg: var(--tone-blue-bg); --t-soft: var(--tone-blue-soft); --t-icon: var(--tone-blue-icon); --t-ink: var(--tone-blue-ink); --t-solid: var(--tone-blue-solid); }
+[data-tone="green"] { --t-bg: var(--tone-green-bg); --t-soft: var(--tone-green-soft); --t-icon: var(--tone-green-icon); --t-ink: var(--tone-green-ink); --t-solid: var(--tone-green-solid); }
+[data-tone="purple"] { --t-bg: var(--tone-purple-bg); --t-soft: var(--tone-purple-soft); --t-icon: var(--tone-purple-icon); --t-ink: var(--tone-purple-ink); --t-solid: var(--tone-purple-solid); }
+[data-tone="amber"] { --t-bg: var(--tone-amber-bg); --t-soft: var(--tone-amber-soft); --t-icon: var(--tone-amber-icon); --t-ink: var(--tone-amber-ink); --t-solid: var(--tone-amber-solid); }
+[data-tone="rose"] { --t-bg: var(--tone-rose-bg); --t-soft: var(--tone-rose-soft); --t-icon: var(--tone-rose-icon); --t-ink: var(--tone-rose-ink); --t-solid: var(--tone-rose-solid); }

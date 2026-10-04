@@ -12,6 +12,7 @@ import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Segmented } from "../../kit/Form";
 import { Icon } from "../../kit/Icon";
+import { Monogram } from "../Sidebar";
 import { Menu } from "../../kit/Menu";
 import { RichText } from "../../kit/RichText";
 import { FAST } from "../../kit/motion";
@@ -88,6 +89,7 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   return (
     <div className="hm-page hist">
       <header className="pg-head">
+        <span className="pg-icon" aria-hidden="true"><Icon name="history" size={22} strokeWidth={1.75} /></span>
         <h1>History {visible.length > 0 ? <span className="pg-count tabular">{visible.length}</span> : null}</h1>
       </header>
 
@@ -164,6 +166,7 @@ function CallRow({ session, live, onDelete }: { session: PastSessionSummary; liv
       transition={{ duration: FAST }}
     >
       <a className="hist-row__main" href={hrefFor("history", session.id)}>
+        <Monogram name={name} size={34} />
         <span className="hist-row__text">
           <b>{name}</b>
           <small className="tabular">{detail}</small>
