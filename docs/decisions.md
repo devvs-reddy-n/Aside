@@ -377,3 +377,10 @@ Move Copilot headings and existing actions outside raised panels; Settings alrea
 ## 2026-09-26 - narrower reading area and contextual help
 
 Cap Copilot and Settings content panels at 752px while keeping the fixed native window. Use a shared opaque gray editor-fill token in both themes. Reuse the existing Radix Popover for all five Copilot section explanations, so help works by click/keyboard and the Guidance link remains usable. Keep actual import errors inline rather than hiding them in help. Named comparison repos remain absent; compared available Assistant settings surface/description styles. No copied source or saved-data changes.
+
+
+## 2026-10-03 - Bento Modular look, no glass, no dark mode
+
+The owner rejected glass and separate light/dark modes, saw five prototypes (Bento, Neo-Brutal, Instrument Panel, Blueprint, Swiss) and chose Bento Modular, keeping the current layouts and flows exactly. One fixed light look: grey ground, white tiles, Geist type (bundled), cobalt #2448ff accent. Appearance setting and every dark block removed. Supersedes the 2026-09-26 shared-glass decision.
+
+Live window: drop the native Sidebar/Mica blur but keep the window transparent; readability comes from solid white tiles, not from blur. The reference app reached the same conclusion (no blur in a transparent window; one slider for how solid its dark cards are, 55–85%). Aside keeps a stricter 90% floor with white tiles because text must stay readable over busy screens. Tile opacity 90–100%, default 96%, clamped in both backend and frontend. Live window uses darker grey/red/blue inks so all text clears 7:1 at the worst case. No reference source copied. Rollback: revert to commit 8568c99 (glass baseline); no saved-data migration — a saved opacity below 90 just clamps up.

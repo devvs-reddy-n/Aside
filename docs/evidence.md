@@ -289,3 +289,13 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Browser 1180×860: Copilot panel and Settings grid width 752px; both page/scroll heights 792/792. Copilot has no helper footers and five info buttons. Each opened its corresponding explanation and Escape closed it; Guidance retained the Answer rules link.
 - Dark Copilot gray fill RGB(41,44,52); light Strict rules preview/editor RGB(230,232,237). Full rules editor padding 12px/14px. Visually checked dark Copilot/help popup and light rules editor. No user data edited.
 - `./scripts/build-app.sh` completed with exit 0; root Aside.app refreshed and strict signature verification passed (`/tmp/aside-info-app-build.log`). Browser error log empty; tab closed and viewport reset. Native bundle not relaunched for this presentation pass.
+
+
+## 2026-10-03 - Bento restyle
+
+- `npx tsc --noEmit` passed; `npm test` 65 pass / 0 fail; `npm run build` passed (existing chunk-size advisory only); `cargo build` passed; `cargo test --lib` 800 passed / 0 failed (default-opacity test updated 82 → 96 to match the new spec). Impeccable detector on `src`: `[]`.
+- Headless Chrome screenshots (dev server, 2x): 25 main screens and 11 live states, live ones over a busy CSS background and over white, in `~/Desktop/Aside screenshots Bento 2026-10-03/` (47 files). Reviewed via contact sheets. Found the Settings engine switch showing black text on its black selected pill; fixed (`.set .seg__item[data-state=on]` now white) and re-shot.
+- In-browser contrast script (text colour vs. stacked backgrounds, composited over black and over white): live window, scenarios normal / silent / offline / mic, after Answer, Answer tab, menu open and End armed — zero lines under 7:1 after darkening live greys, danger/accent inks, code comments and solid alert chips. Main routes (copilot, new copilot, library, history, call detail, settings) — zero under 4.5:1 apart from white text on the black selection layers, which the script cannot see; screenshots confirm those read white on black.
+- Reduced motion: global `prefers-reduced-motion` rule in `base.css` unchanged; new hover lift and audio ring transitions have their own reduce guards. Not re-run with emulation this pass.
+- Reference check: read the reference overlay's transparent-window card styling and frost slider (`references/src/renderer/src/styles/base.css`, `GlassOpacity.tsx`); no source copied.
+- `./scripts/build-app.sh` exit 0; root Aside.app refreshed; `codesign --verify --deep --strict` passed after the known iCloud metadata retry. The new bundle was not launched; the real live window over real apps is owner-owed.
