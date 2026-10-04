@@ -334,16 +334,16 @@ const KEY_FONT: &str = "overlay_font_px";
 const KEY_LANGUAGE: &str = "overlay_language";
 
 const DEFAULT_ZOOM: u32 = 100;
-const DEFAULT_OPACITY: u32 = 96;
+const DEFAULT_OPACITY: u32 = 92;
 const DEFAULT_FONT_PX: u32 = 13;
 const DEFAULT_LANGUAGE: &str = "en";
 
 const MIN_ZOOM: u32 = 80;
 const MAX_ZOOM: u32 = 160;
-/// How solid the live window's tiles are. The window behind them is clear, so
-/// the floor keeps text readable over anything. Match the frontend slider so
-/// saved values and the displayed control never disagree.
-const MIN_OPACITY: u32 = 90;
+/// How solid the live window's panel, cards and code block are. Text always
+/// stays solid; the person chooses how see-through the rest gets. Match the
+/// frontend slider so saved values and the displayed control never disagree.
+const MIN_OPACITY: u32 = 40;
 const MAX_OPACITY: u32 = 100;
 const MIN_FONT_PX: u32 = 12;
 const MAX_FONT_PX: u32 = 20;
@@ -469,7 +469,7 @@ mod tests {
         });
         assert_eq!(
             saved.opacity_pct, MIN_OPACITY,
-            "opacity must clamp up to the 90% floor"
+            "opacity must clamp up to the 40% floor"
         );
     }
 
@@ -490,7 +490,7 @@ mod tests {
     fn defaults_match_the_spec_exactly() {
         let defaults = OverlayPrefs::default();
         assert_eq!(defaults.zoom_pct, 100);
-        assert_eq!(defaults.opacity_pct, 96);
+        assert_eq!(defaults.opacity_pct, 92);
         assert_eq!(defaults.font_px, 13);
         assert_eq!(defaults.language, "en");
     }

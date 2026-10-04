@@ -1,6 +1,6 @@
 import type { OverlayPrefs } from "../bridge/types";
 import { createStore, type Store } from "../core/store.ts";
-import { loadLaunchPrefs, saveLaunchPrefs } from "../core/launchPrefs.ts";
+import { loadLaunchPrefs, saveLaunchPrefs, type LiveLayout } from "../core/launchPrefs.ts";
 import type { LiveBackend, ShortcutName } from "./backend";
 import {
   initialLiveState,
@@ -26,6 +26,8 @@ export interface LiveUi {
   cursor: { index: number; tick: number } | null;
   /** "all" shows what was said and the answers; "answers" hides the running transcript. */
   view: "all" | "answers";
+  /** How the window is arranged; see LiveLayout. */
+  layout: LiveLayout;
   /** Ears that were on when listening was paused, so Resume can turn the same ones back on. */
   paused: ChannelKey[] | null;
 }
@@ -46,16 +48,17 @@ export interface LiveController {
   changePrefs: (patch: Partial<OverlayPrefs>) => void;
   stepAnswer: (direction: -1 | 1) => void;
   setView: (view: "all" | "answers") => void;
+  setLayout: (layout: LiveLayout) => void;
   /** Stops both ears, or turns back on the ones that were on. */
   togglePause: () => Promise<void>;
   /** Puts the window back at its normal size, in a place where all of it shows. */
   resetWindow: () => Promise<void>;
 }
 
-const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 96, font_px: 13, language: "en" };
+const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 92, font_px: 13, language: "en" };
 
-/** Native frosting softens the desktop; answer cards carry their own readable surface. */
-export const MIN_OPACITY = 90;
+/** How see-through the live window may get. Text always stays solid; the person chooses the rest. */
+export const MIN_OPACITY = 40;
 const withReadableOpacity = (prefs: OverlayPrefs): OverlayPrefs => ({ ...prefs, opacity_pct: Math.max(MIN_OPACITY, Math.min(100, prefs.opacity_pct)) });
 
 export function createLiveController(backend: LiveBackend): LiveController {
@@ -66,7 +69,8 @@ export function createLiveController(backend: LiveBackend): LiveController {
     ending: false,
     screenshotBusy: false,
     cursor: null,
-    view: "all",
+    view: "answers",
+    layout: "focus",
     paused: null,
   });
   let saveTimer: number | undefined;
@@ -113,7 +117,7 @@ export function createLiveController(backend: LiveBackend): LiveController {
           if (on) dispatch({ type: "channel-started", channel, device: on.device });
         }
         const launch = loadLaunchPrefs();
-        ui.set({ booted: true, prefs: withReadableOpacity(boot.prefs), view: launch.answersOnly ? "answers" : "all" });
+        ui.set({ booted: true, prefs: withReadableOpacity(boot.prefs), view: launch.answersOnly ? "answers" : "all", layout: launch.layout });
       })();
       return () => {
         stopListening();
@@ -145,7 +149,7 @@ export function createLiveController(backend: LiveBackend): LiveController {
 
     async screenshot() {
       if (isAnswering(live.get()) || ui.get().screenshotBusy) return;
-      ui.set({ screenshotBusy: true, view: "answers", cursor: null });
+      ui.set((state) => ({ screenshotBusy: true, cursor: null, view: state.layout === "thread" ? state.view : "answers" }));
       await requestAnswer("screen", "auto", () => backend.answerScreenshot());
       ui.set({ screenshotBusy: false });
     },
@@ -198,6 +202,11 @@ export function createLiveController(backend: LiveBackend): LiveController {
       saveLaunchPrefs({ answersOnly: view === "answers" });
     },
 
+    setLayout(layout) {
+      ui.set({ layout, cursor: null });
+      saveLaunchPrefs({ layout });
+    },
+
     async togglePause() {
       const resume = ui.get().paused;
       if (resume) {
@@ -223,7 +232,8 @@ export function createLiveController(backend: LiveBackend): LiveController {
       if (count === 0) return;
       const current = pageIndex(count, ui.get().cursor?.index);
       const index = Math.max(0, Math.min(count - 1, current + direction));
-      ui.set((state) => ({ view: "answers", cursor: { index, tick: (state.cursor?.tick ?? 0) + 1 } }));
+      // The thread keeps everything in one list and scrolls to the answer instead of switching views.
+      ui.set((state) => ({ view: state.layout === "thread" ? state.view : "answers", cursor: { index, tick: (state.cursor?.tick ?? 0) + 1 } }));
     },
   };
 

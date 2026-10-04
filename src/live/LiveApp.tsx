@@ -1,55 +1,32 @@
 import { useEffect } from "react";
-import { formatClock } from "../core/format";
-import { Icon } from "../kit/Icon";
 import { ToastHost } from "../kit/toast";
-import { LiveProvider, useLive, useLiveUi } from "./context";
+import { LiveProvider, useLiveUi } from "./context";
 import type { LiveController } from "./controller";
-import { Feed } from "./Feed";
-import { Header } from "./Header";
 import { useRoom } from "./hooks";
-import { Notices } from "./Notices";
-import { Strip } from "./Strip";
+import { Focus } from "./layouts/Focus";
+import { Prompter } from "./layouts/Prompter";
+import { Thread } from "./layouts/Thread";
+import { Ended } from "./parts/Ended";
 import { ResizeHandles } from "./ResizeHandles";
-import { Footer } from "./Tray";
 
-function EndedPanel() {
-  const ended = useLive((state) => state.ended);
-  if (!ended) return null;
-  return (
-    <div className="lv-ended" role="status">
-      <span className="lv-ended__check"><Icon name="check" size={26} /></span>
-      <h2>Session ended</h2>
-      <p>Transcript, notes and answers are saved to History.</p>
-      <dl>
-        <div><dt>Length</dt><dd>{formatClock(ended.elapsedMs)}</dd></div>
-        <div><dt>Turns</dt><dd>{ended.turns}</dd></div>
-        <div><dt>Answers</dt><dd>{ended.answers}</dd></div>
-      </dl>
-    </div>
-  );
-}
+/** Below this, a soft halo keeps letters readable over whatever shows through. */
+const HALO_BELOW = 75;
 
-function Dock() {
-  const room = useRoom();
-  return (
-    <div className="lv-dock" data-w={room.width} data-h={room.height}>
-      <Header />
-      <Strip />
-      <Notices />
-      <Feed />
-      <Footer room={room} />
-      <EndedPanel />
-    </div>
-  );
-}
-
-function Frame() {
+/**
+ * The live window's one panel. The Background slider sets how solid the panel,
+ * cards, buttons and code block are (40–100%); text always stays solid.
+ */
+function Panel() {
   const room = useRoom();
   const prefs = useLiveUi((state) => state.prefs);
+  const layout = useLiveUi((state) => state.layout);
   const style = { "--fs": prefs.font_px / 13, "--alpha": prefs.opacity_pct / 100 } as React.CSSProperties;
   return (
-    <div className="lv-root" data-w={room.width} style={style}>
-      <Dock />
+    <div className="lv-root" data-w={room.width} data-h={room.height} style={style}>
+      <div className="lv-panel" data-layout={layout} data-thin={prefs.opacity_pct < HALO_BELOW || undefined}>
+        {layout === "thread" ? <Thread room={room} /> : layout === "prompter" ? <Prompter /> : <Focus room={room} />}
+        <Ended />
+      </div>
       <ResizeHandles />
     </div>
   );
@@ -64,7 +41,7 @@ export function LiveApp({ controller }: { controller: LiveController }) {
 
   return (
     <LiveProvider controller={controller}>
-      <Frame />
+      <Panel />
       <ToastHost />
     </LiveProvider>
   );

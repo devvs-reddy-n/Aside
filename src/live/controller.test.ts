@@ -89,6 +89,7 @@ test("a rejected request releases the controls and preserves the typed follow-up
 
 test("Answer view steps through one page at a time and a new answer returns to the latest", () => {
   const controller = createLiveController(stubBackend({}));
+  controller.ui.set({ view: "all" });
   for (const question of ["First?", "Second?"]) {
     controller.dispatch({ type: "answer-started", question, atMs: 1 });
     controller.dispatch({ type: "answer-done", canned: false });
@@ -105,6 +106,30 @@ test("Answer view steps through one page at a time and a new answer returns to t
   controller.stepAnswer(-1);
   assert.equal(controller.ui.get().cursor?.index, 1);
   controller.dispatch({ type: "answer-started", question: "Third?", atMs: 5 });
+  assert.equal(controller.ui.get().cursor, null);
+});
+
+test("the conversation thread steps through answers in place instead of switching to the Answer view", async () => {
+  const controller = createLiveController(stubBackend({ answerScreenshot: async () => ({ ok: true, value: undefined }) }));
+  controller.ui.set({ layout: "thread", view: "all" });
+  for (const question of ["First?", "Second?"]) {
+    controller.dispatch({ type: "answer-started", question, atMs: 1 });
+    controller.dispatch({ type: "answer-done", canned: false });
+  }
+  controller.stepAnswer(-1);
+  assert.equal(controller.ui.get().view, "all");
+  assert.equal(controller.ui.get().cursor?.index, 0);
+  await controller.screenshot();
+  assert.equal(controller.ui.get().view, "all");
+});
+
+test("changing layout forgets the answer being stepped to", () => {
+  const controller = createLiveController(stubBackend({}));
+  controller.dispatch({ type: "answer-started", question: "First?", atMs: 1 });
+  controller.dispatch({ type: "answer-done", canned: false });
+  controller.stepAnswer(-1);
+  controller.setLayout("prompter");
+  assert.equal(controller.ui.get().layout, "prompter");
   assert.equal(controller.ui.get().cursor, null);
 });
 

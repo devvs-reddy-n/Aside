@@ -1,8 +1,8 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { Icon, type IconName } from "../kit/Icon";
-import { useController, useLive } from "./context";
-import { describeAnswerError, looksLikePermissionProblem } from "./errors";
-import { answersOf } from "./machine";
+import { Icon, type IconName } from "../../kit/Icon";
+import { useController, useLive } from "../context";
+import { describeAnswerError, looksLikePermissionProblem } from "../errors";
+import { answersOf } from "../machine";
 
 interface AlertProps {
   tone: "warn" | "bad" | "note";
@@ -25,7 +25,7 @@ function Alert({ tone, icon, title, fix, detail, more, onClose }: AlertProps) {
   return (
     <div className="lv-alert" data-tone={tone} role={tone === "bad" ? "alert" : "status"} data-open={expanded || undefined}>
       <div className="lv-alert__line">
-        <Icon name={icon} size={15} />
+        <span className="lv-alert__icon" aria-hidden="true"><Icon name={icon} size={15} strokeWidth={2} /></span>
         <b>{title}</b>
         {fix ? <button type="button" className="lv-chip" data-solid onClick={fix.run}>{fix.label}</button> : null}
         {expandable ? (
@@ -51,7 +51,7 @@ function Alert({ tone, icon, title, fix, detail, more, onClose }: AlertProps) {
  * Something needs the person's attention, said in plain words with the fix on the line.
  * Only the most urgent one shows at a time, and it goes away by itself once resolved.
  */
-export function Notices() {
+export function Alerts() {
   const controller = useController();
   const system = useLive((state) => state.channels.system);
   const mic = useLive((state) => state.channels.mic);

@@ -34,8 +34,8 @@
   --accent-ink: #2347c9;
   --accent-soft: rgba(51, 102, 255, 0.1);
   --accent-soft-2: rgba(51, 102, 255, 0.2);
-  --accent-gradient: linear-gradient(135deg, #3a6bff 0%, #4a5dff 55%, #5b4cf0 100%);
-  --accent-gradient-hover: linear-gradient(135deg, #2f60f5 0%, #4052f0 55%, #5040e0 100%);
+  --accent-gradient: linear-gradient(135deg, #2f5ff0 0%, #4256f2 55%, #5446e2 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #2654e0 0%, #384be3 55%, #4a3cd3 100%);
   --success: #16a34a;
   --success-ink: #13693a;
   --warning: #e08a00;

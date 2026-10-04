@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import type { ParsedCodeBlock } from "../core/answerParse";
-import { Icon } from "../kit/Icon";
+import type { ParsedCodeBlock } from "../../core/answerParse";
+import { Icon } from "../../kit/Icon";
 
 const KEYWORDS = new Set(
   ("const let var function return if else for while class new import from export default async await try catch throw switch case break continue " +
@@ -49,8 +49,8 @@ export function Code({ block, streaming }: { block: ParsedCodeBlock; streaming?:
   return (
     <figure className="lv-code selectable">
       <figcaption>
-        <span><Icon name="code" size={14} />{block.language ?? "code"}</span>
-        <button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+        <span><i className="lv-code__dots" aria-hidden="true"><b /><b /><b /></i>{block.language ?? "code"}</span>
+        <button type="button" onClick={copy}><Icon name={copied ? "check" : "copy"} size={13} />{copied ? "Copied" : "Copy"}</button>
       </figcaption>
       <pre tabIndex={0}>
         {lines.map((line, index) => (
