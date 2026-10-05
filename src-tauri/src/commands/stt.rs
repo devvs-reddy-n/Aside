@@ -14,7 +14,7 @@ use crate::stt::speechmatics::SpeechmaticsConfig;
 use crate::stt::speechmatics_live::SpeechmaticsLiveEngine;
 use crate::stt::{EngineKind, SttEngine};
 
-const ENGINE_SETTING_KEY: &str = "stt_engine";
+pub(crate) const ENGINE_SETTING_KEY: &str = "stt_engine";
 
 /// Engines currently offered for selection — `EngineKind::ENABLED`, not
 /// `ALL` (Deepgram is dormant as of 2026-08-24, see `EngineKind::ENABLED`'s

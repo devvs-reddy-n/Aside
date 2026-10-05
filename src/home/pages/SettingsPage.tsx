@@ -1,4 +1,3 @@
-import { APP_SHORTCUTS } from "../../core/shortcuts";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import * as api from "../../bridge/api";
 import { backendAvailable } from "../../bridge/runtime";
@@ -10,8 +9,6 @@ import { Dialog } from "../../kit/Dialog";
 import { Segmented, Select, TextInput, Toggle } from "../../kit/Form";
 import { Icon, type IconName } from "../../kit/Icon";
 import { Sheet } from "../../kit/Sheet";
-import { RichText } from "../../kit/RichText";
-import { Skeleton } from "../../kit/Skeleton";
 import { TextEditor } from "../../kit/TextEditor";
 import { useAutosave } from "../../kit/useAutosave";
 import { wordCount } from "../../core/text";
@@ -19,7 +16,7 @@ import { toast } from "../../kit/toast";
 import { refreshSystem, systemStore } from "../data";
 import { ENGINE_ORDER, LANGUAGES, engineName, engineNeedsKey, modelLabel, providerLabel } from "../labels";
 
-const SECTIONS = ["speech", "ai", "rules", "shortcuts", "general"] as const;
+const SECTIONS = ["speech", "ai", "rules", "general"] as const;
 
 /** Grouped preferences in two compact columns, with a readable hierarchy. */
 export function SettingsPage({ section }: { section: string | null }) {
@@ -37,7 +34,6 @@ export function SettingsPage({ section }: { section: string | null }) {
         <Section id="general" title="Privacy" icon="shield"><PrivacyRow /></Section>
         <AiSection />
         <SpeechSection />
-        <ShortcutsSection />
         <RulesSection />
       </div>
     </div>
@@ -344,17 +340,15 @@ function RulesSection() {
 
   const status = saveState === "saving" || saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Not saved" : null;
   return (
-    <Section id="rules" title="Strict rules" icon="scroll"
-      footer="Applies to every copilot."
-      action={<Button size="sm" variant="ghost" icon="edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit</Button>}>
-      <div className="set-rules">
-        {rules ? <RichText text={rules.text} lines={4} label="rules" /> : <Skeleton lines={4} />}
+    <Section id="rules" title="Strict rules" icon="scroll" footer="Applies to every copilot.">
+      <div className="set-rules set-rules--button">
+        <button type="button" className="set-rules__edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit default rules</button>
       </div>
       {error && !open ? <p className="set-row set-bad" role="alert">{error}</p> : null}
 
-      <Dialog open={confirmEdit} onClose={() => setConfirmEdit(false)} title="Edit strict rules?" size="sm"
-        footer={<><Button variant="ghost" onClick={() => setConfirmEdit(false)}>Cancel</Button><Button variant="primary" onClick={() => { setConfirmEdit(false); setOpen(true); }}>Continue</Button></>}>
-        <p>Changing strict rules affects every generated answer.</p>
+      <Dialog open={confirmEdit} onClose={() => setConfirmEdit(false)} title="Edit the default rules?" size="sm"
+        footer={<><Button variant="ghost" onClick={() => setConfirmEdit(false)}>Cancel</Button><Button variant="danger" onClick={() => { setConfirmEdit(false); setOpen(true); }}>Edit rules</Button></>}>
+        <p>These rules shape every answer in every copilot. A small change can make answers worse. You can reset them to the original at any time.</p>
       </Dialog>
 
       <Sheet
@@ -381,16 +375,6 @@ function RulesSection() {
         footer={<><Button variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => void reset()}>Reset</Button></>}>
         <p>Your edits are replaced with the original rules.</p>
       </Dialog>
-    </Section>
-  );
-}
-
-/* -------------------------------- shortcuts -------------------------------- */
-
-function ShortcutsSection() {
-  return (
-    <Section id="shortcuts" title="Shortcuts" icon="keyboard">
-      <dl className="set-shortcuts">{APP_SHORTCUTS.map(([keys, what]) => <div key={keys}><dt>{what}</dt><dd>{keys}</dd></div>)}</dl>
     </Section>
   );
 }

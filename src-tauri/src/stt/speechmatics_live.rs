@@ -466,6 +466,25 @@ async fn resolve_session_token(
     }
 }
 
+/// Outcome of [`verify_key`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyCheck {
+    Valid,
+    Rejected,
+    Unreachable,
+}
+
+/// Whether a saved long-lived key can mint a realtime token right now: the
+/// cheapest real proof that the key works and Speechmatics is reachable.
+/// Used by the main window's connection dots; nothing is transcribed.
+pub async fn verify_key(api_key: &str, region: Region) -> KeyCheck {
+    match mint_rt_jwt(api_key, region).await {
+        Ok(_) => KeyCheck::Valid,
+        Err(MintFailure::Rejected(_)) => KeyCheck::Rejected,
+        Err(MintFailure::Retryable(_)) => KeyCheck::Unreachable,
+    }
+}
+
 async fn mint_rt_jwt(api_key: &str, region: Region) -> Result<String, MintFailure> {
     let client = reqwest::Client::new();
     let resp = match client

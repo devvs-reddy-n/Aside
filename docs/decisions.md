@@ -437,3 +437,11 @@ Owner asked: remove the top search, change the font, grey the panel inside its b
 ## 2026-10-04 - Library and History match the copilot page; files stacked again
 
 Owner asked for Library and History in the same style and for Resume and Supporting files to go back to vertical. Headers now match the copilot's (title plus a grey line with the count, replacing the small number beside the title). Library's Paste text and Add files float at the bottom right like Start session (same right edge and 18px from the bottom), staying put while the list scrolls. Resume and Supporting files are back to the stacked layout with Preview and Replace on the resume card, identical to before the side-by-side change. Rollback: revert this commit.
+
+## 2026-10-04 - connection dots, Default model, rules button, shortcuts in Start session
+
+Owner asked: hide the strict rules text behind a red "Edit default rules" button that warns; move shortcuts to the Start session panel; replace "Needs attention" with the default AI model and speech model plus green/red connection dots, checked when the app opens; add a Default choice to a copilot's AI model.
+- Connection check: new `check_model_connections` command. It makes one small real request per service with the saved key (OpenAI: look up the chosen model; Speechmatics: mint a realtime token, reusing the live engine's mint), and treats Parakeet as connected when its model is downloaded. Providers and engines with no check yet show grey ("Checked when a call starts"), not green. It runs when the window opens and on focus, at most once a minute unless the setup changes, to avoid needless requests.
+- Default model: stored as the word `default` in the copilot's existing model column (no schema change). `start_copilot_call` resolves it to the Settings provider and model at that moment and saves the resolved pair in the call snapshot, so a call's model never changes mid-call and History stays accurate.
+- The reference apps have no equivalent connection indicator or per-profile default model, so nothing to adopt.
+Rollback: revert this commit.

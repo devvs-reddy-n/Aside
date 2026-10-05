@@ -142,6 +142,7 @@ pub fn run() {
             commands::documents::delete_document,
             commands::documents::read_document_original,
             commands::job_post::fetch_job_post_text,
+            commands::connections::check_model_connections,
             commands::past_sessions::list_past_sessions,
             commands::past_sessions::get_session_transcript,
             commands::past_sessions::get_session_answers,

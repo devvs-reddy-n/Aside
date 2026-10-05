@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::active_session::{self, ActiveSessionInfo};
 use crate::domain::{Session, SessionStatus, SessionType};
-use crate::llm::LlmProviderKind;
+use crate::llm::{LlmProviderKind, PROVIDER_SETTING_KEY};
 use crate::storage::{copilots, documents, sessions, settings, Db};
 
 fn now_ms() -> u64 {
@@ -37,6 +37,30 @@ pub struct CopilotInput {
     pub resume_id: Option<Uuid>,
     #[serde(default)]
     pub document_ids: Vec<Uuid>,
+}
+
+/// Saved as a Copilot's model when it should follow the default model in
+/// Settings instead of a model of its own.
+pub const DEFAULT_MODEL_CHOICE: &str = "default";
+
+/// The provider and model a call from this Copilot uses: its own choice, or
+/// the Settings default at the moment the call starts. The call snapshot
+/// stores the resolved pair, so History always names the real model.
+fn resolve_model(
+    conn: &rusqlite::Connection,
+    copilot: &copilots::Copilot,
+) -> Result<(LlmProviderKind, String), String> {
+    if copilot.llm_model != DEFAULT_MODEL_CHOICE {
+        return Ok((copilot.llm_provider, copilot.llm_model.clone()));
+    }
+    let provider = settings::get(conn, PROVIDER_SETTING_KEY)?
+        .and_then(|value| LlmProviderKind::from_setting_value(&value))
+        .unwrap_or(LlmProviderKind::OpenAi);
+    let model = settings::get(conn, provider.model_setting())?
+        .filter(|model| !model.trim().is_empty())
+        .or_else(|| provider.model_presets().first().map(|model| model.to_string()))
+        .ok_or_else(|| "Choose a default AI model in Settings first.".to_string())?;
+    Ok((provider, model))
 }
 
 fn validate(input: &CopilotInput) -> Result<(), String> {
@@ -156,10 +180,11 @@ pub fn start_copilot_call(
     let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
     let copilot = copilots::get(&conn, copilot_id)?
         .ok_or_else(|| "That Copilot no longer exists.".to_string())?;
-    if !copilot.llm_provider.is_enabled() {
+    let (llm_provider, llm_model) = resolve_model(&conn, &copilot)?;
+    if !llm_provider.is_enabled() {
         return Err("This Copilot's AI provider is unavailable. Choose another model in its setup or configure it in Settings.".into());
     }
-    if settings::get(&conn, copilot.llm_provider.api_key_setting())?.is_none() {
+    if settings::get(&conn, llm_provider.api_key_setting())?.is_none() {
         return Err("This Copilot's AI provider needs an API key. Add it in Settings, then start the call again.".into());
     }
     let mut session = Session::new(
@@ -189,7 +214,7 @@ pub fn start_copilot_call(
         "copilot_name": copilot.name, "company": copilot.company, "target_role": copilot.target_role,
         "job_description": copilot.job_description, "instructions": copilot.instructions,
         "save_transcript": copilot.save_transcript,
-        "llm_provider": copilot.llm_provider, "llm_model": copilot.llm_model, "source_names": source_names,
+        "llm_provider": llm_provider, "llm_model": llm_model, "source_names": source_names,
     });
     sessions::set_copilot_snapshot(&conn, session.id, copilot_id, &snapshot.to_string())?;
     if let Some(instructions) = copilot.instructions.as_deref() {
@@ -243,5 +268,35 @@ mod tests {
             document_ids: vec![],
         };
         assert!(validate(&input).is_err());
+    }
+
+    fn copilot_with_model(model: &str) -> copilots::Copilot {
+        copilots::Copilot {
+            id: Uuid::new_v4(),
+            name: "Nimbus".into(),
+            company: None,
+            target_role: None,
+            job_description: None,
+            instructions: None,
+            save_transcript: true,
+            llm_provider: LlmProviderKind::OpenAi,
+            llm_model: model.into(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+        }
+    }
+
+    #[test]
+    fn default_follows_settings_and_an_own_model_stays_put() {
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        let first = resolve_model(&conn, &copilot_with_model(DEFAULT_MODEL_CHOICE)).unwrap();
+        assert_eq!(first.0, LlmProviderKind::OpenAi);
+        assert_eq!(first.1, LlmProviderKind::OpenAi.model_presets()[0]);
+        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-5.6-terra").unwrap();
+        let chosen = resolve_model(&conn, &copilot_with_model(DEFAULT_MODEL_CHOICE)).unwrap();
+        assert_eq!(chosen.1, "gpt-5.6-terra");
+        let own = resolve_model(&conn, &copilot_with_model("gpt-5.6-luna")).unwrap();
+        assert_eq!(own.1, "gpt-5.6-luna");
     }
 }

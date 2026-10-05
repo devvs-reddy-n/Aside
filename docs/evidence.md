@@ -395,3 +395,10 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Headless Chrome at 1180×860: Copilot 754 of 754, new copilot 754 of 754, Library 812 of 812, History 812 of 812 (no scrolling). Library's Add files and the copilot's Start session both end at x 1046, 18px from the bottom; Library at 1180×640 the same.
 - Screenshots reviewed: Copilot, Library, History.
 - Not run: the installed app.
+
+## 2026-10-04 - connection dots, Default model, rules button, shortcuts in Start session
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed.
+- `cargo test`: 806 passed, 0 failed, 12 ignored, including 2 new `commands::connections` tests (status mapping; missing setup fails without a request) and 1 new `commands::copilots` test (Default follows Settings; an own model stays put). `cargo build` passed.
+- Headless Chrome (demo): Settings has no Shortcuts section and fits (812 of 812); pressing "Edit default rules" shows the warning dialog; the Start session panel lists the four shortcuts at its bottom, just above the footer; a new copilot's model list starts with "Default · GPT-5.6 Luna", which is selected; the sidebar shows GPT-5.6 Luna and Parakeet with green dots. Forcing a failed AI result in the page store turned that dot red, and the pop-up showed the reason with Fix.
+- Not run: a real request to OpenAI or Speechmatics (the demo returns canned results); the installed app.

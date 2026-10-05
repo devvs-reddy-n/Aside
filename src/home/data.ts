@@ -13,6 +13,7 @@ import type {
   DocType,
   EngineKind,
   IngestedDocument,
+  ModelConnections,
   PastSessionSummary,
   Session,
   StoredDocument,
@@ -27,6 +28,8 @@ export interface SystemState extends SystemSnapshot {
   engines: EngineKind[];
   /** The call running right now, if any. */
   active: ActiveSessionInfo | null;
+  /** Whether the default AI model and speech engine were reached (null while checking). */
+  links: ModelConnections | null;
 }
 
 export const systemStore = createStore<SystemState>({
@@ -40,7 +43,24 @@ export const systemStore = createStore<SystemState>({
   aiKey: false,
   hidden: null,
   active: null,
+  links: null,
 });
+
+const RECHECK_MS = 60_000;
+let lastCheck = { at: 0, setup: "" };
+
+/** Reaches both default models. Runs again when the setup changes, otherwise at most once a minute. */
+async function checkConnections(): Promise<void> {
+  const state = systemStore.get();
+  const setup = [state.engine, state.speechKey, state.parakeetReady, state.provider, state.model, state.aiKey].join("|");
+  const changed = setup !== lastCheck.setup;
+  if (!changed && Date.now() - lastCheck.at < RECHECK_MS) return;
+  lastCheck = { at: Date.now(), setup };
+  // A changed setup shows "checking" again; a routine recheck keeps the last dots until it finishes.
+  if (changed) systemStore.set({ links: null });
+  const result = await api.model.connections();
+  systemStore.set({ links: result.ok ? result.value : { ai: { state: "unchecked", detail: result.error }, speech: { state: "unchecked", detail: result.error } } });
+}
 
 export async function refreshSystem(): Promise<void> {
   if (!backendAvailable()) {
@@ -74,6 +94,7 @@ export async function refreshSystem(): Promise<void> {
     hidden: hidden.ok ? hidden.value : null,
     active: active.ok ? active.value : null,
   });
+  void checkConnections();
 }
 
 /** Keeps the system snapshot in step with the backend for the life of the window. */

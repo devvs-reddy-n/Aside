@@ -133,6 +133,7 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
       case "get_llm_model": return "gpt-5.6-luna";
       case "set_llm_provider": case "set_llm_model": case "set_llm_api_key": case "set_llm_service_tier": return null;
       case "has_llm_api_key": return true;
+      case "check_model_connections": return { ai: { state: "connected", detail: "Connected to OpenAI." }, speech: { state: "connected", detail: "Runs on this Mac." } };
       case "get_llm_service_tier": return "";
       case "get_stealth": return stealth;
       case "set_stealth": stealth = Boolean(args?.enabled); return stealth;

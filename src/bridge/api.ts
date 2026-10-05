@@ -16,6 +16,7 @@ import type {
   IngestedDocument,
   LiveTranscriptTurn,
   LlmProviderKind,
+  ModelConnections,
   OverlayMode,
   OverlayPrefs,
   PastSessionSummary,
@@ -135,6 +136,8 @@ export const model = {
   providers: () => invoke<LlmProviderKind[]>("list_llm_providers"),
   models: (provider: LlmProviderKind) => invoke<string[]>("list_llm_models", { provider }),
   currentProvider: () => invoke<LlmProviderKind | null>("get_llm_provider"),
+  /** Reaches the default AI model and speech engine with their saved keys. */
+  connections: () => invoke<ModelConnections>("check_model_connections"),
   currentModel: (provider: LlmProviderKind) => invoke<string | null>("get_llm_model", { provider }),
   setProvider: (provider: LlmProviderKind) => invoke<void>("set_llm_provider", { provider }),
   setModel: (provider: LlmProviderKind, modelName: string) =>

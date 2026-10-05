@@ -23,7 +23,7 @@ import { useAutosave } from "../../kit/useAutosave";
 import type { SaveState } from "../../core/autosave";
 import { ingestPaths, libraryStore, loadLibrary, pickDocumentFiles, saveCopilot, systemStore } from "../data";
 import { useFileDrop } from "../fileDrop";
-import { modelLabel } from "../labels";
+import { DEFAULT_MODEL_CHOICE, copilotModelLabel, modelLabel } from "../labels";
 import { hrefFor } from "../router";
 import { DocumentViewer } from "./DocumentViewer";
 
@@ -159,7 +159,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
     // A new copilot starts with the model chosen in Settings.
     return {
       name: "", company: null, target_role: null, job_description: null, instructions: null, save_transcript: true,
-      llm_provider: system.provider ?? "open_ai", llm_model: system.model ?? "gpt-5.6-luna", resume_id: null, document_ids: [],
+      llm_provider: system.provider ?? "open_ai", llm_model: DEFAULT_MODEL_CHOICE, resume_id: null, document_ids: [],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copilot?.id]);
@@ -275,8 +275,10 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
   const extras = docs.filter((doc) => doc.doc_type === "other");
   const resume = resumes.find((doc) => doc.id === input.resume_id) ?? null;
   const chosenExtras = extras.filter((doc) => input.document_ids.includes(doc.id));
-  const modelKey = `${input.llm_provider}|${input.llm_model}`;
-  const options = models.some((m) => `${m.provider}|${m.model}` === modelKey) || models.length === 0 ? models : [{ provider: input.llm_provider, model: input.llm_model }, ...models];
+  const usesDefault = input.llm_model === DEFAULT_MODEL_CHOICE;
+  const modelKey = usesDefault ? DEFAULT_MODEL_CHOICE : `${input.llm_provider}|${input.llm_model}`;
+  const options = usesDefault || models.some((m) => `${m.provider}|${m.model}` === modelKey) || models.length === 0 ? models : [{ provider: input.llm_provider, model: input.llm_model }, ...models];
+  const defaultLabel = copilotModelLabel(input.llm_provider, DEFAULT_MODEL_CHOICE, system);
 
   async function addFiles(docType: DocType, paths?: string[]) {
     const chosen = paths ?? (await pickDocumentFiles());
@@ -409,8 +411,14 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
       <footer className="cp-foot">
         <div className="cp-foot__inner">
           <label className="cp-model-control" title="AI model"><Icon name="bot" size={16} />
-            <Select aria-label="AI model" value={modelKey} onChange={(e) => { const [provider, ...rest] = e.target.value.split("|"); setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") })); }}>
-            {options.length === 0 ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
+            <Select aria-label="AI model" value={modelKey} onChange={(e) => {
+              // Default follows the model chosen in Settings, now and after it changes.
+              if (e.target.value === DEFAULT_MODEL_CHOICE) return setInput((c) => ({ ...c, llm_provider: system.provider ?? c.llm_provider, llm_model: DEFAULT_MODEL_CHOICE }));
+              const [provider, ...rest] = e.target.value.split("|");
+              setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") }));
+            }}>
+            <option value={DEFAULT_MODEL_CHOICE}>{defaultLabel}</option>
+            {options.length === 0 && !usesDefault ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
             {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
           </Select>
           </label>

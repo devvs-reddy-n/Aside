@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod capture;
+pub mod connections;
 pub mod copilots;
 pub mod documents;
 pub mod job_post;

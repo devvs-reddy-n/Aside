@@ -49,8 +49,6 @@
 .status-pill { display: inline-flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: var(--r-s); background: none; color: var(--text-2); font-size: 13px; font-weight: 520; transition: background var(--fast); }
 .status-pill:hover { background: var(--hover); color: var(--text); }
 .status-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
-.status-pill[data-tone="ok"] i { background: var(--success); }
-.status-pill[data-tone="warn"] i { background: var(--warning); }
 .sb[data-rail] .status-pill { justify-content: center; padding: 0; }
 .status-pop__title { margin-bottom: 8px; font-weight: 600; }
 .status-pop ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
@@ -287,9 +285,6 @@
 .set-inline .btn { height: 28px; padding-inline: 10px; font-size: 12px; }
 .set-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--set-secondary); font-size: 11.5px; }
 .set-bad { color: var(--danger-ink); font-size: 12px; }
-#st-shortcuts .set-row { min-height: 36px; padding-block: 4px; }
-#st-shortcuts .set-row__label b { line-height: 16px; }
-#st-shortcuts .set-row__label { display: grid; gap: 0; }
 .sheet .editor + .set-bad { margin-top: var(--s2); }
 @container (max-width: 760px) {
   .set-grid { gap: 14px; }

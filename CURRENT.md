@@ -2,7 +2,15 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): Library and History match the copilot page
+## Latest change, 2026-10-04 (latest): connection dots, Default model, rules button, shortcuts in Start session
+
+- The sidebar's bottom shows the default AI model and speech engine, each with a green dot when Aside could reach it and a red one when it couldn't (grey while checking). Clicking opens the details with a Fix link.
+- A copilot's AI model list starts with "Default", which follows the model in Settings. New copilots start on Default. When a call starts, Default becomes the real model, so History names it.
+- Settings no longer shows the strict rules text: one red "Edit default rules" button in the middle warns first, then opens the editor.
+- The four shortcuts moved from Settings to the bottom of the Start session panel.
+- Not yet run: a real connection check against OpenAI and Speechmatics in the installed app.
+
+## Earlier today: Library and History match the copilot page
 
 - Library and History headers now look like a copilot's: the title, then a grey line under it ("4 files", "3 calls").
 - Library's Paste text and Add files float at the bottom right, in the same spot and style as Start session.

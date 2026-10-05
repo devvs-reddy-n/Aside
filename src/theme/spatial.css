@@ -173,8 +173,8 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp-tile--description .cp-tile__content { display: grid; gap: 10px; }
 .cp-well, .cp-tile--guidance .cp-tile__content, .cp-tile--resume .cp-tile__content { padding: 0; border: 0; background: none; }
 /* Four whole lines (Description, Guidance, Strict rules), then a Show more link. */
-:is(.cp-tile, .set-rules) .rich { gap: 0; }
-:is(.cp-tile, .set-rules) .rich__body { color: var(--text-2); font-size: 13.5px; }
+.cp-tile .rich { gap: 0; }
+.cp-tile .rich__body { color: var(--text-2); font-size: 13.5px; }
 .cp-tile .rich--empty { min-height: 0; color: var(--text-3); font-size: 13.5px; text-align: left; }
 .cp-tile .cp-error { margin: -4px 0 0; padding: 0; font-size: 12.5px; }
 .cp-tile .file-card { gap: 12px; padding: 0; flex-wrap: nowrap; }
@@ -215,11 +215,6 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .set .input { color: var(--text-2); }
 .set .btn--secondary { border-color: var(--field-edge); background: var(--field); color: var(--text); box-shadow: none; }
 .set .btn--secondary:hover:not(:disabled) { background: var(--field-hover); }
-.set-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; margin: 0; padding: 0; color: var(--text-2); font-size: 13px; }
-.set-shortcuts > div { display: flex; justify-content: space-between; gap: 8px; min-height: 38px; align-items: center; }
-.set-shortcuts > div:nth-child(n + 3) { border-top: 1px solid var(--border); }
-.set-shortcuts dt { color: var(--text); font-weight: 550; }
-.set-shortcuts dd { margin: 0; color: var(--text-2); font-weight: 650; }
 .set-rules { padding: 0; }
 
 /* ---------- Library and History: the same section card and inner box as Copilot and Settings ---------- */
@@ -303,4 +298,34 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .pg-float > * { pointer-events: auto; }
 .pg-float .btn { height: 36px; padding: 0 14px; border-radius: var(--r-m); font-size: 13.5px; box-shadow: var(--highlight), 0 10px 28px rgb(0 0 0 / 0.45); }
 .pg-float .btn--secondary { border-color: var(--border-strong); background: var(--raised); }
+
+/* Sidebar status: the default AI model and speech engine, each with a dot for whether Aside reached it. */
+.status-pill--models { display: grid; gap: 6px; height: auto; padding: 10px 14px; text-align: left; }
+.sp-line { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--text-2); font-size: 13px; font-weight: 600; line-height: 16px; }
+.sp-line > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-pill .sp-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); box-shadow: 0 0 0 3px rgb(255 255 255 / 0.05); }
+.sp-dot[data-tone="ok"], .status-pop .dot[data-tone="ok"] { background: var(--success); box-shadow: 0 0 0 3px rgb(47 191 134 / 0.16); }
+.sp-dot[data-tone="bad"], .status-pop .dot[data-tone="bad"] { background: var(--danger); box-shadow: 0 0 0 3px rgb(229 85 94 / 0.16); }
+.sp-dot[data-tone="checking"], .status-pop .dot[data-tone="checking"] { background: var(--text-3); animation: sp-pulse 1.2s ease-in-out infinite; }
+@keyframes sp-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .sp-dot[data-tone="checking"], .status-pop .dot[data-tone="checking"] { animation: none; } }
+.sb[data-rail] .status-pill--models { justify-items: center; padding: 10px 0; }
+
+/* Strict rules: no text, one red button in the middle that warns before opening the editor. */
+.set-rules--button { display: grid; place-items: center; padding: 6px 0 2px; }
+.set-rules__edit { height: 36px; padding: 0 16px; border: 1px solid rgb(229 85 94 / 0.28); border-radius: var(--r-m); background: rgb(229 85 94 / 0.08); color: var(--danger-ink); font-size: 13.5px; font-weight: 650; }
+.set-rules__edit:hover:not(:disabled) { border-color: rgb(229 85 94 / 0.45); background: rgb(229 85 94 / 0.14); }
+.set-rules__edit:disabled { opacity: 0.5; }
+
+/* Start session: the four shortcuts at the bottom, two by two, like they were in Settings. */
+.sheet__body:has(> .pf-keys) { display: flex; flex-direction: column; }
+.sheet__body:has(> .pf-keys) > * { flex: none; }
+.pf-keys { display: grid; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); }
+.sheet__body:has(> .pf-keys) > .pf-note { margin-bottom: 18px; }
+.pf-keys > b { color: var(--text-2); font-size: 12.5px; font-weight: 650; }
+.pf-keys dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; margin: 0; color: var(--text-2); font-size: 13px; }
+.pf-keys dl > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; }
+.pf-keys dl > div:nth-child(n + 3) { border-top: 1px solid var(--border); }
+.pf-keys dt { color: var(--text); font-weight: 550; }
+.pf-keys dd { margin: 0; font-weight: 650; }
 

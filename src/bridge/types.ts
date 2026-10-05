@@ -432,3 +432,8 @@ export type OverlayMode = "dock" | "capsule";
 export interface StartedCopilotCall {
   session: Session;
 }
+
+/** Whether a default model could actually be reached (`check_model_connections`). */
+export type LinkState = "connected" | "failed" | "unchecked";
+export interface ModelLink { state: LinkState; detail: string }
+export interface ModelConnections { ai: ModelLink; speech: ModelLink }

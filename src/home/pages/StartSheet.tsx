@@ -7,7 +7,8 @@ import { Button } from "../../kit/Button";
 import { Icon } from "../../kit/Icon";
 import { Sheet } from "../../kit/Sheet";
 import { goLive, prepareCall, systemStore, type LaunchStep, type PreparedCall } from "../data";
-import { engineName, modelLabel } from "../labels";
+import { APP_SHORTCUTS } from "../../core/shortcuts";
+import { copilotModelLabel, engineName } from "../labels";
 import { aiProblem, speechProblem } from "../readiness";
 import { hrefFor } from "../router";
 import { LevelBars } from "../../kit/LevelBars";
@@ -113,7 +114,7 @@ export function StartSheet({ copilot, onClose }: { copilot: CopilotSummary; onCl
       : { id: "speech", label: "Speech", tone: "ok", detail: `${engineName(system.engine!)} is ready` },
     ai
       ? { id: "ai", label: "AI model", tone: "bad", detail: ai, action: <a className="pf-fix" onClick={onClose} href={hrefFor("settings", "ai")}>Set up</a> }
-      : { id: "ai", label: "AI model", tone: "ok", detail: modelLabel(copilot.llm_provider, copilot.llm_model) },
+      : { id: "ai", label: "AI model", tone: "ok", detail: copilotModelLabel(copilot.llm_provider, copilot.llm_model, system) },
     copilot.has_resume
       ? { id: "resume", label: "Resume", tone: "ok", detail: copilot.document_count > 1 ? `Attached, plus ${copilot.document_count - 1} more file${copilot.document_count === 2 ? "" : "s"}` : "Attached" }
       : { id: "resume", label: "Resume", tone: "info", detail: "None attached. Answers will be more general." },
@@ -199,6 +200,10 @@ export function StartSheet({ copilot, onClose }: { copilot: CopilotSummary; onCl
         ))}
       </ul>
       <p className="pf-note">Both sides start listening. You can turn either off in the live window.</p>
+      <section className="pf-keys" aria-label="Shortcuts during the call">
+        <b>Shortcuts</b>
+        <dl>{APP_SHORTCUTS.map(([keys, what]) => <div key={keys}><dt>{what}</dt><dd>{keys}</dd></div>)}</dl>
+      </section>
     </Sheet>
   );
 }

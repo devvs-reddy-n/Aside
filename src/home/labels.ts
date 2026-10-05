@@ -20,6 +20,15 @@ const KNOWN_MODELS: Partial<Record<LlmProviderKind, Record<string, string>>> = {
   },
 };
 
+/** Saved as a copilot's model when it follows the default model in Settings. */
+export const DEFAULT_MODEL_CHOICE = "default";
+
+/** A copilot's model as people read it, naming what Default currently means. */
+export function copilotModelLabel(provider: LlmProviderKind, model: string, fallback: { provider: LlmProviderKind | null; model: string | null }): string {
+  if (model !== DEFAULT_MODEL_CHOICE) return modelLabel(provider, model);
+  return fallback.provider && fallback.model ? `Default · ${modelLabel(fallback.provider, fallback.model).replace(/^[^·]+· /, "")}` : "Default";
+}
+
 export function modelLabel(provider: LlmProviderKind, model: string): string {
   return `${providerLabel(provider)} · ${KNOWN_MODELS[provider]?.[model] ?? model}`;
 }
