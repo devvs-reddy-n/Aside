@@ -89,7 +89,6 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   return (
     <div className="hm-page hist">
       <header className="pg-head">
-        <span className="pg-icon" aria-hidden="true"><Icon name="history" size={22} strokeWidth={1.75} /></span>
         <h1>History {visible.length > 0 ? <span className="pg-count tabular">{visible.length}</span> : null}</h1>
       </header>
 
@@ -110,8 +109,8 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
       ) : (
         <>
           {hits.length > 0 ? (
-            <section aria-label="Found in conversations" className="hm-hits">
-              <h2 className="hist-day__label">Found in conversations</h2>
+            <section aria-label="Found in conversations" className="pg-card hm-hits">
+              <header className="pg-card__head"><Icon name="search" size={15} /><h2>Found in conversations</h2></header>
               <ul className="hist-list">
                 {hits.slice(0, 20).map((hit, index) => (
                   <li key={`${hit.session_id}-${hit.start_ms}-${index}`}>
@@ -127,8 +126,8 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
           ) : null}
 
           {groups.map((group) => (
-            <section key={group.key} className="hist-day" aria-label={group.label}>
-              <h2 className="hist-day__label">{group.label}</h2>
+            <section key={group.key} className="pg-card hist-day" aria-label={group.label}>
+              <header className="pg-card__head"><Icon name="calendar" size={15} /><h2>{group.label}</h2></header>
               <ul className="hist-list">
                 <AnimatePresence initial={false}>
                   {group.items.map((session) => (

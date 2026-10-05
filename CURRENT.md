@@ -2,7 +2,14 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): controls at the bottom, roomier layout
+## Latest change, 2026-10-04 (latest): Library and History in the same style
+
+- Library and History use the same cards, inner boxes, titles and column as Copilot and Settings.
+- Library: one card with the filter, search and list/grid toggle as its header. History: one card per day.
+- File and call details are plain icon-and-text instead of outlined chips.
+- Call detail window: tidier header; only Aside's suggestion is green.
+
+## Earlier today: controls at the bottom, roomier layout
 
 - Copilot page: AI model, Save transcript and Start session now sit in a bar at the bottom that never scrolls; the ⋯ menu sits beside the name.
 - Job URL is now the first line inside the Job description card, since it fills the description. Four cards instead of five, and everything still fits one screen.

@@ -349,3 +349,10 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Sidebar footer and bottom bar tops both measured at y = 799.
 - Copilot and Settings screenshots reviewed.
 - Not run: the installed app.
+
+## 2026-10-04 - Library and History restyle
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed.
+- Headless Chrome at 1180×860 with demo data: Library (list and grid), History and the call detail window screenshotted and reviewed. First card spans x 374 to 1046 on Library and History, same as Copilot and Settings. Page title tops measured at 64px on Copilot, Settings, Library and History. Copilot (739 of 739) and Settings (800 of 800) still fit without scrolling.
+- Fixed from the review: call detail title floated in the middle of its header; Settings title sat 2px lower than the others.
+- Not run: the installed app.

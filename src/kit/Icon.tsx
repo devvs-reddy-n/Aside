@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 import {
-  ArrowDown, ArrowRight, ArrowUp, AudioLines, Bot, Briefcase, Building2, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
+  ArrowDown, ArrowRight, ArrowUp, AudioLines, Bot, Briefcase, Building2, CalendarDays, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   CircleAlert, CircleCheck, Clock, Code, Command, Copy, CopyPlus, Download, Ellipsis, ExternalLink, Eye, File, FileText, Files, Folder,
   History, Info, Keyboard, LayoutGrid, LibraryBig, Lightbulb, Link, List, LoaderCircle, Maximize2, MessageCircleQuestion, MessageSquare, Mic, Minus, Monitor, Moon,
   PanelLeft, Pause, Pencil, Play, Plus, RefreshCw, ScrollText, Search, Settings, Shield, Sparkles, Square, Sun, Timer, TriangleAlert, Trash2,
@@ -80,6 +80,7 @@ const ICONS = {
   scroll: ScrollText,
   question: MessageCircleQuestion,
   timer: Timer,
+  calendar: CalendarDays,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS | "mark";

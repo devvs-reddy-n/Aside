@@ -171,7 +171,6 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
   return (
     <div className="hm-page lib">
       <header className="pg-head">
-        <span className="pg-icon" aria-hidden="true"><Icon name="library" size={22} strokeWidth={1.75} /></span>
         <h1>Library <span className="pg-count tabular">{counts.all}</span></h1>
         <div className="pg-head__actions">
           <Button variant="secondary" icon="note" onClick={() => setPasting(true)}>Paste text</Button>
@@ -180,36 +179,6 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
       </header>
 
       {error ? <Callout tone="bad" title="Couldn't load your library">{error}</Callout> : null}
-
-      <div className="lib-tools">
-        <Segmented<Filter>
-          label="Show"
-          size="sm"
-          value={filter}
-          onChange={(next) => navigate("library", next === "all" ? undefined : next)}
-          options={[
-            { value: "all", label: <>All <span className="seg__count">{counts.all}</span></> },
-            { value: "resumes", label: <>Resumes <span className="seg__count">{counts.resumes}</span></> },
-            { value: "documents", label: <>Documents <span className="seg__count">{counts.documents}</span></> },
-          ]}
-        />
-        {counts.all > 6 ? (
-          <label className="hm-search lib-search">
-            <Icon name="search" size={15} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" aria-label="Search files" />
-          </label>
-        ) : <span className="grow" />}
-        <Segmented<View>
-          label="Layout"
-          size="sm"
-          value={view}
-          onChange={setLayout}
-          options={[
-            { value: "list", label: <Icon name="list" size={15} />, title: "List" },
-            { value: "grid", label: <Icon name="grid" size={15} />, title: "Grid" },
-          ]}
-        />
-      </div>
 
       {loaded && counts.all === 0 ? (
         <EmptyState
@@ -220,16 +189,47 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
           Resumes and notes your copilots can draw on. PDF or Word, or drop them anywhere on this page.
         </EmptyState>
       ) : (
-        <ul className="lib-list" data-view={view}>
-          <AnimatePresence initial={false}>
-            {shown.map((doc) => (
-              <FileItem key={doc.id} doc={doc} uses={usage.get(doc.id) ?? 0} view={view} onOpen={() => setViewing(doc)} onDelete={() => remove(doc)} />
-            ))}
-          </AnimatePresence>
-          {loaded && shown.length === 0 ? (
-            <li className="lib-none">{query ? <>Nothing matches “{query}”.</> : filter === "resumes" ? "No resumes yet." : "No documents yet."}</li>
-          ) : null}
-        </ul>
+        <section className="pg-card" aria-label="Files">
+          <div className="lib-tools pg-card__head">
+            <Segmented<Filter>
+              label="Show"
+              size="sm"
+              value={filter}
+              onChange={(next) => navigate("library", next === "all" ? undefined : next)}
+              options={[
+                { value: "all", label: <>All <span className="seg__count">{counts.all}</span></> },
+                { value: "resumes", label: <>Resumes <span className="seg__count">{counts.resumes}</span></> },
+                { value: "documents", label: <>Documents <span className="seg__count">{counts.documents}</span></> },
+              ]}
+            />
+            {counts.all > 6 ? (
+              <label className="hm-search lib-search">
+                <Icon name="search" size={15} />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" aria-label="Search files" />
+              </label>
+            ) : <span className="grow" />}
+            <Segmented<View>
+              label="Layout"
+              size="sm"
+              value={view}
+              onChange={setLayout}
+              options={[
+                { value: "list", label: <Icon name="list" size={15} />, title: "List" },
+                { value: "grid", label: <Icon name="grid" size={15} />, title: "Grid" },
+              ]}
+            />
+          </div>
+          <ul className="lib-list" data-view={view}>
+            <AnimatePresence initial={false}>
+              {shown.map((doc) => (
+                <FileItem key={doc.id} doc={doc} uses={usage.get(doc.id) ?? 0} view={view} onOpen={() => setViewing(doc)} onDelete={() => remove(doc)} />
+              ))}
+            </AnimatePresence>
+            {loaded && shown.length === 0 ? (
+              <li className="lib-none">{query ? <>Nothing matches “{query}”.</> : filter === "resumes" ? "No resumes yet." : "No documents yet."}</li>
+            ) : null}
+          </ul>
+        </section>
       )}
 
       <AnimatePresence>
