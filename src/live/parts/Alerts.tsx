@@ -29,11 +29,11 @@ function Alert({ tone, icon, title, fix, detail, more, onClose }: AlertProps) {
         <b>{title}</b>
         {fix ? <button type="button" className="lv-chip" data-solid onClick={fix.run}>{fix.label}</button> : null}
         {expandable ? (
-          <button type="button" className="lv-icon lv-icon--sm lv-alert__toggle" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpanded((value) => !value)}>
+          <button type="button" className="lv-icon lv-alert__toggle" aria-label={expanded ? "Hide details" : "Show details"} aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpanded((value) => !value)}>
             <Icon name="chevronDown" size={14} />
           </button>
         ) : null}
-        {onClose ? <button type="button" className="lv-icon lv-icon--sm" aria-label="Dismiss" onClick={onClose}><Icon name="x" size={14} /></button> : null}
+        {onClose ? <button type="button" className="lv-icon" aria-label="Dismiss" onClick={onClose}><Icon name="x" size={14} /></button> : null}
       </div>
       {expandable ? (
         <div className="lv-alert__more" id={detailId} inert={!expanded} aria-hidden={!expanded}>

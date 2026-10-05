@@ -49,7 +49,7 @@ export function Code({ block, streaming }: { block: ParsedCodeBlock; streaming?:
   return (
     <figure className="lv-code selectable">
       <figcaption>
-        <span><i className="lv-code__dots" aria-hidden="true"><b /><b /><b /></i>{block.language ?? "code"}</span>
+        <span>{block.language ?? "code"}</span>
         <button type="button" onClick={copy}><Icon name={copied ? "check" : "copy"} size={13} />{copied ? "Copied" : "Copy"}</button>
       </figcaption>
       <pre tabIndex={0}>

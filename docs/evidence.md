@@ -317,3 +317,12 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Contrast computed from the token values, composited over white and black: main card text-2 8.89, text-3 6.26, emerald ink 9.51; white on the main green button 5.0 (lightest stop); live at 100% text-2 9.83, text-3 7.68, text-3 on the answer card 8.01, white on the live Answer button 7.39. The earlier in-browser per-element checker was not re-run.
 - No em dashes in UI strings (grep of `src`; only a regex character class matches).
 - Not run: the native window buttons, Command+H and the see-through tint in the installed app; these need the owner.
+
+## 2026-10-04 - minimal live window
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail (removed: 3 launch-prefs tests, 3 length tests, 2 layout/thread tests; rewritten: double-press guard, failed-request release, history stepping, screenshot); `npm run build` passed; `cargo build` passed (no Rust change in this step).
+- Browser preview (demo, 420×560): waiting question, streamed answer with list and code, window options open, mic-failure alert at 55% over a striped background. Screenshots reviewed.
+- Text size measured in the browser: answer 15px → 17.3px (Medium) → 23.1px (Extra large); question and code scale with it; the selected size shows as checked.
+- CSS class audit: every `lv-` class used in `src/live` is defined in `live.css` and every defined one is used.
+- Contrast from token values at 100%: lightest grey text (#b2b6bc) 8.0:1 on the panel top, 9.0:1 at the bottom.
+- Not run: the real live window in `Aside.app`.

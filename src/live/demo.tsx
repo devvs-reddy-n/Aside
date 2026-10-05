@@ -2,12 +2,10 @@
  * A pretend call for checking the live window in a plain browser tab
  * (`npm run dev`, then open `/?demo=live`). Development only: it is never
  * reachable from the real app. Add `&scn=silent`, `&scn=offline` or
- * `&scn=mic` to see the recovery cards, `&layout=focus|thread|prompter` to
- * pick a layout, `&view=all` to open on the transcript, and `&alpha=40..100`
- * for the Background setting.
+ * `&scn=mic` to see the recovery cards, `&alpha=40..100` for the Background
+ * setting and `&font=12..20` for Text size.
  */
 import { useMemo } from "react";
-import { LIVE_LAYOUTS, saveLaunchPrefs, type LiveLayout } from "../core/launchPrefs";
 import type { OverlayPrefs } from "../bridge/types";
 import type { LiveBackend } from "./backend";
 import { createLiveController } from "./controller";
@@ -29,10 +27,10 @@ const ANSWER = [
   "```python\ndef allow(key, rate, burst, now):\n    tokens, last = redis.get(key)  # atomic in Lua\n    tokens = min(burst, tokens + (now - last) * rate)\n    if tokens < 1:\n        return False\n    redis.set(key, tokens - 1, now)\n    return True\n```",
 ];
 
-function makeBackend(scn: string | null, alpha: number): LiveBackend {
+function makeBackend(scn: string | null, alpha: number, font: number): LiveBackend {
   let dispatch: (action: LiveAction) => void = () => undefined;
   const on: Record<ChannelKey, boolean> = { mic: scn !== "mic", system: true };
-  let prefs: OverlayPrefs = { zoom_pct: 100, opacity_pct: alpha, font_px: 13, language: "en" };
+  let prefs: OverlayPrefs = { zoom_pct: 100, opacity_pct: alpha, font_px: font, language: "en" };
   let streamTimer: number | undefined;
 
   const stream = (question: string) => {
@@ -129,12 +127,9 @@ function makeBackend(scn: string | null, alpha: number): LiveBackend {
 export default function DemoLive() {
   const controller = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
-    const layout = params.get("layout") as LiveLayout | null;
-    // Each demo load starts from a known state: the layout asked for (or Focus) on its Answer view.
-    saveLaunchPrefs({ layout: layout && LIVE_LAYOUTS.includes(layout) ? layout : "focus", answersOnly: params.get("view") !== "all" });
     const alpha = Math.max(40, Math.min(100, Number(params.get("alpha")) || 92));
-    const created = createLiveController(makeBackend(params.get("scn"), alpha));
-    return created;
+    const font = Math.max(12, Math.min(20, Number(params.get("font")) || 13));
+    return createLiveController(makeBackend(params.get("scn"), alpha, font));
   }, []);
   return <LiveApp controller={controller} />;
 }

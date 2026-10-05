@@ -1,6 +1,16 @@
 # Current status
 
-**PARTIAL: minimal near-black look with an emerald accent, and new window buttons, are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
+**PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
+
+## Latest change, 2026-10-04 (later): minimal live window
+
+The live window is now just one question and its answer:
+- **Top bar, one row:** status dot and call clock, You and Them icons, ‹ 2/5 › history, options, End.
+- **Middle:** the question, then the answer filling the rest of the window. No "Suggested answer" title, no option buttons after the answer.
+- **Bottom bar, one row:** follow-up box, Screenshot answer, Answer.
+- **Look:** dark see-through greys, no green.
+- **Options menu:** Background (40–100%), Text size (four sizes, now actually scales question, answer and code), Pause listening, Reset window, Open Aside.
+- **Removed with their code:** Thread and Prompter layouts, Transcript view, Short/Medium/Long, the refine buttons.
 
 ## Latest change, 2026-10-04: minimal dark look + window buttons
 
@@ -51,7 +61,8 @@ Commits on `redesign-dock` (not pushed):
 
 ## Verified (2026-10-04)
 
-- Type check passed; 68 frontend tests passed; `npm run build` passed; `cargo build` passed; 803 Rust tests passed (3 new for the window buttons).
+- Type check passed; 60 frontend tests passed (tests for removed live features removed); `npm run build` passed; `cargo build` passed; 803 Rust tests passed (3 new for the window buttons).
+- Live window in the browser preview: waiting question, answer with list and code, options menu, mic problem at 55% see-through; text size measured scaling 15px → 23px.
 - Browser preview screenshots reviewed: copilot, Settings, Library, History at 1180×860; live Focus (before and after an answer) and Thread at 440×720.
 - Contrast worked out from the colour values over white and black: main app grey text at least 6.2:1, live window at 100% at least 7.4:1, white on green buttons at least 5.0:1. The older per-element browser checker was not re-run.
 - No em dashes in on-screen text.

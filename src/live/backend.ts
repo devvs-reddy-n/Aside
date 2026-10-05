@@ -17,7 +17,7 @@ import type {
   TranscriptEvent,
   VadStatus,
 } from "../bridge/types";
-import type { AnswerLength, Result } from "../bridge/api";
+import type { Result } from "../bridge/api";
 import type { ChannelKey, LiveAction } from "./machine";
 
 export type ResizeDirection = Parameters<ReturnType<typeof getCurrentWindow>["startResizeDragging"]>[0];
@@ -45,7 +45,7 @@ export interface LiveBackend {
   /** Start listening on one ear (capture, then transcription). Resolves to the device name. */
   startChannel(channel: ChannelKey, session: ActiveSessionInfo | null): Promise<Result<string | null>>;
   stopChannel(channel: ChannelKey): Promise<void>;
-  answerWindow(length: AnswerLength | null): Promise<Result<void>>;
+  answerWindow(): Promise<Result<void>>;
   answerScreenshot(): Promise<Result<void>>;
   ask(question: string, sessionId: string | null): Promise<Result<void>>;
   end(sessionId: string | null): Promise<Result<void>>;
@@ -136,7 +136,7 @@ export const tauriBackend: LiveBackend = {
     await api.audio.stop(channel);
   },
 
-  answerWindow: (length) => api.live.answerWindow(length),
+  answerWindow: () => api.live.answerWindow(null),
   answerScreenshot: () => api.live.answerScreenshot(),
   ask: (question, sessionId) => api.live.ask(question, sessionId),
   end: (sessionId) => api.live.end(sessionId),

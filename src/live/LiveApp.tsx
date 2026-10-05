@@ -2,29 +2,31 @@ import { useEffect } from "react";
 import { ToastHost } from "../kit/toast";
 import { LiveProvider, useLiveUi } from "./context";
 import type { LiveController } from "./controller";
-import { useRoom } from "./hooks";
-import { Focus } from "./layouts/Focus";
-import { Prompter } from "./layouts/Prompter";
-import { Thread } from "./layouts/Thread";
+import { Alerts } from "./parts/Alerts";
+import { Bar } from "./parts/Bar";
+import { Composer } from "./parts/Composer";
 import { Ended } from "./parts/Ended";
+import { Reading } from "./parts/Reading";
 import { ResizeHandles } from "./ResizeHandles";
 
 /** Below this, a soft halo keeps letters readable over whatever shows through. */
 const HALO_BELOW = 75;
 
 /**
- * The live window's one panel. The Background slider sets how solid the panel,
- * cards, buttons and code block are (40–100%); text always stays solid.
+ * The live window's one panel: a top bar, the question and its answer, and a
+ * bottom bar. The Background setting sets how solid the panel is (40–100%);
+ * Text size scales the question and answer. Text always stays solid.
  */
 function Panel() {
-  const room = useRoom();
   const prefs = useLiveUi((state) => state.prefs);
-  const layout = useLiveUi((state) => state.layout);
   const style = { "--fs": prefs.font_px / 13, "--alpha": prefs.opacity_pct / 100 } as React.CSSProperties;
   return (
-    <div className="lv-root" data-w={room.width} data-h={room.height} style={style}>
-      <div className="lv-panel" data-layout={layout} data-thin={prefs.opacity_pct < HALO_BELOW || undefined}>
-        {layout === "thread" ? <Thread room={room} /> : layout === "prompter" ? <Prompter /> : <Focus room={room} />}
+    <div className="lv-root" style={style}>
+      <div className="lv-panel" data-thin={prefs.opacity_pct < HALO_BELOW || undefined}>
+        <Bar />
+        <Alerts />
+        <Reading />
+        <Composer />
         <Ended />
       </div>
       <ResizeHandles />

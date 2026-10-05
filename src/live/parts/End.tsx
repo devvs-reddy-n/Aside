@@ -5,7 +5,7 @@ import { useController, useLiveUi } from "../context";
 const CANCEL_MS = 4000;
 
 /** One click schedules the end; the red countdown is the chance to cancel (click again or Escape). */
-export function End({ compact = false }: { compact?: boolean }) {
+export function End() {
   const controller = useController();
   const ending = useLiveUi((state) => state.ending);
   const [pending, setPending] = useState(false);
@@ -35,7 +35,6 @@ export function End({ compact = false }: { compact?: boolean }) {
       type="button"
       className="lv-end"
       data-armed={pending || undefined}
-      data-compact={compact || undefined}
       disabled={ending}
       onClick={() => setPending((value) => !value)}
       aria-label={pending ? "Cancel ending session" : "End session"}
@@ -43,7 +42,7 @@ export function End({ compact = false }: { compact?: boolean }) {
     >
       {pending ? <i className="lv-end__fill" aria-hidden="true" /> : null}
       <Icon name={pending ? "x" : "stop"} size={13} />
-      {compact && !pending ? null : <span>{label}</span>}
+      <span>{label}</span>
     </button>
   );
 }
