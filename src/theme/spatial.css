@@ -43,7 +43,9 @@
 .status-pill i { width: 8px; height: 8px; box-shadow: 0 0 0 3px rgb(255 255 255 / 0.05); }
 
 /* Top strip: room to drag the window, and the running call at the right. */
-.hm-top { display: flex; justify-content: flex-end; align-items: center; height: 48px; padding: 0 20px; }
+/* Only as tall as needed to drag the window; it grows to fit Return to call during a call. */
+.hm-top { display: flex; justify-content: flex-end; align-items: center; min-height: 24px; padding: 0 20px; }
+.hm-top:has(.hm-callpill) { padding-block: 8px 4px; }
 .hm-top__end { display: flex; justify-content: flex-end; min-width: 0; }
 .hm-callpill { height: 36px; padding: 0 4px 0 12px; border: 1px solid var(--green-line); border-radius: var(--r-pill); background: var(--green-wash); color: var(--success-ink); font-weight: 650; }
 .hm-callpill__text { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -118,7 +120,8 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .pg-head__actions { margin-left: auto; }
 
 /* One narrow content column: headers and cards share the same edges on every page. */
-.hm-root { --col: 720px; }
+/* The window is a fixed size, so the content fills it, leaving a 24px gap on each side (wider only when the sidebar is collapsed). */
+.hm-root { --col: 920px; }
 .hm-page { padding: 4px max(24px, calc((100% - var(--col)) / 2 + 24px)) 28px; }
 
 /* ---------- Copilot page ---------- */
@@ -154,7 +157,7 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp--tiles .cp-body { display: flex; flex-direction: column; gap: 0; width: 100%; max-width: var(--col); padding: 0 24px 20px; }
 /* One section card shared by the copilot page and Settings. */
 /* Sections have no boxes: a small icon and title, the content set under the title, and a hairline between sections. */
-.cp-tile, .set-sec, .pg-card { --indent: 23px; display: grid; gap: 10px; padding: 14px 0 16px; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.cp-tile, .set-sec, .pg-card { --indent: 44px; display: grid; gap: 10px; padding: 14px 0 16px; border: 0; border-radius: 0; background: none; box-shadow: none; }
 :is(.cp-tile, .set-sec, .pg-card) + :is(.cp-tile, .set-sec, .pg-card) { border-top: 1px solid var(--border); }
 .cp-tile__content, .set-card, .set-sec > .group-help, .pg-card > :not(.pg-card__head) { margin-left: var(--indent); }
 .cp-tile__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; margin: 0; padding: 0; }
@@ -317,15 +320,18 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .set-rules__edit:hover:not(:disabled) { border-color: rgb(229 85 94 / 0.45); background: rgb(229 85 94 / 0.14); }
 .set-rules__edit:disabled { opacity: 0.5; }
 
-/* Start session: the four shortcuts at the bottom, two by two, like they were in Settings. */
+/* Start session: the four shortcuts at the bottom, one per row. */
 .sheet__body:has(> .pf-keys) { display: flex; flex-direction: column; }
 .sheet__body:has(> .pf-keys) > * { flex: none; }
 .pf-keys { display: grid; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border); }
 .sheet__body:has(> .pf-keys) > .pf-note { margin-bottom: 18px; }
 .pf-keys > b { color: var(--text-2); font-size: 12.5px; font-weight: 650; }
-.pf-keys dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; margin: 0; color: var(--text-2); font-size: 13px; }
+.pf-keys dl { display: grid; margin: 0; color: var(--text-2); font-size: 13px; }
 .pf-keys dl > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; }
-.pf-keys dl > div:nth-child(n + 3) { border-top: 1px solid var(--border); }
+.pf-keys dl > div + div { border-top: 1px solid var(--border); }
 .pf-keys dt { color: var(--text); font-weight: 550; }
 .pf-keys dd { margin: 0; font-weight: 650; }
+
+/* Settings: Strict rules sits below the bordered panel, lined up with the sections inside it. */
+.set-grid + .set-sec { padding: 18px 23px 0; }
 

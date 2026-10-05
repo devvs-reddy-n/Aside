@@ -402,3 +402,9 @@ Add only the command, test, inspection, or owner observation that actually occur
 - `cargo test`: 806 passed, 0 failed, 12 ignored, including 2 new `commands::connections` tests (status mapping; missing setup fails without a request) and 1 new `commands::copilots` test (Default follows Settings; an own model stays put). `cargo build` passed.
 - Headless Chrome (demo): Settings has no Shortcuts section and fits (812 of 812); pressing "Edit default rules" shows the warning dialog; the Start session panel lists the four shortcuts at its bottom, just above the footer; a new copilot's model list starts with "Default · GPT-5.6 Luna", which is selected; the sidebar shows GPT-5.6 Luna and Parakeet with green dots. Forcing a failed AI result in the page store turned that dot red, and the pop-up showed the reason with Fix.
 - Not run: a real request to OpenAI or Speechmatics (the demo returns canned results); the installed app.
+
+## 2026-10-04 - content fills the fixed window; deeper indent
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed; `cargo build` passed.
+- Headless Chrome at 1180×860: the bordered panel spans x 274–1146 on Copilot, new copilot, Settings, Library and History (24px from each edge of the page area). No page scrolls (Copilot 750 of 750, Settings/Library/History 808 of 808). Screenshots reviewed: Copilot, Settings (Strict rules below the border), History, Start session (shortcuts one per row).
+- Not run: the installed app.

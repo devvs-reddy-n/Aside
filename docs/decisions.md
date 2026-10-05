@@ -445,3 +445,7 @@ Owner asked: hide the strict rules text behind a red "Edit default rules" button
 - Default model: stored as the word `default` in the copilot's existing model column (no schema change). `start_copilot_call` resolves it to the Settings provider and model at that moment and saves the resolved pair in the call snapshot, so a call's model never changes mid-call and History stays accurate.
 - The reference apps have no equivalent connection indicator or per-profile default model, so nothing to adopt.
 Rollback: revert this commit.
+
+## 2026-10-04 - content fills the fixed window; deeper indent
+
+Owner marked the empty space around the content and noted the window size is fixed. The content column cap went from 720px to 920px, so with the sidebar open the content fills the page area with the 24px side gap; the drag strip above it went from 48px to 24px (it grows only while Return to call shows). Content under section titles is indented 44px (was 23px, flush with the title text) on Copilot, Settings and History; Library's list stays flush because its header is the filter row, not a title. Strict rules moved below the Settings border; Start session shortcuts became one per row. Rollback: revert this commit.

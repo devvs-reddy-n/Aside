@@ -34,8 +34,8 @@ export function SettingsPage({ section }: { section: string | null }) {
         <Section id="general" title="Privacy" icon="shield"><PrivacyRow /></Section>
         <AiSection />
         <SpeechSection />
-        <RulesSection />
       </div>
+      <RulesSection />
     </div>
   );
 }

@@ -2,7 +2,14 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): connection dots, Default model, rules button, shortcuts in Start session
+## Latest change, 2026-10-04 (latest): fuller width, deeper indent, rules outside the border
+
+- The window can't be resized, so page content now fills it with a 24px gap on each side, and the empty strip above the title is half as tall.
+- Content under every section title (Job description, Resume, Settings rows, History days) is indented further right.
+- Settings: Strict rules sits below the bordered panel.
+- Start session: the shortcuts are one per row.
+
+## Earlier today: connection dots, Default model, rules button, shortcuts in Start session
 
 - The sidebar's bottom shows the default AI model and speech engine, each with a green dot when Aside could reach it and a red one when it couldn't (grey while checking). Clicking opens the details with a Fix link.
 - A copilot's AI model list starts with "Default", which follows the model in Settings. New copilots start on Default. When a call starts, Default becomes the real model, so History names it.
