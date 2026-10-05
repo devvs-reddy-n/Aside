@@ -341,3 +341,11 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Headless Chrome at 1180×860 (dev server, demo data), measured in the page: Settings, copilot, Library and History all fit with no scrolling (scroll height 800 = visible 800), and their first card spans x 374 to 1046 on every page. Settings and copilot screenshots reviewed.
 - Strict rules arrow clicked headlessly: it opened (aria-expanded true, box 202px tall).
 - Not run: the installed app.
+
+## 2026-10-04 - bottom bar and padding pass
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed.
+- Headless Chrome at 1180×860, measured in the page with the long demo description: copilot middle area 739 of 739 (fits), new copilot 739 of 739, Settings 800 of 800. A first try with five cards measured 808 of 739 and Settings 844 of 800, which led to merging Job URL into Job description and the 2×2 shortcut grid.
+- Sidebar footer and bottom bar tops both measured at y = 799.
+- Copilot and Settings screenshots reviewed.
+- Not run: the installed app.

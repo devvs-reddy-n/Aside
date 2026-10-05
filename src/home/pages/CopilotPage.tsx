@@ -313,32 +313,21 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
 
   return (
     <div className="cp cp--tiles">
-      <header className="cp-head">
-        <div className="cp-head__inner">
-          <div className="cp-head__titles">
-            <InlineTitle
-              className="cp-title"
-              value={input.company ?? ""}
-              placeholder="Company"
-              autoFocus={isNew && !startWithLink}
-              invalid={companyError}
-              onCommit={(next) => { setCompanyError(false); set("company", next || null); }}
-            />
-            <InlineTitle className="cp-role" value={input.target_role ?? ""} placeholder="Role" onCommit={(next) => set("target_role", next || null)} />
+      <div className="cp-scroll">
+        <header className="cp-head">
+          <div className="cp-head__inner">
+            <div className="cp-head__titles">
+              <InlineTitle
+                className="cp-title"
+                value={input.company ?? ""}
+                placeholder="Company"
+                autoFocus={isNew && !startWithLink}
+                invalid={companyError}
+                onCommit={(next) => { setCompanyError(false); set("company", next || null); }}
+              />
+              <InlineTitle className="cp-role" value={input.target_role ?? ""} placeholder="Role" onCommit={(next) => set("target_role", next || null)} />
 
-          </div>
-          <div className="cp-head__actions">
-            <label className="cp-model-control" title="AI model"><Icon name="bot" size={16} />
-              <Select aria-label="AI model" value={modelKey} onChange={(e) => { const [provider, ...rest] = e.target.value.split("|"); setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") })); }}>
-              {options.length === 0 ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
-              {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
-            </Select>
-            </label>
-            <div className="cp-transcript-control" title="Keeps the conversation and summary in History">
-              <span>Save transcript</span>
-              <Toggle checked={input.save_transcript} label="Save transcript" onChange={(next) => set("save_transcript", next)} />
             </div>
-            <SaveIndicator state={isNew && !savedId ? "idle" : saveState} />
             {savedId && copilot ? (
               <Menu
                 trigger={<IconButton icon="more" label="More" />}
@@ -349,60 +338,73 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
                 ]}
               />
             ) : null}
-            <Button variant="primary" className="cp-start" icon="play" iconRight="arrow" disabled={!savedId} onClick={() => void start()}>Start session</Button>
           </div>
+          {companyError ? <p className="cp-error" role="alert">Add a company name first.</p> : null}
+        </header>
+
+        <div className="cp-body">
+          <Tile name="description" title="Job description" icon="doc" helper="Import it from the job post, or write it yourself. Aside reads it before every answer."
+            action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("job")}>{input.job_description ? "Edit" : "Add"}</Button>}>
+            <div className="cp-url">
+              <Icon name="link" size={15} />
+              <input ref={urlField} value={importUrl} placeholder="Paste job post URL to import" aria-label="Job post URL" aria-invalid={importError ? true : undefined}
+                onChange={(event) => { setImportUrl(event.target.value); setImportError(null); }}
+                onKeyDown={(event) => { if (event.key === "Enter") void importJobPost(); }} />
+              <Button size="sm" variant="secondary" busy={importing} disabled={!isWebUrl(importUrl)} onClick={() => void importJobPost()}>Import</Button>
+            </div>
+            {importError ? <p className="cp-error" role="alert">{importError}</p> : null}
+            <div className="cp-well">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div key={importing ? "loading" : "text"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
+                  {importing ? <Skeleton lines={2} /> : <RichText text={input.job_description} lines={2} label="description" empty="Import the job post above, or add the description yourself." />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </Tile>
+
+          <Tile name="resume" title="Resume" icon="file" helper="Your experience, ready for each answer.">
+            {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
+              <ResumeCard doc={resume} onPreview={() => setViewing(resume)} onReplace={() => setPicking(true)} />
+            ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
+          </Tile>
+
+          <Tile name="supporting" title="Supporting files" icon="folder" helper="Add notes, project details or other useful context."
+            action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
+            {chosenExtras.length > 0 ? <ul className="file-chips">
+              {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
+                <Icon name="note" size={13} /><span title={doc.file_name}>{displayFileName(doc.file_name)}</span>
+                <button type="button" aria-label={`Remove ${doc.file_name}`} onClick={() => set("document_ids", input.document_ids.filter((id) => id !== doc.id))}><Icon name="x" size={12} /></button>
+              </li>)}
+              {chosenExtras.length > 2 ? <li><button type="button" className="cp-more-files" onClick={() => setPicking(true)}>+{chosenExtras.length - 2} more</button></li> : null}
+            </ul> : null}
+            <div className="dropzone" data-over={dropOver || undefined}>
+              <Icon name="upload" size={18} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
+            </div>
+          </Tile>
+
+          <Tile name="guidance" title="Guidance" icon="bulb" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
+            action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>}>
+            <RichText text={input.instructions} lines={2} label="guidance" empty="Set the tone and what to focus on or avoid." />
+          </Tile>
         </div>
-        {companyError ? <p className="cp-error" role="alert">Add a company name first.</p> : null}
-      </header>
-
-      <div className="cp-body">
-        <Tile name="url" title="Job URL" icon="link" helper="Import the role from its job posting.">
-          <div className="cp-url">
-            <Icon name="link" size={15} />
-            <input ref={urlField} value={importUrl} placeholder="Paste job post URL" aria-label="Job post URL" aria-invalid={importError ? true : undefined}
-              onChange={(event) => { setImportUrl(event.target.value); setImportError(null); }}
-              onKeyDown={(event) => { if (event.key === "Enter") void importJobPost(); }} />
-            <Button size="sm" variant="secondary" busy={importing} disabled={!isWebUrl(importUrl)} onClick={() => void importJobPost()}>Import</Button>
-          </div>
-          {importError ? <p className="cp-error" role="alert">{importError}</p> : null}
-        </Tile>
-
-        <Tile name="description" title="Description" icon="doc" helper="Aside reads this before every answer."
-          action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("job")}>{input.job_description ? "Edit" : "Add"}</Button>}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={importing ? "loading" : "text"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
-              {importing ? <Skeleton lines={2} /> : <RichText text={input.job_description} lines={2} label="description" empty="Import a job URL, or add the description yourself." />}
-            </motion.div>
-          </AnimatePresence>
-        </Tile>
-
-        <Tile name="resume" title="Resume" icon="file" helper="Your experience, ready for each answer.">
-          {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
-            <ResumeCard doc={resume} onPreview={() => setViewing(resume)} onReplace={() => setPicking(true)} />
-          ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
-        </Tile>
-
-        <Tile name="supporting" title="Supporting files" icon="folder" helper="Add notes, project details or other useful context."
-          action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
-          {chosenExtras.length > 0 ? <ul className="file-chips">
-            {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
-              <Icon name="note" size={13} /><span title={doc.file_name}>{displayFileName(doc.file_name)}</span>
-              <button type="button" aria-label={`Remove ${doc.file_name}`} onClick={() => set("document_ids", input.document_ids.filter((id) => id !== doc.id))}><Icon name="x" size={12} /></button>
-            </li>)}
-            {chosenExtras.length > 2 ? <li><button type="button" className="cp-more-files" onClick={() => setPicking(true)}>+{chosenExtras.length - 2} more</button></li> : null}
-          </ul> : null}
-          <div className="dropzone" data-over={dropOver || undefined}>
-            <Icon name="upload" size={18} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
-          </div>
-        </Tile>
-
-        <Tile name="guidance" title="Guidance" icon="bulb" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
-          action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>}>
-          <RichText text={input.instructions} lines={2} label="guidance" empty="Set the tone and what to focus on or avoid." />
-        </Tile>
       </div>
 
-
+      <footer className="cp-foot">
+        <div className="cp-foot__inner">
+          <label className="cp-model-control" title="AI model"><Icon name="bot" size={16} />
+            <Select aria-label="AI model" value={modelKey} onChange={(e) => { const [provider, ...rest] = e.target.value.split("|"); setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") })); }}>
+            {options.length === 0 ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
+            {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
+          </Select>
+          </label>
+          <div className="cp-transcript-control" title="Keeps the conversation and summary in History">
+            <span>Save transcript</span>
+            <Toggle checked={input.save_transcript} label="Save transcript" onChange={(next) => set("save_transcript", next)} />
+          </div>
+          <SaveIndicator state={isNew && !savedId ? "idle" : saveState} />
+          <Button variant="primary" className="cp-start" icon="play" iconRight="arrow" disabled={!savedId} onClick={() => void start()}>Start session</Button>
+        </div>
+      </footer>
 
       <TextSheet open={sheet === "job"} title="Job description" placeholder="Paste or write the job description. Lines starting with - become bullets." value={input.job_description ?? ""} onChange={(text) => set("job_description", text || null)} onClose={() => setSheet(null)} />
       <TextSheet open={sheet === "guidance"} title="Guidance" placeholder="Tone, focus, what to lean on or avoid. Only Aside sees this." value={input.instructions ?? ""} onChange={(text) => set("instructions", text || null)} onClose={() => setSheet(null)} />

@@ -2,7 +2,14 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): Settings in the same minimal style
+## Latest change, 2026-10-04 (latest): controls at the bottom, roomier layout
+
+- Copilot page: AI model, Save transcript and Start session now sit in a bar at the bottom that never scrolls; the ⋯ menu sits beside the name.
+- Job URL is now the first line inside the Job description card, since it fills the description. Four cards instead of five, and everything still fits one screen.
+- More room everywhere: wider padding inside cards and text boxes, wider sidebar margins and taller rows.
+- Settings shortcuts sit in a 2×2 grid.
+
+## Earlier today: Settings in the same minimal style
 
 - Settings sections look exactly like the copilot sections: small icon beside the title, same card, same inner box.
 - Strict rules shows two lines with the arrow to open the rest.

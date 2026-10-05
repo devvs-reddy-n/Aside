@@ -182,7 +182,6 @@
 .cp-head[data-scrolled] { border-bottom-color: var(--border); background: var(--bg); }
 .cp-head__inner { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--s4); width: 100%; max-width: 948px; min-height: 64px; margin: 0 auto; padding: 6px 24px 14px; }
 .cp-head__titles { display: grid; flex: 1 1 320px; gap: 2px; min-width: 0; }
-.cp-head__actions { display: flex; flex: 1 0 auto; justify-content: flex-end; align-items: center; gap: var(--s2); padding-top: 4px; }
 .cp-title, .cp-role { display: block; width: 100%; min-width: 0; margin: 0 0 0 -8px; padding: 2px 8px; overflow: hidden; border: 1px solid transparent; border-radius: var(--r-s); outline: none; background: transparent; color: var(--text); resize: none; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; cursor: text; transition: background-color var(--fast) var(--ease-std), border-color var(--fast) var(--ease-std); }
 .cp-title { font: 650 23px/30px var(--font-display); letter-spacing: -0.02em; }
 .cp-role { color: var(--text-2); font-size: 14px; line-height: 22px; }

@@ -409,3 +409,7 @@ Owner: sections must be minimal and all on one page with no scrolling; Descripti
 ## 2026-10-04 - Settings in the same minimal style
 
 Owner asked for Settings to match the copilot page. Settings sections now use the copilot section card (one shared CSS rule for `.cp-tile` and `.set-sec`): small icon beside the title, same padding, same inner box; the page title lost its icon box and matches the copilot title size; Strict rules shows two lines with the same edge arrow. The round section icons (`ToneIcon`) and the five section-colour tokens had no users left and were deleted. Every page's column now has the copilot page's exact edges (Library and History became 48px narrower). Rollback: revert this commit.
+
+## 2026-10-04 - copilot controls at the bottom; roomier cards and sidebar
+
+Owner: move AI model, Save transcript and Start session to the bottom; more padding between text boxes and their cards and in the sidebar; refine the layout. The copilot page is now a header (title, role, ⋯ menu), a scrolling middle, and a bottom bar that never scrolls. Cards went to 16px side padding and inner boxes to 14px; the sidebar to 14px gutters and 40px rows. That no longer fit one screen with five cards, so the Job URL field moved into the top of the Description card (now "Job description"): the URL only exists to fill the description, and it saves a whole card. Settings shows its four shortcuts as a 2×2 grid for the same reason. The sidebar footer and the bottom bar are the same height so their top lines meet. Rollback: revert this commit.
