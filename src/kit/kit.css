@@ -167,7 +167,6 @@
 .callout__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 
 .keys { display: inline-flex; gap: 3px; }
-.keycap { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px; background: var(--surface); color: var(--text-2); font: 500 11.5px/1 var(--font); }
 
 .skeleton { display: grid; gap: 8px; padding: 2px 0; }
 .skeleton i { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-muted) 0%, var(--hover) 40%, var(--surface-muted) 80%); background-size: 240% 100%; animation: shimmer 1.2s linear infinite; }

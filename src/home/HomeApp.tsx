@@ -3,14 +3,11 @@ import { useEffect } from "react";
 import { Callout } from "../kit/Bits";
 import { Button } from "../kit/Button";
 import { SPRING } from "../kit/motion";
-import { Icon } from "../kit/Icon";
-import { send } from "./bus";
 import { ToastHost } from "../kit/toast";
 import { useStore } from "../core/store";
 import { isTauriRuntime, isDemoMode, NOT_TAURI_MESSAGE } from "../bridge/runtime";
 import { CallSaved, announceCallEnded } from "./CallSaved";
 import { QuitGuard } from "./Chrome";
-import { CommandPalette } from "./CommandPalette";
 import { CopilotsPage } from "./pages/CopilotsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { LibraryPage } from "./pages/LibraryPage";
@@ -21,16 +18,11 @@ import { Sidebar } from "./Sidebar";
 import "./home.css";
 import "./launch.css";
 
-/** The bar above the page: search in the middle, the running call on the right, and room to drag the window. */
+/** The strip above the page: room to drag the window, and the running call on the right. */
 function TopStrip() {
   const active = useStore(systemStore, (state) => state.active);
   return (
     <div className="hm-top" data-tauri-drag-region>
-      <span data-tauri-drag-region />
-      <button type="button" className="hm-search-btn" onClick={() => send("open-palette")} aria-label="Search copilots, files and calls">
-        <Icon name="search" size={16} />
-        <span>Search copilots, files and calls</span>
-      </button>
       <div className="hm-top__end" data-tauri-drag-region>
         <AnimatePresence initial={false}>
           {active ? (
@@ -105,7 +97,6 @@ export function HomeApp() {
         <Page />
       </main>
       <CallSaved />
-      <CommandPalette />
       <QuitGuard />
       <ToastHost />
     </div>

@@ -60,7 +60,7 @@ html.live-window #root {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--edge);
-  border-radius: 18px;
+  border-radius: 24px;
   background: linear-gradient(180deg, var(--panel-top), var(--panel-bottom));
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 20px 44px rgb(0 0 0 / 0.45), 0 0 0 0.5px rgb(0 0 0 / 0.6);
   animation: lv-arrive var(--slow) var(--spring) both;
@@ -80,7 +80,7 @@ html.live-window #root {
   height: 30px;
   padding: 0;
   border: 0;
-  border-radius: 9px;
+  border-radius: 12px;
   background: transparent;
   color: var(--text-2);
   transition: background-color var(--fast), color var(--fast), transform var(--fast) var(--out);
@@ -188,10 +188,10 @@ html.live-window #root {
 .lv-problem small { font-size: 0.9em; opacity: 0.9; }
 
 /* ---------- code ---------- */
-.lv-code { margin: 10px 0 0; overflow: hidden; border: 1px solid var(--layer-edge); border-radius: 12px; background: var(--code-fill); color: #e8eaec; text-shadow: none; }
+.lv-code { margin: 10px 0 0; overflow: hidden; border: 1px solid var(--layer-edge); border-radius: 15px; background: var(--code-fill); color: #e8eaec; text-shadow: none; }
 .lv-panel[data-thin] .lv-code { text-shadow: 0 0 3px rgb(0 0 0 / 0.9); }
 .lv-code figcaption { display: flex; align-items: center; justify-content: space-between; padding: 5px 6px 5px 12px; background: var(--code-head-fill); color: var(--text-2); font: 600 11.5px var(--mono); }
-.lv-code figcaption button { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text-2); font: 600 11px var(--font); }
+.lv-code figcaption button { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--text-2); font: 600 11px var(--font); }
 .lv-code figcaption button:hover { background: var(--layer-hover); color: var(--text); }
 .lv-code pre { margin: 0; padding: 10px 12px; overflow-x: auto; font: calc(12.5px * var(--fs, 1))/1.6 var(--mono); counter-reset: line; white-space: pre; outline: none; }
 .lv-code__line { position: relative; display: block; padding-left: 2.6em; }
@@ -214,7 +214,7 @@ html.live-window #root {
 .lv-alert__toggle .icon { transition: transform var(--base) var(--ease-out); }
 .lv-alert__toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
 .lv-alert__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.lv-alert .lv-icon { display: inline-grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: inherit; }
+.lv-alert .lv-icon { display: inline-grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 10px; background: transparent; color: inherit; }
 .lv-alert .lv-icon:hover { background: var(--layer-hover); }
 .lv-alert[data-tone="warn"] { border-color: rgb(245 178 61 / 0.3); background: rgb(245 178 61 / 0.1); color: var(--warning-ink); }
 .lv-alert[data-tone="bad"] { border-color: rgb(242 85 95 / 0.32); background: rgb(242 85 95 / 0.1); color: var(--danger-ink); }
@@ -238,12 +238,12 @@ html.live-window #root {
 .lv-menu__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 38px; padding: 0 8px; font-weight: 600; }
 .lv-menu__row input[type="range"] { flex: 1; min-width: 0; max-width: 130px; accent-color: #e8eaec; }
 .lv-menu__value { min-width: 36px; color: var(--text-2); font-size: 12px; font-weight: 650; text-align: right; }
-.lv-sizes { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgb(0 0 0 / 0.3); }
-.lv-sizes button { display: grid; place-items: center; width: 30px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--text-2); font-weight: 700; line-height: 1; }
+.lv-sizes { display: inline-flex; gap: 2px; padding: 2px; border-radius: 12px; background: rgb(0 0 0 / 0.3); }
+.lv-sizes button { display: grid; place-items: center; width: 30px; height: 26px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--text-2); font-weight: 700; line-height: 1; }
 .lv-sizes button:hover { color: var(--text); }
 .lv-sizes button[aria-checked="true"] { background: var(--layer-hover); color: var(--text); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06); }
 .lv-menu__sep { height: 1px; margin: 4px; background: var(--layer-edge); }
-.lv-menu__item { display: flex; align-items: center; gap: 9px; width: 100%; height: 34px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font-weight: 600; text-align: left; }
+.lv-menu__item { display: flex; align-items: center; gap: 9px; width: 100%; height: 34px; padding: 0 8px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-weight: 600; text-align: left; }
 .lv-menu__item:hover { background: var(--layer); }
 .lv-menu__item .icon { color: var(--text-2); }
 
@@ -254,7 +254,7 @@ html.live-window #root {
 .lv-ended p { color: var(--text-2); }
 .lv-ended__check { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--layer); color: var(--text); }
 .lv-ended dl { display: flex; gap: 8px; margin: 10px 0 0; }
-.lv-ended dl > div { min-width: 72px; padding: 8px 12px; border: 1px solid var(--layer-edge); border-radius: 12px; background: var(--layer); }
+.lv-ended dl > div { min-width: 72px; padding: 8px 12px; border: 1px solid var(--layer-edge); border-radius: 15px; background: var(--layer); }
 .lv-ended dt { color: var(--text-2); font-size: 11.5px; font-weight: 650; }
 .lv-ended dd { margin: 0; font: 700 16px var(--mono); }
 @keyframes lv-fade { from { opacity: 0; } }

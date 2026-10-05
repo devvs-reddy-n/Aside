@@ -379,3 +379,11 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Headless Chrome at 1180×860: first try overflowed (Copilot 753 of 739, Settings 824 of 800); after tightening section padding, Copilot 739 of 739, new copilot 739 of 739, Settings 800 of 800. The border spans x 374–1046 on all four pages. Screenshots reviewed for Copilot, Settings, Library and History; the description shows four whole lines and then Show more.
 - `git log --diff-filter=A -- "Aside 2.app"` showed it was added in 7f10ad1.
 - Not run: the installed app.
+
+## 2026-10-04 - floating buttons, side-by-side files, Add URL, Geist
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed; `cargo build` passed.
+- Headless Chrome at 1180×860: Copilot 754 of 754, new copilot 754 of 754, Settings 812 of 812 (no scrolling). Body and live panel font computed as "Geist Variable", and `document.fonts.check` returned true.
+- Pressing Add URL in the demo showed the link field and put the cursor in it (focused element: "Job post URL").
+- Screenshots reviewed: Copilot (closed and with the link field open), Settings, live window.
+- Not run: the installed app; a real job-post import.

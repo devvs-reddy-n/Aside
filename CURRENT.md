@@ -2,7 +2,17 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): four-line previews and one outer border
+## Latest change, 2026-10-04 (latest): floating buttons, side-by-side files, Add URL, Geist
+
+- The search box at the top is gone, along with the search pop-up and the pieces only it used.
+- The whole app uses the Geist font (it was Plus Jakarta Sans).
+- The inside of each page's border is slightly grey.
+- No bottom bar: AI model, Save transcript and Start session float at the bottom right.
+- Resume and Supporting files sit side by side. Replace moved up beside the Resume title; Preview is an eye button.
+- The job-post link field shows only after pressing Add URL (far right of Job description, beside Edit). It closes again after an import or with Escape.
+- Corners are rounder everywhere (the radius scale went up by about a third), including the sidebar and the live window.
+
+## Earlier today: four-line previews and one outer border
 
 - Job description, Guidance and Strict rules now show four whole lines before "Show more" (never half a line).
 - Each page's sections sit inside one rounded border, with the page title above it. Sections inside still have no boxes of their own.

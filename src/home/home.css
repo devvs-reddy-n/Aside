@@ -63,20 +63,6 @@
 .status-pop__text small { color: var(--text-2); font-size: 12px; }
 .status-pop__fix { display: inline-flex; align-items: center; gap: 2px; color: var(--accent-ink); font-size: 12.5px; font-weight: 560; text-decoration: none; }
 
-/* ---------- Command palette ---------- */
-.palette-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(10, 10, 14, 0.2); }
-.palette { position: fixed; top: 14vh; left: 50%; z-index: 71; display: flex; flex-direction: column; width: min(600px, calc(100vw - 48px)); max-height: 64vh; margin-left: min(-300px, calc(-50vw + 24px)); border-radius: var(--r-l); background: var(--surface); box-shadow: var(--e3); overflow: hidden; }
-.palette__search { display: flex; flex: none; align-items: center; gap: 10px; height: 52px; padding: 0 14px 0 16px; border-bottom: 1px solid var(--border); color: var(--text-3); }
-.palette__search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--text); font-size: 15px; -webkit-user-select: text; user-select: text; }
-.palette__list { margin: 0; padding: 6px; overflow-y: auto; list-style: none; }
-.palette__group { padding: 8px 10px 4px; color: var(--text-3); font-size: 12px; font-weight: 560; }
-.palette__item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 6px 10px; border: 0; border-radius: var(--r-s); background: none; color: var(--text); font-size: 14px; text-align: left; }
-.palette__item .icon { color: var(--text-2); }
-.palette__item[aria-selected="true"] { background: var(--accent-soft); }
-.palette__label { display: -webkit-box; flex: 1 1 auto; min-width: 0; overflow: hidden; text-align: left; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.palette__detail { display: -webkit-box; flex: 0 1 45%; min-width: 0; overflow: hidden; color: var(--text-3); font-size: 12.5px; text-align: right; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.palette__empty { padding: 24px; color: var(--text-3); text-align: center; }
-
 /* ---------- Shared bits ---------- */
 .hm-muted { color: var(--text-2); }
 .hm-center { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 28px 0; text-align: center; }
@@ -305,7 +291,6 @@
 #st-shortcuts .set-row { min-height: 36px; padding-block: 4px; }
 #st-shortcuts .set-row__label b { line-height: 16px; }
 #st-shortcuts .set-row__label { display: grid; gap: 0; }
-#st-shortcuts .keycap { color: var(--set-secondary); }
 .sheet .editor + .set-bad { margin-top: var(--s2); }
 @container (max-width: 760px) {
   .set-grid { gap: 14px; }

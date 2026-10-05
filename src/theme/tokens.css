@@ -55,11 +55,11 @@
   --press: rgb(255 255 255 / 0.1);
 
   /* shape: one radius scale everywhere */
-  --r-xs: 8px;
-  --r-s: 10px;
-  --r-m: 14px;
-  --r-l: 18px;
-  --r-xl: 22px;
+  --r-xs: 10px;
+  --r-s: 13px;
+  --r-m: 17px;
+  --r-l: 24px;
+  --r-xl: 28px;
   --r-pill: 999px;
 
   /* depth */
@@ -68,8 +68,8 @@
   --e3: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 30px 80px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.08);
 
   /* type */
-  --font: "Plus Jakarta Sans Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --font-display: "Plus Jakarta Sans Variable", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --font: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   --mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* spacing (4-pt) */

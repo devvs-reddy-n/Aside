@@ -21,7 +21,6 @@ import { toast } from "../../kit/toast";
 import { useAutoHeight } from "../../kit/useAutoHeight";
 import { useAutosave } from "../../kit/useAutosave";
 import type { SaveState } from "../../core/autosave";
-import { onMessage } from "../bus";
 import { ingestPaths, libraryStore, loadLibrary, pickDocumentFiles, saveCopilot, systemStore } from "../data";
 import { useFileDrop } from "../fileDrop";
 import { modelLabel } from "../labels";
@@ -131,7 +130,7 @@ function TextSheet({ open, title, value, placeholder, onChange, onClose }: {
   );
 }
 
-function ResumeCard({ doc, onPreview, onReplace }: { doc: StoredDocument; onPreview: () => void; onReplace: () => void }) {
+function ResumeCard({ doc, onPreview }: { doc: StoredDocument; onPreview: () => void }) {
   return (
     <div className="file-card">
       <FileTile kind={fileKind(doc.file_name, doc.mime_type)} />
@@ -139,10 +138,7 @@ function ResumeCard({ doc, onPreview, onReplace }: { doc: StoredDocument; onPrev
         <b title={doc.file_name}>{displayFileName(doc.file_name)}</b>
         <small>{[fileKind(doc.file_name, doc.mime_type), formatBytes(doc.byte_size), `Added ${formatDate(doc.created_at_ms)}`].filter(Boolean).join(" · ")}</small>
       </div>
-      <div className="file-card__actions">
-        <Button size="sm" variant="secondary" icon="eye" aria-label="Preview resume" title="Preview resume" onClick={onPreview}>Preview</Button>
-        <Button size="sm" variant="secondary" onClick={onReplace}>Replace</Button>
-      </div>
+      <IconButton icon="eye" label="Preview resume" onClick={onPreview} />
     </div>
   );
 }
@@ -172,6 +168,8 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  // The job-post link field stays hidden until Add URL is pressed (or the copilot was started from a link).
+  const [urlOpen, setUrlOpen] = useState(Boolean(startWithLink));
   const [sheet, setSheet] = useState<"job" | "guidance" | null>(null);
   const [picking, setPicking] = useState(false);
   const [viewing, setViewing] = useState<StoredDocument | null>(null);
@@ -185,8 +183,15 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
   }, [libraryLoaded]);
 
   useEffect(() => {
-    if (startWithLink) urlField.current?.focus();
+    if (startWithLink) setUrlOpen(true);
   }, [startWithLink]);
+
+  function closeUrl() {
+    if (importing) return;
+    setUrlOpen(false);
+    setImportUrl("");
+    setImportError(null);
+  }
 
   useEffect(() => {
     if (!copilot) return;
@@ -294,6 +299,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
     }
     set("job_description", result.value);
     setImportUrl("");
+    setUrlOpen(false);
     toast("Description imported", { tone: "ok" });
   }
 
@@ -308,7 +314,6 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
     if (current) onStart(current as CopilotSummary);
   }
 
-  useEffect(() => onMessage("start-session", () => void start()));
 
 
   return (
@@ -344,15 +349,24 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
 
         <div className="cp-body">
           <Tile name="description" title="Job description" icon="doc" helper="Import it from the job post, or write it yourself. Aside reads it before every answer."
-            action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("job")}>{input.job_description ? "Edit" : "Add"}</Button>}>
-            <div className="cp-url">
-              <Icon name="link" size={15} />
-              <input ref={urlField} value={importUrl} placeholder="Paste job post URL to import" aria-label="Job post URL" aria-invalid={importError ? true : undefined}
-                onChange={(event) => { setImportUrl(event.target.value); setImportError(null); }}
-                onKeyDown={(event) => { if (event.key === "Enter") void importJobPost(); }} />
-              <Button size="sm" variant="secondary" busy={importing} disabled={!isWebUrl(importUrl)} onClick={() => void importJobPost()}>Import</Button>
-            </div>
-            {importError ? <p className="cp-error" role="alert">{importError}</p> : null}
+            action={<div className="cp-tile__actions">
+              <Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("job")}>{input.job_description ? "Edit" : "Add"}</Button>
+              <Button size="sm" variant="ghost" icon="link" aria-expanded={urlOpen} onClick={() => (urlOpen ? closeUrl() : setUrlOpen(true))}>Add URL</Button>
+            </div>}>
+            <AnimatePresence initial={false}>
+              {urlOpen ? (
+                <motion.div key="url" className="cp-url-wrap" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: FAST }}>
+                  <div className="cp-url">
+                    <Icon name="link" size={15} />
+                    <input ref={urlField} autoFocus value={importUrl} placeholder="Paste job post URL to import" aria-label="Job post URL" aria-invalid={importError ? true : undefined}
+                      onChange={(event) => { setImportUrl(event.target.value); setImportError(null); }}
+                      onKeyDown={(event) => { if (event.key === "Enter") void importJobPost(); else if (event.key === "Escape") { event.stopPropagation(); closeUrl(); } }} />
+                    <Button size="sm" variant="secondary" busy={importing} disabled={!isWebUrl(importUrl)} onClick={() => void importJobPost()}>Import</Button>
+                  </div>
+                  {importError ? <p className="cp-error" role="alert">{importError}</p> : null}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
             <div className="cp-well">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div key={importing ? "loading" : "text"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
@@ -362,25 +376,29 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
             </div>
           </Tile>
 
-          <Tile name="resume" title="Resume" icon="file" helper="Your experience, ready for each answer.">
-            {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
-              <ResumeCard doc={resume} onPreview={() => setViewing(resume)} onReplace={() => setPicking(true)} />
-            ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
-          </Tile>
+          {/* Resume and Supporting files sit side by side. */}
+          <div className="cp-pair">
+            <Tile name="resume" title="Resume" icon="file" helper="Your experience, ready for each answer."
+              action={resume ? <Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Replace</Button> : undefined}>
+              {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
+                <ResumeCard doc={resume} onPreview={() => setViewing(resume)} />
+              ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
+            </Tile>
 
-          <Tile name="supporting" title="Supporting files" icon="folder" helper="Add notes, project details or other useful context."
-            action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
-            {chosenExtras.length > 0 ? <ul className="file-chips">
-              {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
-                <Icon name="note" size={13} /><span title={doc.file_name}>{displayFileName(doc.file_name)}</span>
-                <button type="button" aria-label={`Remove ${doc.file_name}`} onClick={() => set("document_ids", input.document_ids.filter((id) => id !== doc.id))}><Icon name="x" size={12} /></button>
-              </li>)}
-              {chosenExtras.length > 2 ? <li><button type="button" className="cp-more-files" onClick={() => setPicking(true)}>+{chosenExtras.length - 2} more</button></li> : null}
-            </ul> : null}
-            <div className="dropzone" data-over={dropOver || undefined}>
-              <Icon name="upload" size={18} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
-            </div>
-          </Tile>
+            <Tile name="supporting" title="Supporting files" icon="folder" helper="Add notes, project details or other useful context."
+              action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
+              {chosenExtras.length > 0 ? <ul className="file-chips">
+                {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
+                  <Icon name="note" size={13} /><span title={doc.file_name}>{displayFileName(doc.file_name)}</span>
+                  <button type="button" aria-label={`Remove ${doc.file_name}`} onClick={() => set("document_ids", input.document_ids.filter((id) => id !== doc.id))}><Icon name="x" size={12} /></button>
+                </li>)}
+                {chosenExtras.length > 2 ? <li><button type="button" className="cp-more-files" onClick={() => setPicking(true)}>+{chosenExtras.length - 2} more</button></li> : null}
+              </ul> : null}
+              <div className="dropzone" data-over={dropOver || undefined}>
+                <Icon name="upload" size={18} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
+              </div>
+            </Tile>
+          </div>
 
           <Tile name="guidance" title="Guidance" icon="bulb" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
             action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>}>

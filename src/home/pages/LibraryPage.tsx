@@ -15,7 +15,6 @@ import { FAST, SPRING } from "../../kit/motion";
 import { TextEditor } from "../../kit/TextEditor";
 import { toast } from "../../kit/toast";
 import { deleteWithUndo } from "../../kit/undo";
-import { onMessage } from "../bus";
 import { copilotsStore, ingestPaths, libraryStore, loadLibrary, pasteDocument, pickDocumentFiles, setHidden } from "../data";
 import { useFileDrop } from "../fileDrop";
 import { navigate } from "../router";
@@ -140,7 +139,6 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
 
   const pick = () => void pickDocumentFiles().then(addPaths);
   const over = useFileDrop((paths) => void addPaths(paths));
-  useEffect(() => onMessage("add-files", pick));
 
   function remove(doc: StoredDocument) {
     deleteWithUndo({
