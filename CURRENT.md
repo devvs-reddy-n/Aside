@@ -2,7 +2,13 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): fuller width, deeper indent, rules outside the border
+## Latest change, 2026-10-04 (latest): smaller window, buttons under the panel
+
+- The main window is smaller: 1000 × 800 (was 1180 × 860). Still fixed size; every page still fits without scrolling, even with the job link field open.
+- AI model, Save transcript and Start session (and Library's Paste text and Add files) sit just under the panel instead of at the window's bottom edge.
+- Settings: only the red "Edit default rules" button remains below the panel (no "Strict rules" title or note).
+
+## Earlier today: fuller width, deeper indent, rules outside the border
 
 - The window can't be resized, so page content now fills it with a 24px gap on each side, and the empty strip above the title is half as tall.
 - Content under every section title (Job description, Resume, Settings rows, History days) is indented further right.

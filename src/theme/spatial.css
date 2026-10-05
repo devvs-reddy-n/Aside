@@ -266,7 +266,7 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 
 /* One border around each page's sections (not one per section): the page title sits above it, flush with its edge. */
 .cp--tiles .cp-body, .set-grid, .lib .pg-card, .pg-panel { border: 1px solid var(--border); border-radius: var(--r-l); background: rgb(255 255 255 / 0.03); }
-.cp--tiles .cp-body { width: calc(100% - 48px); max-width: calc(var(--col) - 48px); margin: 0 auto 20px; padding: 0 22px; }
+.cp--tiles .cp-body { width: calc(100% - 48px); max-width: calc(var(--col) - 48px); margin: 0 auto; padding: 0 22px; }
 .set-grid, .pg-panel { padding: 0 22px !important; }
 .lib .pg-card { padding: 16px 22px 18px; }
 .pg-panel { display: grid; }
@@ -281,8 +281,9 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp-tile .file-card__text :is(b, small) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* No bottom bar: AI model, Save transcript and Start session float at the bottom right, under the panel's right edge. */
-.cp-foot { border-top: 0; background: none; box-shadow: none; }
-.cp-foot__inner { justify-content: flex-end; padding: 4px 24px 18px; }
+.cp-foot { position: sticky; bottom: 0; z-index: 2; border-top: 0; background: none; box-shadow: none; pointer-events: none; }
+.cp-foot__inner > * { pointer-events: auto; }
+.cp-foot__inner { justify-content: flex-end; padding: 14px 24px 18px; }
 .cp-foot__inner .save-state, .cp-foot__inner .save-state:empty + * { margin-left: 0; }
 .cp-foot__inner .save-state { order: -1; margin-right: 4px; }
 .cp-foot :is(.cp-model-control, .cp-transcript-control) { border-color: var(--border-strong); background: var(--raised); box-shadow: var(--highlight), 0 10px 28px rgb(0 0 0 / 0.45); }
@@ -297,7 +298,7 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .hm-page.lib, .hm-page.hist { padding-bottom: 18px; }
 .hm-page.lib .pg-head, .hm-page.hist .pg-head { margin-bottom: 12px; }
 /* Floating page actions, in the same spot and style as the copilot's Start session. */
-.pg-float { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; padding-top: 12px; pointer-events: none; }
+.pg-float { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; padding-top: 0; pointer-events: none; }
 .pg-float > * { pointer-events: auto; }
 .pg-float .btn { height: 36px; padding: 0 14px; border-radius: var(--r-m); font-size: 13.5px; box-shadow: var(--highlight), 0 10px 28px rgb(0 0 0 / 0.45); }
 .pg-float .btn--secondary { border-color: var(--border-strong); background: var(--raised); }
@@ -314,8 +315,8 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 @media (prefers-reduced-motion: reduce) { .sp-dot[data-tone="checking"], .status-pop .dot[data-tone="checking"] { animation: none; } }
 .sb[data-rail] .status-pill--models { justify-items: center; padding: 10px 0; }
 
-/* Strict rules: no text, one red button in the middle that warns before opening the editor. */
-.set-rules--button { display: grid; place-items: center; padding: 6px 0 2px; }
+/* Strict rules: only a red button under the panel, which warns before opening the editor. */
+.set-rules--button { display: grid; place-items: center; padding: 14px 0 0; }
 .set-rules__edit { height: 36px; padding: 0 16px; border: 1px solid rgb(229 85 94 / 0.28); border-radius: var(--r-m); background: rgb(229 85 94 / 0.08); color: var(--danger-ink); font-size: 13.5px; font-weight: 650; }
 .set-rules__edit:hover:not(:disabled) { border-color: rgb(229 85 94 / 0.45); background: rgb(229 85 94 / 0.14); }
 .set-rules__edit:disabled { opacity: 0.5; }
@@ -333,5 +334,4 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .pf-keys dd { margin: 0; font-weight: 650; }
 
 /* Settings: Strict rules sits below the bordered panel, lined up with the sections inside it. */
-.set-grid + .set-sec { padding: 18px 23px 0; }
 

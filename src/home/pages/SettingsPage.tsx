@@ -340,10 +340,9 @@ function RulesSection() {
 
   const status = saveState === "saving" || saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Not saved" : null;
   return (
-    <Section id="rules" title="Strict rules" icon="scroll" footer="Applies to every copilot.">
-      <div className="set-rules set-rules--button">
-        <button type="button" className="set-rules__edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit default rules</button>
-      </div>
+    // Just the button: the rules themselves are only shown after the warning.
+    <div className="set-rules set-rules--button" id="st-rules">
+      <button type="button" className="set-rules__edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit default rules</button>
       {error && !open ? <p className="set-row set-bad" role="alert">{error}</p> : null}
 
       <Dialog open={confirmEdit} onClose={() => setConfirmEdit(false)} title="Edit the default rules?" size="sm"
@@ -375,6 +374,6 @@ function RulesSection() {
         footer={<><Button variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => void reset()}>Reset</Button></>}>
         <p>Your edits are replaced with the original rules.</p>
       </Dialog>
-    </Section>
+    </div>
   );
 }

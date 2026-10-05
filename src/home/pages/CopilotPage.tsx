@@ -406,30 +406,30 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
             <RichText text={input.instructions} lines={4} label="guidance" empty="Set the tone and what to focus on or avoid." />
           </Tile>
         </div>
+        <footer className="cp-foot">
+          <div className="cp-foot__inner">
+            <label className="cp-model-control" title="AI model"><Icon name="bot" size={16} />
+              <Select aria-label="AI model" value={modelKey} onChange={(e) => {
+                // Default follows the model chosen in Settings, now and after it changes.
+                if (e.target.value === DEFAULT_MODEL_CHOICE) return setInput((c) => ({ ...c, llm_provider: system.provider ?? c.llm_provider, llm_model: DEFAULT_MODEL_CHOICE }));
+                const [provider, ...rest] = e.target.value.split("|");
+                setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") }));
+              }}>
+              <option value={DEFAULT_MODEL_CHOICE}>{defaultLabel}</option>
+              {options.length === 0 && !usesDefault ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
+              {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
+            </Select>
+            </label>
+            <div className="cp-transcript-control" title="Keeps the conversation and summary in History">
+              <span>Save transcript</span>
+              <Toggle checked={input.save_transcript} label="Save transcript" onChange={(next) => set("save_transcript", next)} />
+            </div>
+            <SaveIndicator state={isNew && !savedId ? "idle" : saveState} />
+            <Button variant="primary" className="cp-start" icon="play" iconRight="arrow" disabled={!savedId} onClick={() => void start()}>Start session</Button>
+          </div>
+        </footer>
       </div>
 
-      <footer className="cp-foot">
-        <div className="cp-foot__inner">
-          <label className="cp-model-control" title="AI model"><Icon name="bot" size={16} />
-            <Select aria-label="AI model" value={modelKey} onChange={(e) => {
-              // Default follows the model chosen in Settings, now and after it changes.
-              if (e.target.value === DEFAULT_MODEL_CHOICE) return setInput((c) => ({ ...c, llm_provider: system.provider ?? c.llm_provider, llm_model: DEFAULT_MODEL_CHOICE }));
-              const [provider, ...rest] = e.target.value.split("|");
-              setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") }));
-            }}>
-            <option value={DEFAULT_MODEL_CHOICE}>{defaultLabel}</option>
-            {options.length === 0 && !usesDefault ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
-            {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
-          </Select>
-          </label>
-          <div className="cp-transcript-control" title="Keeps the conversation and summary in History">
-            <span>Save transcript</span>
-            <Toggle checked={input.save_transcript} label="Save transcript" onChange={(next) => set("save_transcript", next)} />
-          </div>
-          <SaveIndicator state={isNew && !savedId ? "idle" : saveState} />
-          <Button variant="primary" className="cp-start" icon="play" iconRight="arrow" disabled={!savedId} onClick={() => void start()}>Start session</Button>
-        </div>
-      </footer>
 
       <TextSheet open={sheet === "job"} title="Job description" placeholder="Paste or write the job description. Lines starting with - become bullets." value={input.job_description ?? ""} onChange={(text) => set("job_description", text || null)} onClose={() => setSheet(null)} />
       <TextSheet open={sheet === "guidance"} title="Guidance" placeholder="Tone, focus, what to lean on or avoid. Only Aside sees this." value={input.instructions ?? ""} onChange={(text) => set("instructions", text || null)} onClose={() => setSheet(null)} />

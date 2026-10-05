@@ -408,3 +408,11 @@ Add only the command, test, inspection, or owner observation that actually occur
 - `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed; `cargo build` passed.
 - Headless Chrome at 1180×860: the bordered panel spans x 274–1146 on Copilot, new copilot, Settings, Library and History (24px from each edge of the page area). No page scrolls (Copilot 750 of 750, Settings/Library/History 808 of 808). Screenshots reviewed: Copilot, Settings (Strict rules below the border), History, Start session (shortcuts one per row).
 - Not run: the installed app.
+
+## 2026-10-04 - smaller fixed window; buttons under the panel
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed; `cargo build` passed.
+- Headless Chrome at 1000×780: all pages fit except Copilot with the link field open (747 of 728). At 1000×800: Copilot, new copilot, Copilot with the link field open, Settings, Library and History all fit (748 of 748). Controls sit 14px under the panel on Copilot and Library; the rules button 18px under the Settings panel.
+- Checked that no code saves or restores the main window size, so the new size applies on launch.
+- Screenshots reviewed: Copilot, Settings.
+- Not run: the installed app.

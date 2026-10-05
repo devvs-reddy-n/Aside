@@ -449,3 +449,7 @@ Rollback: revert this commit.
 ## 2026-10-04 - content fills the fixed window; deeper indent
 
 Owner marked the empty space around the content and noted the window size is fixed. The content column cap went from 720px to 920px, so with the sidebar open the content fills the page area with the 24px side gap; the drag strip above it went from 48px to 24px (it grows only while Return to call shows). Content under section titles is indented 44px (was 23px, flush with the title text) on Copilot, Settings and History; Library's list stays flush because its header is the filter row, not a title. Strict rules moved below the Settings border; Start session shortcuts became one per row. Rollback: revert this commit.
+
+## 2026-10-04 - smaller fixed window; buttons under the panel
+
+Owner found the panel too wide and the gap between it and the bottom controls too big, and asked for a smaller window. Main window 1180×860 became 1000×800 (still not resizable; screen-fit minimum 960×640 unchanged). 1000×780 was tried first but the copilot page overflowed by 19px with the job link field open, so 800 tall. The copilot's controls moved inside the scrolling area, right after the panel, and stick to the bottom only if the page grows past the window; Library's floating buttons follow the same rule. The Strict rules title and "Applies to every copilot." note were removed, leaving only the button. Rollback: revert this commit.
