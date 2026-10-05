@@ -3,7 +3,7 @@ import {
   ArrowDown, ArrowRight, ArrowUp, AudioLines, Bot, Briefcase, Building2, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   CircleAlert, CircleCheck, Clock, Code, Command, Copy, CopyPlus, Download, Ellipsis, ExternalLink, Eye, File, FileText, Files, Folder,
   History, Info, Keyboard, LayoutGrid, LayoutList, LibraryBig, Lightbulb, Link, List, LoaderCircle, Maximize2, MessageCircleQuestion, MessageSquare, MessagesSquare, Mic, Minus, Monitor, Moon,
-  PanelLeft, Pause, Pencil, Play, Plus, RefreshCw, ScanText, ScrollText, Search, Settings, Shield, Sparkles, Square, Sun, TriangleAlert, Trash2,
+  PanelLeft, Pause, Pencil, Play, Plus, RefreshCw, ScanText, ScrollText, Search, Settings, Shield, Sparkles, Square, Sun, Timer, TriangleAlert, Trash2,
   Undo2, Upload, Users, Volume2, WifiOff, X, Zap, type LucideIcon,
 } from "lucide-react";
 
@@ -82,6 +82,7 @@ const ICONS = {
   layoutFocus: LayoutList,
   layoutThread: MessagesSquare,
   layoutPrompter: ScanText,
+  timer: Timer,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS | "mark";

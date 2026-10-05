@@ -287,8 +287,13 @@ pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
             // at all — see `panic_guard`'s doc comment for the real crash
             // this is defending against. Catching it here converts that
             // into a readable notice instead.
-            if let Err(message) =
-                crate::panic_guard::catch("a keyboard shortcut", || handle(app, shortcut))
+            if let Err(message) = crate::panic_guard::catch("a keyboard shortcut", || {
+                if crate::window_buttons::is_restore(shortcut) {
+                    crate::window_buttons::restore(app);
+                } else {
+                    handle(app, shortcut);
+                }
+            })
             {
                 eprintln!("{message}");
                 let _ = app.emit(EVENT_SHORTCUT_NOTICE, message);

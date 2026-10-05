@@ -1,87 +1,78 @@
 /*
- * Aside design tokens: the soft pastel look. One light workspace (no dark
- * mode): a calm blue-lavender gradient behind slightly see-through white
- * panels, five pastel section colours, navy text and one blue accent.
- * Nothing blurs the desktop; the gradient is painted by the app itself.
- * The live window uses its own panel style (live.css).
+ * Aside design tokens: one near-black, see-through look for both windows.
+ * Each window is transparent and paints a dark tint, so the desktop shows
+ * through softly; nothing blurs it. Neutrals are plain greys with no colour
+ * cast. One deep emerald is the only accent, kept for the main action, the
+ * current place and things that are on. Depth comes from layered surfaces,
+ * soft shadows and a faint top highlight.
  */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  /* palette */
-  --bg: #eceff8;
-  --bg-gradient:
-    radial-gradient(900px 620px at 100% -4%, rgba(167, 139, 250, 0.34), transparent 62%),
-    radial-gradient(760px 560px at -6% 108%, rgba(125, 170, 255, 0.26), transparent 60%),
-    linear-gradient(160deg, #f1f3fb 0%, #e9edf8 52%, #efebf9 100%);
-  --surface: #ffffff;
-  --surface-muted: #f3f5fb;
-  --panel: rgba(255, 255, 255, 0.62);
-  --panel-strong: rgba(255, 255, 255, 0.86);
-  --panel-edge: rgba(255, 255, 255, 0.8);
-  --field: rgba(255, 255, 255, 0.78);
-  --field-edge: rgba(27, 31, 59, 0.09);
-  --border: rgba(27, 31, 59, 0.08);
-  --border-strong: rgba(27, 31, 59, 0.15);
-  --text: #1b1f3b;
-  --text-2: #50556f;
-  --text-3: #62677f;
-  --navy: #1f2338;
-  --selection: #1f2338;
-  --accent: #3366ff;
-  --accent-hover: #2a57e6;
+  /* layers, back to front */
+  --window-tint: rgb(8 9 9 / 0.9);
+  --bg: #0b0c0c;
+  --panel: rgb(17 18 18 / 0.72);
+  --surface: rgb(24 25 25 / 0.84);
+  --surface-solid: #181919;
+  --surface-muted: rgb(255 255 255 / 0.04);
+  --raised: #1a1b1b;
+  --field: rgb(255 255 255 / 0.045);
+  --field-hover: rgb(255 255 255 / 0.075);
+  --field-edge: rgb(255 255 255 / 0.08);
+  --edge: rgb(255 255 255 / 0.065);
+  --highlight: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --border: rgb(255 255 255 / 0.075);
+  --border-strong: rgb(255 255 255 / 0.15);
+
+  /* text */
+  --text: #eef0ef;
+  --text-2: #b6bab8;
+  --text-3: #979c9a;
+  --navy: #080909;
+
+  /* accent: deep emerald, used sparingly */
+  --selection: rgb(16 185 129 / 0.22);
+  --accent: #10a874;
+  --accent-hover: #14b67e;
+  --accent-solid: #0d7a55;
   --on-accent: #ffffff;
-  --accent-ink: #2347c9;
-  --accent-soft: rgba(51, 102, 255, 0.1);
-  --accent-soft-2: rgba(51, 102, 255, 0.2);
-  --accent-gradient: linear-gradient(135deg, #2f5ff0 0%, #4256f2 55%, #5446e2 100%);
-  --accent-gradient-hover: linear-gradient(135deg, #2654e0 0%, #384be3 55%, #4a3cd3 100%);
-  --success: #16a34a;
-  --success-ink: #13693a;
-  --warning: #e08a00;
-  --warning-ink: #8a4b00;
-  --danger: #dc3545;
-  --danger-ink: #b0202f;
-  --hover: rgba(27, 31, 59, 0.05);
-  --press: rgba(27, 31, 59, 0.09);
+  --accent-ink: #6fd2a7;
+  --accent-soft: rgb(16 185 129 / 0.1);
+  --accent-soft-2: rgb(16 185 129 / 0.22);
+  --accent-gradient: linear-gradient(180deg, #0f7f59 0%, #0b6a4a 100%);
+  --accent-gradient-hover: linear-gradient(180deg, #11885f 0%, #0d7350 100%);
+  --accent-glow: 0 1px 2px rgb(0 0 0 / 0.45);
 
-  /* section colours: card tint, icon circle, tinted button, solid button */
-  --tone-blue-bg: rgba(234, 240, 253, 0.86);
-  --tone-blue-soft: #dce6fd;
-  --tone-blue-icon: #2f63f0;
-  --tone-blue-ink: #1d3fae;
-  --tone-blue-solid: #2f5ce0;
-  --tone-green-bg: rgba(231, 246, 237, 0.88);
-  --tone-green-soft: #d1eedb;
-  --tone-green-icon: #18a058;
-  --tone-green-ink: #14603a;
-  --tone-green-solid: #15803d;
-  --tone-purple-bg: rgba(240, 236, 252, 0.88);
-  --tone-purple-soft: #e2dafb;
-  --tone-purple-icon: #6d4fe0;
-  --tone-purple-ink: #4c2aa8;
-  --tone-purple-solid: #6a3fdc;
-  --tone-amber-bg: rgba(252, 246, 230, 0.9);
-  --tone-amber-soft: #fbe8c2;
-  --tone-amber-icon: #e08300;
-  --tone-amber-ink: #874400;
-  --tone-amber-solid: #b45309;
-  --tone-rose-bg: rgba(252, 236, 240, 0.9);
-  --tone-rose-soft: #fbd9e0;
-  --tone-rose-icon: #e5484d;
-  --tone-rose-ink: #9c1736;
-  --tone-rose-solid: #cc2b4a;
+  /* status */
+  --success: #2fbf86;
+  --success-ink: #7fd8b1;
+  --warning: #e3ac45;
+  --warning-ink: #f1cd85;
+  --danger: #e5555e;
+  --danger-ink: #f6a0a6;
+  --hover: rgb(255 255 255 / 0.06);
+  --press: rgb(255 255 255 / 0.1);
 
-  /* shape */
+  /* Sections share one quiet look; the names stay so markup can keep them. */
+  --tone-bg: transparent;
+  --tone-soft: rgb(255 255 255 / 0.06);
+  --tone-icon: var(--text-2);
+  --tone-ink: var(--text);
+  --tone-solid: var(--accent-solid);
+
+  /* shape: one radius scale everywhere */
+  --r-xs: 8px;
   --r-s: 10px;
   --r-m: 14px;
   --r-l: 18px;
+  --r-xl: 22px;
   --r-pill: 999px;
 
-  /* depth: soft, navy-tinted */
-  --e1: 0 1px 2px rgba(27, 31, 59, 0.05), 0 6px 18px rgba(27, 31, 59, 0.05);
-  --e2: 0 14px 36px rgba(27, 31, 59, 0.14), 0 0 0 1px rgba(27, 31, 59, 0.05);
-  --e3: 0 28px 70px rgba(27, 31, 59, 0.22), 0 0 0 1px rgba(27, 31, 59, 0.06);
+  /* depth */
+  --e1: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 20px rgb(0 0 0 / 0.18);
+  --e2: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 18px 44px rgb(0 0 0 / 0.42), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --e3: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 30px 80px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.08);
 
   /* type */
   --font: "Plus Jakarta Sans Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
@@ -97,15 +88,17 @@
   --slow: 260ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-std: cubic-bezier(0.2, 0, 0, 1);
+  /* A critically damped spring, written as a CSS curve for simple hover lifts. */
+  --spring: cubic-bezier(0.34, 1.3, 0.64, 1);
 
   /* code */
-  --code-bg: #161a2e;
-  --code-head: #1f2440;
-  --code-num: #7d82a0;
-  --tok-key: #9db4ff;
-  --tok-str: #86e2b0;
-  --tok-com: #a3a8c3;
-  --tok-num: #ffbe7a;
+  --code-bg: #090a0a;
+  --code-head: #141515;
+  --code-num: #7f8482;
+  --tok-key: #7fd6b0;
+  --tok-str: #d9cf9a;
+  --tok-com: #9a9f9d;
+  --tok-num: #e8ae7e;
 
   /* ---- aliases for older names ---- */
   --page: var(--bg);
@@ -124,32 +117,28 @@
   --wash: var(--accent-soft);
   --wash-2: var(--accent-soft-2);
   --card: var(--surface);
-  --blue-soft: rgba(51, 102, 255, 0.16);
+  --blue-soft: var(--accent-soft-2);
   --green: var(--success);
   --green-ink: var(--success-ink);
-  --green-wash: rgba(22, 163, 74, 0.12);
-  --green-line: rgba(22, 163, 74, 0.3);
+  --green-wash: rgb(47 191 134 / 0.12);
+  --green-line: rgb(47 191 134 / 0.3);
   --amber: var(--warning);
   --amber-ink: var(--warning-ink);
-  --amber-wash: rgba(224, 138, 0, 0.13);
-  --amber-line: rgba(224, 138, 0, 0.32);
+  --amber-wash: rgb(227 172 69 / 0.12);
+  --amber-line: rgb(227 172 69 / 0.32);
   --red: var(--danger);
   --red-ink: var(--danger-ink);
-  --red-wash: rgba(220, 53, 69, 0.1);
-  --red-line: rgba(220, 53, 69, 0.28);
+  --red-wash: rgb(229 85 94 / 0.12);
+  --red-line: rgb(229 85 94 / 0.32);
   --shadow-1: var(--e1);
   --shadow-2: var(--e2);
   --shadow-3: var(--e3);
-  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   --ease: var(--ease-out);
   --t-fast: var(--fast);
   --t-med: var(--base);
   --t-slow: var(--slow);
 }
 
-/* One tone per section: components read --t-* and never name a colour. */
-[data-tone="blue"] { --t-bg: var(--tone-blue-bg); --t-soft: var(--tone-blue-soft); --t-icon: var(--tone-blue-icon); --t-ink: var(--tone-blue-ink); --t-solid: var(--tone-blue-solid); }
-[data-tone="green"] { --t-bg: var(--tone-green-bg); --t-soft: var(--tone-green-soft); --t-icon: var(--tone-green-icon); --t-ink: var(--tone-green-ink); --t-solid: var(--tone-green-solid); }
-[data-tone="purple"] { --t-bg: var(--tone-purple-bg); --t-soft: var(--tone-purple-soft); --t-icon: var(--tone-purple-icon); --t-ink: var(--tone-purple-ink); --t-solid: var(--tone-purple-solid); }
-[data-tone="amber"] { --t-bg: var(--tone-amber-bg); --t-soft: var(--tone-amber-soft); --t-icon: var(--tone-amber-icon); --t-ink: var(--tone-amber-ink); --t-solid: var(--tone-amber-solid); }
-[data-tone="rose"] { --t-bg: var(--tone-rose-bg); --t-soft: var(--tone-rose-soft); --t-icon: var(--tone-rose-icon); --t-ink: var(--tone-rose-ink); --t-solid: var(--tone-rose-solid); }
+/* Every section reads the same quiet --t-* set; data-tone stays in markup only as a name. */
+[data-tone] { --t-bg: var(--tone-bg); --t-soft: var(--tone-soft); --t-icon: var(--tone-icon); --t-ink: var(--tone-ink); --t-solid: var(--tone-solid); }

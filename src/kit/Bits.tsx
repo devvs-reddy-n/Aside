@@ -61,3 +61,26 @@ export function FileTile({ kind }: { kind: string }) {
   const tile = FILE_TILES[kind] ?? { label: kind.slice(0, 4), kind: "other" };
   return <span className="file-tile" data-kind={tile.kind} aria-hidden="true">{tile.label}</span>;
 }
+
+export interface Meta {
+  icon?: IconName;
+  label: string | null | undefined | false;
+  /** Read aloud before the value, e.g. "Duration". */
+  name?: string;
+}
+
+/** Compact facts as chips (role, company, date, duration…). Only the ones that exist are shown. */
+export function MetaChips({ items, className }: { items: Meta[]; className?: string }) {
+  const shown = items.filter((item): item is Meta & { label: string } => Boolean(item.label && String(item.label).trim()));
+  if (shown.length === 0) return null;
+  return (
+    <ul className={["chips", className].filter(Boolean).join(" ")}>
+      {shown.map((item) => (
+        <li key={`${item.name ?? ""}${item.label}`} className="chip" aria-label={item.name ? `${item.name}: ${item.label}` : undefined}>
+          {item.icon ? <Icon name={item.icon} size={12} strokeWidth={2} /> : null}
+          <span>{item.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}

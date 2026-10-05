@@ -192,6 +192,8 @@ dependencies = [
  "image",
  "lopdf 0.44.0",
  "ndarray",
+ "objc2",
+ "objc2-app-kit",
  "objc2-core-audio",
  "ort",
  "parakeet-rs",

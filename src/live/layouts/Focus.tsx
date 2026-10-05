@@ -1,4 +1,6 @@
+import { motion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
+import { SPRING } from "../../kit/motion";
 import { Icon } from "../../kit/Icon";
 import { useController, useLive, useLiveUi } from "../context";
 import type { Room } from "../hooks";
@@ -25,10 +27,12 @@ function Tabs() {
         event.currentTarget.querySelector<HTMLButtonElement>(`[data-view="${next}"]`)?.focus();
       }}>
         <button type="button" role="tab" data-view="answers" aria-controls="live-feed-panel" tabIndex={view === "answers" ? 0 : -1} aria-selected={view === "answers"} onClick={() => controller.setView("answers")}>
-          <Icon name="sparkle" size={14} />Answer
+          {view === "answers" ? <motion.span layoutId="lv-tab-thumb" className="lv-tabs__thumb" transition={SPRING} /> : null}
+          <Icon name="sparkle" size={14} /><span>Answer</span>
         </button>
         <button type="button" role="tab" data-view="all" aria-controls="live-feed-panel" tabIndex={view === "all" ? 0 : -1} aria-selected={view === "all"} onClick={() => controller.setView("all")}>
-          <Icon name="chat" size={14} />Transcript
+          {view === "all" ? <motion.span layoutId="lv-tab-thumb" className="lv-tabs__thumb" transition={SPRING} /> : null}
+          <Icon name="chat" size={14} /><span>Transcript</span>
         </button>
       </div>
       {view === "answers" ? <AnswerNav /> : null}
@@ -73,11 +77,7 @@ export function Focus({ room }: { room: Room }) {
   return (
     <>
       {tiny ? (
-        <TopBar slim>
-          <AudioLane channel="mic" iconOnly />
-          <AudioLane channel="system" iconOnly />
-          <AnswerNav compact />
-        </TopBar>
+        <TopBar slim start={<><AudioLane channel="mic" iconOnly /><AudioLane channel="system" iconOnly /></>} end={<AnswerNav compact />} />
       ) : (
         <>
           <TopBar />

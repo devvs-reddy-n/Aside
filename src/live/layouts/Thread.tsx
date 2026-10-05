@@ -10,10 +10,7 @@ export function Thread({ room }: { room: Room }) {
   return (
     <>
       {room.height === "tiny" ? (
-        <TopBar slim>
-          <AudioLane channel="mic" iconOnly />
-          <AudioLane channel="system" iconOnly />
-        </TopBar>
+        <TopBar slim start={<><AudioLane channel="mic" iconOnly /><AudioLane channel="system" iconOnly /></>} />
       ) : (
         <>
           <TopBar />

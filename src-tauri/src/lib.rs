@@ -21,6 +21,7 @@ mod storage;
 mod stt;
 mod transcript_coalesce;
 mod transcript_log;
+mod window_buttons;
 mod window_fit;
 mod window_memory;
 
@@ -190,15 +191,14 @@ pub fn run() {
             // the same place `llm::spawn_prewarm` is.
             window_memory::init_background_worker(app.handle());
 
-            // The title-bar cross now asks and quits (see `lifecycle`).
-            // Hide-on-close stays as the fallback for any other close
-            // (Cmd+W, Window > Close) so destroying `main` cannot strand
-            // a still-open overlay with no workspace to return to.
+            // The red button (and Cmd+W) quits Aside at once, live window
+            // included; the yellow one is Aside's own (`window_buttons`).
             if let Some(main) = app.get_webview_window("main") {
                 // A window taller than the usable screen looks "cut in the
                 // middle"; shrink and move it until all of it is visible.
                 window_fit::fit_window(&main, 960, 640);
-                let main_for_hide = main.clone();
+                window_buttons::install(&main);
+                let app_for_quit = app.handle().clone();
                 main.on_window_event(move |event| {
                     // Also runs on the main thread's native event-dispatch
                     // path — see `panic_guard`'s doc comment. Caught here
@@ -206,7 +206,7 @@ pub fn run() {
                     if let Err(message) = panic_guard::catch("closing the window", || {
                         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                             api.prevent_close();
-                            let _ = main_for_hide.hide();
+                            window_buttons::quit_now(&app_for_quit);
                         }
                     }) {
                         eprintln!("{message}");

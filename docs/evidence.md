@@ -308,3 +308,12 @@ Add only the command, test, inspection, or owner observation that actually occur
 - In-browser contrast script (text vs. stacked backgrounds; gradients tested at each most-opaque stop; composited over black and white): live window at 100% — Focus, Thread and Prompter × normal/offline/mic/silent, after Answer, transcript, menu and End armed — minimum 7.01, zero failures, after deepening the live Answer gradient, armed End, danger/warning inks, off-lane fill, selected layout label and grey text. At 50% minimum 1.44, at 40% minimum 1.08 (worst case, halo not measured). Main app (copilot, new copilot, Library, History, call detail, Settings) — zero under 4.5:1 after deepening the main gradient (Start session was 4.44).
 - Reduce Motion: global `prefers-reduced-motion` rule in `base.css` applies to all new animations; not re-run with emulation.
 - Reference check: read the reference overlay's component list (`references/src/renderer/src/windows/overlay/Overlay.tsx` and siblings); no code copied.
+
+## 2026-10-04 - minimal near-black + emerald, window buttons
+
+- `npx tsc --noEmit` passed; `npm test` 68 pass / 0 fail; `npm run build` passed (chunk-size advisory only); `cargo build` passed; `cargo test --lib` 803 passed / 0 failed (3 new in `window_buttons`: yellow hides with hiding on, minimizes with hiding off, Command+H is recognised and Command+Shift+H is not).
+- Browser preview (dev server, demo data) at 1180×860: copilot, Settings, Library, History reviewed by screenshot. Fixes from the review: Settings was still on the old wide column; Replace was a second green button (now plain); Settings model picker cut off the name (widened); speaking lanes in the live window had a loud green ring (now a thin edge).
+- Live window at 440×720: Focus at 100% before and after pressing Answer, Thread at 60%, reviewed by screenshot.
+- Contrast computed from the token values, composited over white and black: main card text-2 8.89, text-3 6.26, emerald ink 9.51; white on the main green button 5.0 (lightest stop); live at 100% text-2 9.83, text-3 7.68, text-3 on the answer card 8.01, white on the live Answer button 7.39. The earlier in-browser per-element checker was not re-run.
+- No em dashes in UI strings (grep of `src`; only a regex character class matches).
+- Not run: the native window buttons, Command+H and the see-through tint in the installed app; these need the owner.

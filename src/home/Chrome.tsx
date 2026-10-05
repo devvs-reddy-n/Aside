@@ -7,7 +7,8 @@ import { Dialog } from "../kit/Dialog";
 
 /**
  * The window uses the Mac's own red/yellow/green buttons now. What is left
- * here is the "Quit Aside?" question, opened by the window close button or app menu.
+ * here is the "Quit Aside?" question, opened by the app menu's Quit. The red
+ * window button quits at once without asking.
  */
 export function QuitGuard() {
   const [asking, setAsking] = useState(false);

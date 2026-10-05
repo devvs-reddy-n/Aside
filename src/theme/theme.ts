@@ -1,8 +1,7 @@
 /**
- * Aside has one look, not light and dark modes: the workspace is always light,
- * and the live window draws its own fixed, clear style. The stamp stays so
- * styles keyed to `data-theme="light"` keep working.
+ * Aside has one look: dark and see-through, in both windows. The stamp stays
+ * so styles keyed to `data-theme` keep working.
  */
 export function applyTheme(): void {
-  document.documentElement.dataset.theme = "light";
+  document.documentElement.dataset.theme = "dark";
 }

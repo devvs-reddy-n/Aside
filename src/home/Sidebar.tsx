@@ -10,7 +10,6 @@ import { SPRING } from "../kit/motion";
 import { Tip } from "../kit/Tooltip";
 import { copilotsStore, loadCopilots } from "./data";
 import { hrefFor, navigate, useRoute, type PageId } from "./router";
-import { send } from "./bus";
 import { StatusPill } from "./StatusPill";
 
 const KEY = "aside-sidebar-v1";
@@ -127,6 +126,10 @@ export function Sidebar() {
   return (
     <nav className="sb" data-rail={rail || undefined} style={{ width: rail ? 64 : layout.width }} aria-label="Aside">
       <div className="sb__top" data-tauri-drag-region>
+        <a className="sb__brand" href={hrefFor("copilots")} aria-label="Aside home">
+          <span className="sb__logo" aria-hidden="true"><Icon name="mark" size={16} /></span>
+          {rail ? null : <span className="sb__name">Aside</span>}
+        </a>
         <IconButton
           icon="sidebar"
           label={rail ? "Show sidebar" : "Hide sidebar"}
@@ -137,7 +140,6 @@ export function Sidebar() {
             return next;
           })}
         />
-        <IconButton icon="search" label="Search everything" size="sm" onClick={() => send("open-palette")} />
       </div>
 
       <LayoutGroup id="sidebar">

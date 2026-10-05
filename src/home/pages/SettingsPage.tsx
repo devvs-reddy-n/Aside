@@ -16,7 +16,7 @@ import { useAutosave } from "../../kit/useAutosave";
 import { wordCount } from "../../core/text";
 import { toast } from "../../kit/toast";
 import { refreshSystem, systemStore } from "../data";
-import { ENGINE_ORDER, LANGUAGES, engineBlurb, engineName, engineNeedsKey, modelLabel, providerLabel } from "../labels";
+import { ENGINE_ORDER, LANGUAGES, engineName, engineNeedsKey, modelLabel, providerLabel } from "../labels";
 
 const SECTIONS = ["speech", "ai", "rules", "shortcuts", "general"] as const;
 
@@ -33,7 +33,7 @@ export function SettingsPage({ section }: { section: string | null }) {
       <header className="pg-head"><span className="pg-icon" aria-hidden="true"><Icon name="gear" size={22} strokeWidth={1.75} /></span><h1>Settings</h1></header>
       {!backendAvailable() ? <Callout tone="warn">Open Aside.app to change settings.</Callout> : null}
       <div className="set-grid">
-        <Section id="general" title="Hide from screen sharing" tone="blue" icon="shield" footer="Also hides Aside from recordings and the Dock."><PrivacyRow /></Section>
+        <Section id="general" title="Privacy" tone="blue" icon="shield"><PrivacyRow /></Section>
         <AiSection />
         <SpeechSection />
         <ShortcutsSection />
@@ -147,7 +147,7 @@ function SpeechSection() {
   const ready = system.engine === "parakeet_local" ? system.parakeetReady : system.speechKey;
   const local = system.engine === "parakeet_local";
   return (
-    <Section id="speech" title="Speech" tone="green" icon="mic" footer={<>{engineBlurb((system.engine ?? engines[0]) as EngineKind)}{local && !system.parakeetReady ? " One-time download, about 480 MB." : !local ? " Keys stay on this Mac and are never shown again." : ""}</>} badge={system.engine && !ready ? <Badge tone="warn">{local ? "Needs download" : "Needs key"}</Badge> : null}>
+    <Section id="speech" title="Speech" tone="green" icon="mic" footer={local && !system.parakeetReady ? "One-time download, about 480 MB." : null} badge={system.engine && !ready ? <Badge tone="warn">{local ? "Needs download" : "Needs key"}</Badge> : null}>
       <Row label="Engine">
         <Segmented<EngineKind> label="Speech engine" value={(system.engine ?? engines[0]) as EngineKind} onChange={(engine) => void choose(engine)} options={engines.map((engine) => ({ value: engine, label: engineName(engine) }))} />
       </Row>
@@ -224,7 +224,7 @@ function AiSection() {
 
   const provider = system.provider ?? "open_ai";
   return (
-    <Section id="ai" title="AI model" tone="purple" icon="bot" footer="New copilots start with this model; each can use its own. Keys stay on this Mac." badge={system.model && !system.aiKey ? <Badge tone="warn">Needs key</Badge> : null}>
+    <Section id="ai" title="AI model" tone="purple" icon="bot" badge={system.model && !system.aiKey ? <Badge tone="warn">Needs key</Badge> : null}>
       <Row label="Default model">
         <Select aria-label="AI model" disabled={busy || options.length === 0} value={system.model ? `${provider}|${system.model}` : ""} onChange={(event) => { const [p, ...rest] = event.target.value.split("|"); void chooseModel({ provider: p as LlmProviderKind, model: rest.join("|") }); }}>
           <option value="" disabled>Choose one</option>
@@ -344,7 +344,7 @@ function RulesSection() {
   const status = saveState === "saving" || saveState === "pending" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "error" ? "Not saved" : null;
   return (
     <Section id="rules" title="Strict rules" tone="rose" icon="scroll"
-      footer="Applies to all copilots. Each copilot’s guidance adds to these rules."
+      footer="Applies to every copilot."
       action={<Button size="sm" variant="ghost" icon="edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit</Button>}>
       <div className="set-row set-row--stack">
         <div className="set-rules">

@@ -10,9 +10,9 @@ export function formatClock(ms: number): string {
   return `${minutes}:${ss}`;
 }
 
-/** "12 min", "1 h 05 min", "45 s". */
+/** "12 min", "1 h 05 min", "45 s"; empty when unknown, so callers can leave it out. */
 export function formatDuration(ms: number | null | undefined): string {
-  if (ms == null) return "—";
+  if (ms == null) return "";
   const totalSeconds = Math.round(ms / 1000);
   if (totalSeconds < 60) return `${totalSeconds} s`;
   const totalMinutes = Math.round(totalSeconds / 60);

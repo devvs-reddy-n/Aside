@@ -34,14 +34,6 @@ export function engineName(engine: EngineKind): string {
   }
 }
 
-export function engineBlurb(engine: EngineKind): string {
-  switch (engine) {
-    case "speechmatics": return "Cloud. Fast and accurate, needs an API key.";
-    case "deepgram": return "Cloud. Needs an API key.";
-    case "parakeet_local": return "Runs on this Mac, free and private. One large download.";
-  }
-}
-
 export function engineNeedsKey(engine: EngineKind): boolean {
   return engine !== "parakeet_local";
 }

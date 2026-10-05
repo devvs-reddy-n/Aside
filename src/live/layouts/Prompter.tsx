@@ -53,11 +53,7 @@ export function Prompter() {
 
   return (
     <>
-      <TopBar slim>
-        <AudioLane channel="mic" iconOnly />
-        <AudioLane channel="system" iconOnly />
-        <AnswerNav compact />
-      </TopBar>
+      <TopBar slim start={<><AudioLane channel="mic" iconOnly /><AudioLane channel="system" iconOnly /></>} end={<AnswerNav compact />} />
       <Alerts />
       <div className="lv-prompter">
         <Reading />

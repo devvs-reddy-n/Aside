@@ -308,13 +308,48 @@ pub enum OnScreenAction {
 pub fn toggle_on_screen(app: &AppHandle) {
     let state = app.state::<OnScreenHidden>();
     let mut hidden = state.0.lock().unwrap_or_else(|p| p.into_inner());
-    let visible: Vec<String> = app
-        .webview_windows()
+    let visible = visible_labels(app);
+    let action = next_on_screen_action(&visible, &hidden);
+    apply_on_screen(app, &mut hidden, action);
+}
+
+/// Hide whatever is on screen, unless Aside is already hidden this way.
+/// True when something was hidden.
+pub fn hide_on_screen(app: &AppHandle) -> bool {
+    let state = app.state::<OnScreenHidden>();
+    let mut hidden = state.0.lock().unwrap_or_else(|p| p.into_inner());
+    if !hidden.is_empty() {
+        return false;
+    }
+    let visible = visible_labels(app);
+    if visible.is_empty() {
+        return false;
+    }
+    apply_on_screen(app, &mut hidden, OnScreenAction::Hide(visible));
+    true
+}
+
+/// Bring back what [`hide_on_screen`] or [`toggle_on_screen`] hid, if anything.
+pub fn show_on_screen(app: &AppHandle) {
+    let state = app.state::<OnScreenHidden>();
+    let mut hidden = state.0.lock().unwrap_or_else(|p| p.into_inner());
+    if hidden.is_empty() {
+        return;
+    }
+    let labels = hidden.clone();
+    apply_on_screen(app, &mut hidden, OnScreenAction::Show(labels));
+}
+
+fn visible_labels(app: &AppHandle) -> Vec<String> {
+    app.webview_windows()
         .into_iter()
         .filter(|(_, window)| window.is_visible().unwrap_or(false))
         .map(|(label, _)| label)
-        .collect();
-    match next_on_screen_action(&visible, &hidden) {
+        .collect()
+}
+
+fn apply_on_screen(app: &AppHandle, hidden: &mut Vec<String>, action: OnScreenAction) {
+    match action {
         OnScreenAction::Hide(labels) => {
             for label in &labels {
                 if let Some(window) = app.get_webview_window(label) {

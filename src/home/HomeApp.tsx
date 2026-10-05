@@ -2,7 +2,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
 import { Callout } from "../kit/Bits";
 import { Button } from "../kit/Button";
-import { EASE_OUT, BASE } from "../kit/motion";
+import { SPRING } from "../kit/motion";
+import { Icon } from "../kit/Icon";
+import { send } from "./bus";
 import { ToastHost } from "../kit/toast";
 import { useStore } from "../core/store";
 import { isTauriRuntime, isDemoMode, NOT_TAURI_MESSAGE } from "../bridge/runtime";
@@ -19,18 +21,34 @@ import { Sidebar } from "./Sidebar";
 import "./home.css";
 import "./launch.css";
 
-/** The strip above the page: something to drag the window by, and the running-call shortcut. */
+/** The bar above the page: search in the middle, the running call on the right, and room to drag the window. */
 function TopStrip() {
   const active = useStore(systemStore, (state) => state.active);
   return (
     <div className="hm-top" data-tauri-drag-region>
-      {active ? (
-        <div className="hm-callpill" role="status">
-          <span className="live-dot" aria-hidden="true" />
-          <span>Call running{active.company ? ` · ${active.company}` : ""}</span>
-          <Button size="sm" variant="primary" onClick={() => void returnToCall()}>Return to call</Button>
-        </div>
-      ) : null}
+      <span data-tauri-drag-region />
+      <button type="button" className="hm-search-btn" onClick={() => send("open-palette")} aria-label="Search copilots, files and calls">
+        <Icon name="search" size={16} />
+        <span>Search copilots, files and calls</span>
+      </button>
+      <div className="hm-top__end" data-tauri-drag-region>
+        <AnimatePresence initial={false}>
+          {active ? (
+            <motion.div
+              className="hm-callpill"
+              role="status"
+              initial={{ opacity: 0, scale: 0.9, x: 12 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.9, x: 12 }}
+              transition={SPRING}
+            >
+              <span className="live-dot" aria-hidden="true" />
+              <span className="hm-callpill__text">{active.company ? active.company : "Call running"}</span>
+              <Button size="sm" variant="primary" onClick={() => void returnToCall()}>Return to call</Button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -44,10 +62,10 @@ function Page() {
       <motion.div
         key={key}
         className="hm-page-host"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: BASE, ease: EASE_OUT }}
+        initial={{ opacity: 0, y: 10, scale: 0.995 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
+        transition={SPRING}
       >
         {route.page === "library" ? <LibraryPage filter={route.param} />
           : route.page === "history" ? <HistoryPage selectedId={route.param} />

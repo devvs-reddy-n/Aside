@@ -1,8 +1,26 @@
 # Current status
 
-**PARTIAL: soft pastel look and a rebuilt live session are built and checked in the browser preview. The real live window over real apps is still owed to the owner.**
+**PARTIAL: minimal near-black look with an emerald accent, and new window buttons, are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-03 — soft pastel look + live session rebuilt
+## Latest change, 2026-10-04: minimal dark look + window buttons
+
+**Look (both windows):**
+- Dark only. The window is a near-black tint over the desktop, no blur; panels and cards sit in front with soft shadows.
+- One deep emerald accent, used only for the main action (Start session, Answer), the selected copilot, switches that are on and the AI answer edge. Everything else is plain grey.
+- Section colours removed: all copilot and Settings sections share one quiet look.
+- Every page uses one 720px column, so fields and buttons inside the cards are narrower.
+- Copilot header: title, role, then one even row of 36px controls (AI model, Save transcript, more, Start session). The big company tile is gone.
+- Live window: same layouts, now near-black with the emerald answer highlight; the You/Them lanes show a thin edge while speaking.
+
+**Window buttons (main window):**
+- Only red and yellow show; no green button and no full screen.
+- Red quits Aside at once, no question.
+- Yellow, with Hide from screen sharing on: hides all Aside windows; Command+H brings them back (claimed only while hidden). With it off: normal minimize to the Dock.
+- The app menu's Quit still asks first.
+
+## Previous change, 2026-10-03
+
+— soft pastel look + live session rebuilt
 
 The owner sent a reference picture for the whole app and asked for the live session to be rebuilt from scratch with a more logical layout.
 
@@ -31,22 +49,19 @@ Commits on `redesign-dock` (not pushed):
 - `c26890d` is the pastel main app.
 - `dfa8e8b` is the live rebuild, plus a docs commit.
 
-## Verified
+## Verified (2026-10-04)
 
-- Type check passed; 68 frontend tests passed (adds layout preference and Thread-stepping tests); `npm run build` passed; `cargo build` passed; 800 Rust tests passed. The design detector flags only the sidebar's blue edge, which is in the owner's picture and kept on purpose.
-- 91 screenshots in `~/Desktop/Aside screenshots Pastel 2026-10-03/`: 25 main-window screens and states at 1180×860. The live window has 11 states × 3 layouts at 100% and 50% over a busy background.
-- Contrast:
-  - Live text is at least 7:1 at 100%, worst case, in every layout and scenario: normal, offline, mic problem, quiet audio, menu open, End armed.
-  - Main app text is at least 4.5:1 on copilot, new copilot, Library, History, call detail and Settings.
-  - At 50% the worst case is about 1.4:1, and at 40% about 1.1:1, over pure black or white behind the window. That is the owner's chosen trade-off; the halo isn't measured.
-- Reduce Motion: the global rule covers all new animations.
+- Type check passed; 68 frontend tests passed; `npm run build` passed; `cargo build` passed; 803 Rust tests passed (3 new for the window buttons).
+- Browser preview screenshots reviewed: copilot, Settings, Library, History at 1180×860; live Focus (before and after an answer) and Thread at 440×720.
+- Contrast worked out from the colour values over white and black: main app grey text at least 6.2:1, live window at 100% at least 7.4:1, white on green buttons at least 5.0:1. The older per-element browser checker was not re-run.
+- No em dashes in on-screen text.
 
 ## Owed (can't be checked here)
 
-- The real live window over a real meeting app, at a few Background settings.
-- The installed app's look.
+- Clicking the real red and yellow buttons in `Aside.app`, with hiding on and off, and Command+H bringing Aside back.
+- The installed app's see-through dark look, and the live window over a real meeting app.
 - Earlier device checks still open: global shortcuts while another app has focus, real microphone/system audio, screen capture through the AI provider, native resize dragging, screen-share hiding.
 
 ## Next action
 
-The owner opens `Aside.app`, starts a session, tries all three layouts and the Background slider over their meeting app, and says which layout to keep as the default.
+The owner opens `Aside.app`: clicks yellow (Aside should vanish), presses Command+H (it should come back), clicks red (it should quit with no question), and says whether the emerald is dark and sparing enough.

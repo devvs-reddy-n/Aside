@@ -5,13 +5,13 @@ import type { DocType, StoredDocument } from "../../bridge/types";
 import { formatBytes, formatDate, plural } from "../../core/format";
 import { useStore } from "../../core/store";
 import { displayFileName, fileKind, guessDocType } from "../../core/text";
-import { Callout, EmptyState, FileTile } from "../../kit/Bits";
+import { Callout, EmptyState, FileTile, MetaChips } from "../../kit/Bits";
 import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Field, Segmented, TextInput } from "../../kit/Form";
 import { Icon } from "../../kit/Icon";
 import { Menu } from "../../kit/Menu";
-import { FAST } from "../../kit/motion";
+import { FAST, SPRING } from "../../kit/motion";
 import { TextEditor } from "../../kit/TextEditor";
 import { toast } from "../../kit/toast";
 import { deleteWithUndo } from "../../kit/undo";
@@ -57,27 +57,28 @@ function useUsage(): Map<string, number> {
   return usage;
 }
 
-function meta(doc: StoredDocument): string {
-  return [doc.doc_type === "resume" ? "Resume" : "Document", fileKind(doc.file_name, doc.mime_type), formatBytes(doc.byte_size), formatDate(doc.created_at_ms)].filter(Boolean).join(" · ");
-}
 
 function FileItem({ doc, uses, view, onOpen, onDelete }: { doc: StoredDocument; uses: number; view: View; onOpen: () => void; onDelete: () => void }) {
   return (
     <motion.li
-      layout="position"
+      layout
       className="lib-item"
       data-view={view}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, height: 0, marginTop: 0 }}
-      transition={{ duration: FAST }}
+      transition={{ layout: SPRING, duration: FAST }}
     >
       <button type="button" className="lib-item__main" onClick={onOpen}>
         <span className="lib-item__icon" data-kind={doc.doc_type}><FileTile kind={fileKind(doc.file_name, doc.mime_type)} /></span>
         <span className="lib-item__text">
           <b title={doc.file_name}>{displayFileName(doc.file_name)}</b>
-          <small>{meta(doc)}</small>
-          <small className="lib-item__uses">{uses > 0 ? `Used by ${plural(uses, "copilot")}` : "Not used yet"}</small>
+          <MetaChips items={[
+            { icon: doc.doc_type === "resume" ? "file" : "note", label: doc.doc_type === "resume" ? "Resume" : "Document" },
+            { name: "Size", label: formatBytes(doc.byte_size) },
+            { icon: "clock", name: "Added", label: formatDate(doc.created_at_ms) },
+            { icon: "users", label: uses > 0 ? `Used by ${plural(uses, "copilot")}` : "Not used yet" },
+          ]} />
         </span>
       </button>
       <div className="lib-item__menu">

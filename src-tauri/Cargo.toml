@@ -87,6 +87,11 @@ tauri-plugin-fs = "2.5.1"
 # this module deliberately does not use) and no `objc2`/`objc2-foundation`
 # (those back Objective-C object bindings this module never touches).
 objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware"] }
+# The main window's own red/yellow buttons (`window_buttons.rs`): hide the
+# green one and point the yellow one at Aside's own minimize. Both crates are
+# already in Cargo.lock through tao, at these exact versions and features.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSButton", "NSControl", "NSResponder", "NSView", "NSWindow"] }
 
 [dev-dependencies]
 lopdf = "0.44.0"

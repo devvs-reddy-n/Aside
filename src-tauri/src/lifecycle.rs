@@ -1,7 +1,8 @@
 //! App-wide hide, quit, and relaunch.
 //!
-//! The title-bar minus hides Aside. The title-bar
-//! cross and the Aside menu's Quit item ask first, then quit.
+//! The title-bar buttons live in `window_buttons`: red quits at once,
+//! yellow minimizes (or hides Aside when screen-share hiding is on).
+//! The Aside menu's Quit item asks first, then quits.
 //! Changing screen-share hiding relaunches so Dock and menu-bar policy
 //! apply from a fresh process.
 
@@ -78,19 +79,16 @@ pub fn handle_menu(app: &AppHandle, id: &str) {
         .or_else(|| app.get_webview_window("main"));
     if let Some(window) = window {
         match id {
+            "aside-minimize" if window.label() == "main" => crate::window_buttons::minimize(app, &window),
             "aside-minimize" => { let _ = window.minimize(); }
-            "aside-maximize" if window.label() != "main" => {
-                if window.is_maximized().unwrap_or(false) { let _ = window.unmaximize(); }
-                else { let _ = window.maximize(); }
-            }
             "aside-close" => { let _ = window.close(); }
-            "aside-fullscreen" if window.label() != "main" => { let _ = window.set_fullscreen(!window.is_fullscreen().unwrap_or(false)); }
             _ => {}
         }
     }
 }
 
 /// Menu actions have no app accelerators. Standard text editing remains native.
+/// No Zoom or Full Screen: Aside's windows keep the size they were given.
 pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let pkg_info = app.package_info();
     let config = app.config();
@@ -105,10 +103,7 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let quit = MenuItem::with_id(app, QUIT_MENU_ID, "Quit Aside", true, None::<&str>)?;
 
     let minimize = MenuItem::with_id(app, "aside-minimize", "Minimize", true, None::<&str>)?;
-    let maximize = MenuItem::with_id(app, "aside-maximize", "Zoom", true, None::<&str>)?;
     let close = MenuItem::with_id(app, "aside-close", "Close Window", true, None::<&str>)?;
-    #[cfg(target_os = "macos")]
-    let fullscreen = MenuItem::with_id(app, "aside-fullscreen", "Toggle Full Screen", true, None::<&str>)?;
     #[cfg(target_os = "macos")]
     let hide = MenuItem::with_id(app, "aside-hide", "Hide Aside", true, None::<&str>)?;
 
@@ -119,7 +114,6 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         true,
         &[
             &minimize,
-            &maximize,
             #[cfg(target_os = "macos")]
             &PredefinedMenuItem::separator(app)?,
             &close,
@@ -185,13 +179,6 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
                     &PredefinedMenuItem::paste(app, None)?,
                     &PredefinedMenuItem::select_all(app, None)?,
                 ],
-            )?,
-            #[cfg(target_os = "macos")]
-            &Submenu::with_items(
-                app,
-                "View",
-                true,
-                &[&fullscreen],
             )?,
             &window_menu,
             &help_menu,

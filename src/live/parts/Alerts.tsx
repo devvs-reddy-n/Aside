@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "../../kit/Icon";
-import { useController, useLive } from "../context";
+import { useController, useLive, useLiveUi } from "../context";
 import { describeAnswerError, looksLikePermissionProblem } from "../errors";
 import { answersOf } from "../machine";
 
@@ -57,6 +57,7 @@ export function Alerts() {
   const mic = useLive((state) => state.channels.mic);
   const offline = useLive((state) => state.offline);
   const notice = useLive((state) => state.notice);
+  const paused = useLiveUi((state) => state.paused !== null);
   const lastFailed = useLive((state) => {
     const last = answersOf(state).at(-1);
     return last && last.status === "error" ? last : null;
@@ -65,6 +66,10 @@ export function Alerts() {
   // Feedback from an explicit button press must not disappear behind audio help.
   if (notice) {
     return <Alert tone="note" icon="info" title={notice} onClose={() => controller.dispatch({ type: "dismiss-notice" })} />;
+  }
+
+  if (paused) {
+    return <Alert tone="note" icon="pause" title="Listening paused" fix={{ label: "Resume", run: () => void controller.togglePause() }} />;
   }
 
   if (mic.status === "error") {

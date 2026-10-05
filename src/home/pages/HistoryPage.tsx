@@ -7,7 +7,7 @@ import { downloadPdf, downloadText } from "../../core/downloads";
 import { formatClock, formatDate, formatDuration, formatTime, plural, slug } from "../../core/format";
 import { groupByDay, isShort } from "../../core/historyGroups";
 import { useStore } from "../../core/store";
-import { Badge, Callout, EmptyState, Spinner } from "../../kit/Bits";
+import { Badge, Callout, EmptyState, MetaChips, Spinner } from "../../kit/Bits";
 import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Segmented } from "../../kit/Form";
@@ -15,7 +15,7 @@ import { Icon } from "../../kit/Icon";
 import { Monogram } from "../Sidebar";
 import { Menu } from "../../kit/Menu";
 import { RichText } from "../../kit/RichText";
-import { FAST } from "../../kit/motion";
+import { FAST, SPRING } from "../../kit/motion";
 import { toast } from "../../kit/toast";
 import { deleteWithUndo } from "../../kit/undo";
 import { historyStore, loadHistory, returnToCall, setHidden, systemStore } from "../data";
@@ -155,7 +155,7 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
 
 function CallRow({ session, live, onDelete }: { session: PastSessionSummary; live: boolean; onDelete: () => void }) {
   const name = session.company || session.title;
-  const detail = [session.company && session.title !== session.company ? session.title : null, formatTime(session.started_at_ms), live ? "Running" : formatDuration(session.duration_ms)].filter(Boolean).join(" · ");
+  const role = session.company && session.title !== session.company ? session.title : null;
   return (
     <motion.li
       layout="position"
@@ -166,12 +166,17 @@ function CallRow({ session, live, onDelete }: { session: PastSessionSummary; liv
       transition={{ duration: FAST }}
     >
       <a className="hist-row__main" href={hrefFor("history", session.id)}>
-        <Monogram name={name} size={34} />
+        <motion.span layoutId={`call-mono-${session.id}`} transition={SPRING} className="hist-row__mono"><Monogram name={name} size={34} /></motion.span>
         <span className="hist-row__text">
           <b>{name}</b>
-          <small className="tabular">{detail}</small>
+          <MetaChips items={[
+            { icon: "briefcase", name: "Role", label: role },
+            { icon: "clock", name: "Time", label: formatTime(session.started_at_ms) },
+            { icon: "timer", name: "Duration", label: live ? null : formatDuration(session.duration_ms) },
+            { icon: "chat", label: !live && session.segment_count > 0 ? "Transcript" : null },
+          ]} />
         </span>
-        {live ? <Badge tone="ok">Live now</Badge> : session.segment_count > 0 ? <span className="hist-row__mark"><Icon name="chat" size={13} />Transcript</span> : null}
+        {live ? <Badge tone="ok">Live now</Badge> : null}
       </a>
       {live ? <Button size="sm" variant="secondary" onClick={() => void returnToCall()}>Return to call</Button> : null}
       <div className="hist-row__menu">
@@ -241,7 +246,12 @@ function SessionSheet({ session, onClose }: { session: PastSessionSummary; onClo
       onClose={onClose}
       size="xl"
       title={session.company || session.title}
-      subtitle={[session.company ? session.title : null, `${formatDate(session.started_at_ms)}, ${formatTime(session.started_at_ms)}`, formatDuration(session.duration_ms)].filter(Boolean).join(" · ")}
+      icon={<motion.span layoutId={`call-mono-${session.id}`} transition={SPRING} className="hist-row__mono"><Monogram name={session.company || session.title} size={40} /></motion.span>}
+      subtitle={<MetaChips items={[
+        { icon: "briefcase", name: "Role", label: session.company && session.title !== session.company ? session.title : null },
+        { icon: "clock", name: "Date", label: `${formatDate(session.started_at_ms)}, ${formatTime(session.started_at_ms)}` },
+        { icon: "timer", name: "Duration", label: formatDuration(session.duration_ms) },
+      ]} />}
       footer={
         <>
           <span className="grow" />

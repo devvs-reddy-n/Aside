@@ -13,7 +13,7 @@ import { LiveApp } from "./live/LiveApp";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/geist-mono";
 import { applyTheme } from "./theme/theme";
-import "./theme/pastel.css";
+import "./theme/spatial.css";
 
 applyTheme();
 

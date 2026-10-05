@@ -144,7 +144,7 @@ function ResumeCard({ doc, onPreview, onReplace }: { doc: StoredDocument; onPrev
       </div>
       <div className="file-card__actions">
         <Button size="sm" variant="secondary" icon="eye" aria-label="Preview resume" title="Preview resume" onClick={onPreview}>Preview</Button>
-        <Button size="sm" variant="primary" onClick={onReplace}>Replace</Button>
+        <Button size="sm" variant="secondary" onClick={onReplace}>Replace</Button>
       </div>
     </div>
   );
@@ -318,7 +318,6 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
     <div className="cp cp--tiles">
       <header className="cp-head">
         <div className="cp-head__inner">
-          <span className="cp-avatar" aria-hidden="true"><Icon name="building" size={30} strokeWidth={1.75} /></span>
           <div className="cp-head__titles">
             <InlineTitle
               className="cp-title"
@@ -332,7 +331,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
 
           </div>
           <div className="cp-head__actions">
-            <label className="cp-model-control"><Icon name="bot" size={17} /><span>AI model</span>
+            <label className="cp-model-control" title="AI model"><Icon name="bot" size={16} />
               <Select aria-label="AI model" value={modelKey} onChange={(e) => { const [provider, ...rest] = e.target.value.split("|"); setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") })); }}>
               {options.length === 0 ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
               {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}

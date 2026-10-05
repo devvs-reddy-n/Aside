@@ -111,7 +111,7 @@ export function ActionBar({ mode = "full", lead }: { mode?: "full" | "slim"; lea
           disabled={answering}
           aria-busy={answering || undefined}
           aria-label="Answer now, length adapts to the question"
-          title="Answer now — length adapts to the question  ⌘↩"
+          title="Answer now. Length adapts to the question  ⌘↩"
           onClick={() => void controller.answer()}
         >
           {answering ? <span className="lv-spin" aria-hidden="true" /> : <Icon name="play" size={16} strokeWidth={2.25} />}
