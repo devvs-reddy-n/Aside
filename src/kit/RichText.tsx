@@ -48,7 +48,7 @@ export function RichText({ text, lines = 6, empty, onExpand, label = "text", exp
       </motion.div>
       {overflows ? (
         <button type="button" className="rich__more" aria-label={open ? `Collapse ${label}` : `Read full ${label}`} aria-expanded={onExpand ? undefined : open} aria-haspopup={onExpand ? "dialog" : undefined} onClick={() => onExpand ? onExpand() : setOpen(!open)}>
-          <Icon name={open ? "chevronUp" : "chevronDown"} size={16} />
+          <span>{open ? "Show less" : "Show more"}</span><Icon name={open ? "chevronUp" : "chevronDown"} size={14} />
         </button>
       ) : null}
     </div>

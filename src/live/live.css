@@ -1,9 +1,9 @@
 /*
  * The live window: one question and its answer on a dark, see-through panel
  * (no blur; the desktop shows through a neutral tint). Three parts only: a
- * single top bar, one card holding the question and its answer, and a
- * single bottom bar. It uses the main window's building blocks: the same
- * near-black ground, section card, dark inner box and boxed controls. No
+ * single top bar, the question and its answer, and a single bottom bar.
+ * It uses the main window's building blocks: the same near-black ground,
+ * box-free sections divided by hairlines, and boxed controls. No
  * accent colour here; colour appears only for problems (amber, red).
  *
  * The Background setting (--alpha, 40–100%) sets how solid the panel, bars
@@ -25,8 +25,6 @@ html.live-window #root {
   /* The main window's layers (--bg, --surface, --field), faded by Background. */
   --panel-top: rgb(16 17 17 / var(--a));
   --panel-bottom: rgb(11 12 12 / var(--a));
-  --card: rgb(24 25 25 / var(--a));
-  --well: rgb(0 0 0 / calc(var(--a) * 0.2));
   --layer: var(--field);
   --layer-hover: var(--field-hover);
   --layer-edge: var(--field-edge);
@@ -162,13 +160,14 @@ html.live-window #root {
 @keyframes lv-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 /* ---------- the question and its answer ---------- */
-/* One section card, like the main window's: the question is its title, the answer sits in the dark inner box and is the only part that scrolls. */
-.lv-reading { display: flex; flex-direction: column; padding: 0 8px; }
-.lv-card { display: flex; flex: 1 1 0; flex-direction: column; gap: 10px; min-height: 0; padding: 12px 12px 12px; border: 1px solid var(--edge); border-radius: var(--r-l); background: var(--card); box-shadow: var(--highlight), 0 1px 2px rgb(0 0 0 / 0.3); }
+/* Like the main window's sections, without boxes: the question is the title, a hairline, then the answer, which is the only part that scrolls. */
+.lv-reading { display: flex; flex-direction: column; padding: 4px 16px 0; border-top: 1px solid var(--edge); }
+.lv-card { display: flex; flex: 1 1 0; flex-direction: column; min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; }
 .lv-card[data-empty] { flex: none; }
-.lv-card__head { display: flex; flex: none; align-items: flex-start; gap: 8px; padding: 0 4px; }
+.lv-card__head { display: flex; flex: none; align-items: flex-start; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.lv-card[data-empty] .lv-card__head { border-bottom: 0; }
 .lv-card__head > .icon, .lv-card__head > .lv-spin { flex: none; margin-top: 0.2em; color: var(--text-3); }
-.lv-well { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 12px 14px 14px; border: 1px solid var(--layer-edge); border-radius: var(--r-m); background: var(--well); outline: none; overscroll-behavior: contain; scrollbar-width: thin; }
+.lv-well { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 12px 0 16px; border: 0; border-radius: 0; background: none; outline: none; overscroll-behavior: contain; scrollbar-width: thin; }
 .lv-quiet { display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: calc(13.5px * var(--fs, 1)); }
 .lv-question { color: var(--text); font-size: calc(14px * var(--fs, 1)); font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
 .lv-answer { color: var(--text); font-size: calc(15px * var(--fs, 1)); line-height: 1.6; overflow-wrap: anywhere; animation: lv-rise var(--base) var(--out) both; }
@@ -221,7 +220,7 @@ html.live-window #root {
 .lv-alert[data-tone="bad"] { border-color: rgb(242 85 95 / 0.32); background: rgb(242 85 95 / 0.1); color: var(--danger-ink); }
 
 /* ---------- bottom bar: one row ---------- */
-.lv-composer { display: flex; align-items: center; gap: 8px; padding: 10px; }
+.lv-composer { display: flex; align-items: center; gap: 8px; padding: 10px; border-top: 1px solid var(--edge); }
 .lv-ask { display: flex; flex: 1; align-items: center; gap: 4px; min-width: 0; height: 36px; padding: 0 3px 0 14px; border: 1px solid var(--layer-edge); border-radius: var(--r-m); background: var(--layer); box-shadow: var(--highlight); transition: border-color var(--fast), background-color var(--fast); }
 .lv-ask:focus-within { border-color: rgb(255 255 255 / 0.28); background: var(--layer-hover); }
 .lv-ask input { flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: transparent; color: var(--text); font-size: 13px; -webkit-user-select: text; user-select: text; cursor: text; caret-color: var(--text); }

@@ -2,7 +2,14 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): live window in the same style
+## Latest change, 2026-10-04 (latest): no boxes around sections
+
+- Every section on every page (and in the live window) is now a small icon and title with its content underneath and a thin line between sections. No outer card, no inner box.
+- Only things you use keep a shape: fields, the drop area, menus and buttons.
+- Long text shows two lines with a "Show more" link.
+- AI model, Save transcript and Start session are in the bottom bar. An Aside opened before 20:08 still shows the old top layout until it is quit and reopened.
+
+## Earlier today: live window in the same style
 
 - The live window uses the main window's pieces: same card, same dark inner box, same boxed buttons, same menu style.
 - The question is the card's title; the answer sits in the inner box and is the only part that scrolls.

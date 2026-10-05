@@ -364,3 +364,11 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Class audit: every `lv-` class in `live.css` is used by the live window's components.
 - Contrast from values at 100%: lightest grey (#b2b6bc) on the card about 8.5:1.
 - Not run: the real live window in `Aside.app`.
+
+## 2026-10-04 - box-free sections
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed.
+- Headless Chrome at 1180×860 (demo, long description): Copilot 739 of 739, new copilot 739 of 739, Settings 800 of 800, no scrolling. Copilot, Settings, Library and History screenshots reviewed; Library list and filter row both start at x 374. Live window at 420×600 (waiting and answered) reviewed.
+- Fixed from the review: Edit and Manage links sat 10px inside the right edge; the Strict rules footnote was not indented; the Library list was indented past its filter row.
+- `ps` showed the running Aside started 19:56, before the 20:08+ builds, which explains the owner's screenshot with the old layout.
+- Not run: the installed app.

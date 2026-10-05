@@ -128,8 +128,8 @@
 .toast { background: var(--raised); color: var(--text); box-shadow: var(--e3); }
 .keycap { border-color: var(--border-strong); background: var(--field); color: var(--text-2); }
 .palette__item[aria-selected="true"] { background: var(--accent-soft); }
-.rich__more { display: grid; place-items: center; justify-self: center; width: 40px; height: 26px; margin-top: 2px; border-radius: var(--r-pill); background: var(--field); }
-.rich__more:hover { background: var(--accent-soft); }
+.rich__more { display: inline-flex; align-items: center; gap: 4px; justify-self: start; height: 24px; margin: 4px 0 0 -8px; padding: 0 8px; border-radius: var(--r-s); background: none; color: var(--text-2); font-size: 12.5px; font-weight: 600; }
+.rich__more:hover { background: var(--field-hover); color: var(--text); text-decoration: none; }
 .rich__body[data-clipped] { -webkit-mask-image: linear-gradient(#000 calc(100% - 12px), transparent); mask-image: linear-gradient(#000 calc(100% - 12px), transparent); }
 .callout { border-color: var(--accent-soft-2); background: var(--accent-soft); }
 
@@ -174,9 +174,12 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp--tiles .save-state { min-width: 0; color: var(--text-3); font-size: 12px; }
 .save-state[data-state="saved"] { color: var(--success-ink); }
 /* Five compact sections that fit the window together; only an opened description or guidance can make the page scroll. */
-.cp--tiles .cp-body { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: var(--col); padding: 0 24px 20px; }
+.cp--tiles .cp-body { display: flex; flex-direction: column; gap: 0; width: 100%; max-width: var(--col); padding: 0 24px 20px; }
 /* One section card shared by the copilot page and Settings. */
-.cp-tile, .set-sec, .pg-card { display: grid; gap: 10px; padding: 12px 16px 16px; border: 1px solid var(--edge); border-radius: var(--r-l); background: var(--surface); box-shadow: var(--e1); }
+/* Sections have no boxes: a small icon and title, the content set under the title, and a hairline between sections. */
+.cp-tile, .set-sec, .pg-card { --indent: 23px; display: grid; gap: 10px; padding: 18px 0 20px; border: 0; border-radius: 0; background: none; box-shadow: none; }
+:is(.cp-tile, .set-sec, .pg-card) + :is(.cp-tile, .set-sec, .pg-card) { border-top: 1px solid var(--border); }
+.cp-tile__content, .set-card, .set-sec > .group-help, .pg-card > :not(.pg-card__head) { margin-left: var(--indent); }
 .cp-tile__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; margin: 0; padding: 0; }
 .cp-tile__head h2 { color: var(--text); font-size: 14px; line-height: 20px; font-weight: 700; }
 .cp-tile__label { display: flex; align-items: center; gap: 8px; }
@@ -184,25 +187,17 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp-tile__head .btn { height: 28px; padding-inline: 10px; }
 .cp-tile .cp-info:hover, .cp-tile .cp-info[data-state="open"] { background: var(--field-hover); color: var(--text); }
 .cp-tile__content { min-width: 0; }
+.cp--tiles .cp-head__inner { padding-bottom: 4px; }
 .cp-tile .cp-url { height: 36px; padding: 0 3px 0 14px; border: 1px solid var(--field-edge); border-radius: var(--r-m); background: var(--field); color: var(--text-3); }
 .cp-tile .cp-url:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft-2); }
 .cp-tile .cp-url input { font-size: 14px; color: var(--text); }
 .cp-tile .cp-url input::placeholder { color: var(--text-3); }
 .cp-tile .cp-url .btn { height: 28px; padding-inline: 12px; }
 .cp-tile--description .cp-tile__content { display: grid; gap: 10px; }
-.cp-well, .cp-tile--guidance .cp-tile__content, .cp-tile--resume .cp-tile__content {
-  padding: 12px 14px;
-  border: 1px solid var(--field-edge);
-  border-radius: var(--r-m);
-  background: rgb(0 0 0 / 0.18);
-}
+.cp-well, .cp-tile--guidance .cp-tile__content, .cp-tile--resume .cp-tile__content { padding: 0; border: 0; background: none; }
 /* Two lines (Description, Guidance, Strict rules), with the arrow sitting on the box's bottom edge so it adds no height. */
-:is(.cp-tile, .set-rules) .rich { position: relative; gap: 0; }
+:is(.cp-tile, .set-rules) .rich { gap: 0; }
 :is(.cp-tile, .set-rules) .rich__body { color: var(--text-2); font-size: 13.5px; }
-:is(.cp-tile, .set-rules) .rich__more { position: absolute; bottom: -17px; left: 50%; width: 36px; height: 18px; margin: 0; border: 1px solid var(--field-edge); border-radius: var(--r-pill); background: var(--surface-solid); color: var(--text-2); transform: translateX(-50%); }
-:is(.cp-tile, .set-rules) .rich__more:hover { background: var(--raised); color: var(--text); text-decoration: none; }
-:is(.cp-tile, .set-rules) .rich__more .icon { width: 14px; height: 14px; }
-:is(.cp-tile, .set-rules) .rich:has(> .rich__more[aria-expanded="true"]) { padding-bottom: 10px; }
 .cp-tile .rich--empty { min-height: 0; color: var(--text-3); font-size: 13.5px; text-align: left; }
 .cp-tile .cp-error { margin: -4px 0 0; padding: 0; font-size: 12.5px; }
 .cp-tile .file-card { gap: 12px; padding: 0; flex-wrap: nowrap; }
@@ -214,7 +209,7 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp-tile .file-empty { height: 36px; border-color: var(--border-strong); background: var(--field); color: var(--text); font-size: 13px; }
 .cp-tile .file-chips { gap: 6px; margin-bottom: 6px; }
 .cp-tile .file-chips li { border-color: var(--field-edge); background: var(--field); color: var(--text); }
-.cp-tile .dropzone { justify-content: center; min-height: 38px; padding: 4px 14px; border: 1.5px dashed var(--border-strong); border-radius: var(--r-m); background: rgb(0 0 0 / 0.14); color: var(--text-2); font-size: 13.5px; }
+.cp-tile .dropzone { justify-content: center; min-height: 38px; padding: 4px 14px; border: 1.5px dashed var(--border-strong); border-radius: var(--r-m); background: none; color: var(--text-2); font-size: 13.5px; }
 .cp-tile .dropzone > span { flex: none; }
 .cp-tile .dropzone > span button { color: var(--accent-ink); }
 .cp-tile .dropzone[data-over] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
@@ -225,7 +220,8 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp-tile__head .btn { font-size: 13px; }
 
 /* ---------- Settings ---------- */
-.hm-page.set { --set-bg: transparent; --set-card: var(--field); --set-ink: var(--text); --set-secondary: var(--text-2); --set-line: var(--border); padding: 2px max(24px, calc((100% - var(--col)) / 2 + 24px)) 20px; gap: 12px; }
+.hm-page.set { --set-bg: transparent; --set-card: var(--field); --set-ink: var(--text); --set-secondary: var(--text-2); --set-line: var(--border); padding: 2px max(24px, calc((100% - var(--col)) / 2 + 24px)) 20px; gap: 4px; }
+.set-grid { gap: 0 !important; }
 .set .pg-head { min-height: 34px; }
 .set .pg-head h1 { font-size: 24px; line-height: 30px; }
 .set-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; max-width: none; }
@@ -234,44 +230,46 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .set-sec__label > .icon { flex: none; color: var(--text-3); }
 .set-sec__title { padding-left: 0; color: var(--text); font-size: 14px; line-height: 20px; font-weight: 700; }
 .set-sec__head .btn { height: 28px; padding-inline: 10px; font-size: 13px; }
-.set-card { border: 1px solid var(--field-edge); border-radius: var(--r-m); background: rgb(0 0 0 / 0.18); }
-.set-row { min-height: 40px; padding: 6px 14px; }
+.set-card { border: 0; border-radius: 0; background: none; overflow: visible; }
+.set-row { min-height: 40px; padding: 4px 0; }
 .set-row--stack { padding-block: 8px; }
 .set-row__label b { color: var(--text); font-size: 13.5px; font-weight: 600; }
 .set .group-help { margin: 0; padding: 0; color: var(--text-3); font-size: 12px; line-height: 16px; }
 .set .input { color: var(--text-2); }
 .set .btn--secondary { border-color: var(--field-edge); background: var(--field); color: var(--text); box-shadow: none; }
 .set .btn--secondary:hover:not(:disabled) { background: var(--field-hover); }
-.set-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; margin: 0; padding: 2px 14px; color: var(--text-2); font-size: 13px; }
+.set-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; margin: 0; padding: 0; color: var(--text-2); font-size: 13px; }
 .set-shortcuts > div { display: flex; justify-content: space-between; gap: 8px; min-height: 38px; align-items: center; }
 .set-shortcuts > div:nth-child(n + 3) { border-top: 1px solid var(--border); }
 .set-shortcuts dt { color: var(--text); font-weight: 550; }
 .set-shortcuts dd { margin: 0; color: var(--text-2); font-weight: 650; }
-.set-rules { padding: 12px 14px; }
-.set-card:has(> .set-rules) { overflow: visible; }
+.set-rules { padding: 0; }
 
 /* ---------- Library and History: the same section card and inner box as Copilot and Settings ---------- */
 .pg-card__head { display: flex; align-items: center; gap: 8px; min-height: 28px; }
 .pg-card__head > .icon { flex: none; color: var(--text-3); }
 .pg-card__head h2 { color: var(--text); font-size: 14px; line-height: 20px; font-weight: 700; }
-.hm-page.lib, .hm-page.hist { gap: 12px; }
+.hm-page.lib, .hm-page.hist { gap: 4px; }
 .pg-head .btn { height: 34px; }
 .lib-tools .seg { padding: 2px; }
-.lib-list, .hist-list { margin: 0; border: 1px solid var(--field-edge); border-radius: var(--r-m); background: rgb(0 0 0 / 0.18); box-shadow: none; }
-.lib-list[data-view="grid"] { gap: 10px; padding: 10px; border: 1px solid var(--field-edge); border-radius: var(--r-m); background: rgb(0 0 0 / 0.18); }
+.lib-list, .hist-list { margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; }
+.lib-list[data-view="grid"] { gap: 6px 10px; padding: 0; border: 0; background: none; }
 .lib-item[data-view="list"] + .lib-item[data-view="list"], .hist-row + .hist-row, .hm-hits li + li { border-top: 1px solid var(--border); }
-.lib-item[data-view="grid"] { border: 1px solid var(--field-edge); border-radius: var(--r-m); background: var(--field); box-shadow: none; transition: transform var(--base) var(--spring), background-color var(--fast); }
-.lib-item[data-view="grid"]:hover { transform: translateY(-2px); background: var(--field-hover); }
+.lib-item[data-view="grid"] { border: 0; border-radius: var(--r-m); background: none; box-shadow: none; overflow: visible; }
+.lib-item[data-view="grid"] .lib-item__main { margin: 0 -10px; padding: 10px; border-radius: var(--r-m); }
 .lib-item__icon { width: auto; }
-.lib-item__main { padding: 12px 52px 12px 14px; }
-.lib-item__main:hover, .hist-row:hover, .hm-hit:hover { background: var(--field-hover); }
+.lib-item { overflow: visible; }
+.lib-item__main { margin: 0 -10px; padding: 10px 52px 10px 10px; border-radius: var(--r-s); }
+.lib-item__main:hover, .hist-row__main:hover, .hm-hit:hover { background: var(--field-hover); }
+.hist-row:hover { background: none; }
 .lib-item__main:active { transform: scale(0.995); }
 .lib-item__text { gap: 4px; }
 .lib-item__text b, .hist-row__text b { color: var(--text); font-size: 14px; font-weight: 650; line-height: 19px; }
 .hist-row__text { gap: 4px; }
-.hist-row__main { padding: 12px 14px; }
+.hist-row { overflow: visible; }
+.hist-row__main { margin: 0 -10px; padding: 10px; border-radius: var(--r-s); }
 .hist-row__mono { display: inline-grid; flex: none; }
-.hm-hit { padding: 10px 14px; }
+.hm-hit { margin: 0 -10px; padding: 10px; border-radius: var(--r-s); }
 
 .hm-viewer__text { border-color: var(--field-edge); background: rgb(0 0 0 / 0.22); color: var(--text); }
 .hm-msg p { border-color: var(--field-edge); background: var(--field); color: var(--text); }
@@ -287,3 +285,6 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .dialog-backdrop { z-index: 100; }
 .dialog { position: fixed; z-index: 101; top: 50%; left: 50%; width: calc(100% - 48px); max-height: calc(100% - 48px); transform: translate(-50%, -50%); animation: fade var(--fast) var(--ease-out); pointer-events: auto; }
 .set-row__control .select { width: 210px; }
+.cp-tile__head > .btn--ghost, .set-sec__head > .btn--ghost { margin-right: -10px; }
+.set .set-sec > .group-help { margin-left: var(--indent); }
+.lib .pg-card { --indent: 0px; }
