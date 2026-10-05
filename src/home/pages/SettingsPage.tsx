@@ -348,7 +348,7 @@ function RulesSection() {
       footer="Applies to every copilot."
       action={<Button size="sm" variant="ghost" icon="edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit</Button>}>
       <div className="set-rules">
-        {rules ? <RichText text={rules.text} lines={2} label="rules" /> : <Skeleton lines={2} />}
+        {rules ? <RichText text={rules.text} lines={4} label="rules" /> : <Skeleton lines={4} />}
       </div>
       {error && !open ? <p className="set-row set-bad" role="alert">{error}</p> : null}
 

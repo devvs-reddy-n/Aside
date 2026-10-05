@@ -177,7 +177,7 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp--tiles .cp-body { display: flex; flex-direction: column; gap: 0; width: 100%; max-width: var(--col); padding: 0 24px 20px; }
 /* One section card shared by the copilot page and Settings. */
 /* Sections have no boxes: a small icon and title, the content set under the title, and a hairline between sections. */
-.cp-tile, .set-sec, .pg-card { --indent: 23px; display: grid; gap: 10px; padding: 18px 0 20px; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.cp-tile, .set-sec, .pg-card { --indent: 23px; display: grid; gap: 10px; padding: 14px 0 16px; border: 0; border-radius: 0; background: none; box-shadow: none; }
 :is(.cp-tile, .set-sec, .pg-card) + :is(.cp-tile, .set-sec, .pg-card) { border-top: 1px solid var(--border); }
 .cp-tile__content, .set-card, .set-sec > .group-help, .pg-card > :not(.pg-card__head) { margin-left: var(--indent); }
 .cp-tile__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; margin: 0; padding: 0; }
@@ -195,7 +195,7 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp-tile .cp-url .btn { height: 28px; padding-inline: 12px; }
 .cp-tile--description .cp-tile__content { display: grid; gap: 10px; }
 .cp-well, .cp-tile--guidance .cp-tile__content, .cp-tile--resume .cp-tile__content { padding: 0; border: 0; background: none; }
-/* Two lines (Description, Guidance, Strict rules), with the arrow sitting on the box's bottom edge so it adds no height. */
+/* Four whole lines (Description, Guidance, Strict rules), then a Show more link. */
 :is(.cp-tile, .set-rules) .rich { gap: 0; }
 :is(.cp-tile, .set-rules) .rich__body { color: var(--text-2); font-size: 13.5px; }
 .cp-tile .rich--empty { min-height: 0; color: var(--text-3); font-size: 13.5px; text-align: left; }
@@ -288,3 +288,12 @@ h1, h2, h3, .cp-title, .pg-head h1 { letter-spacing: -0.02em; }
 .cp-tile__head > .btn--ghost, .set-sec__head > .btn--ghost { margin-right: -10px; }
 .set .set-sec > .group-help { margin-left: var(--indent); }
 .lib .pg-card { --indent: 0px; }
+
+/* One border around each page's sections (not one per section): the page title sits above it, flush with its edge. */
+.cp--tiles .cp-body, .set-grid, .lib .pg-card, .pg-panel { border: 1px solid var(--border); border-radius: var(--r-l); background: rgb(255 255 255 / 0.012); }
+.cp--tiles .cp-body { width: calc(100% - 48px); max-width: calc(var(--col) - 48px); margin: 0 auto 20px; padding: 0 22px; }
+.set-grid, .pg-panel { padding: 0 22px !important; }
+.lib .pg-card { padding: 16px 22px 18px; }
+.pg-panel { display: grid; }
+.pg-panel > .hist-short, .pg-panel > .lib-none { padding-bottom: 16px; }
+

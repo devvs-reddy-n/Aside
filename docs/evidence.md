@@ -372,3 +372,10 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Fixed from the review: Edit and Manage links sat 10px inside the right edge; the Strict rules footnote was not indented; the Library list was indented past its filter row.
 - `ps` showed the running Aside started 19:56, before the 20:08+ builds, which explains the owner's screenshot with the old layout.
 - Not run: the installed app.
+
+## 2026-10-04 - four-line previews and one outer border
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed.
+- Headless Chrome at 1180×860: first try overflowed (Copilot 753 of 739, Settings 824 of 800); after tightening section padding, Copilot 739 of 739, new copilot 739 of 739, Settings 800 of 800. The border spans x 374–1046 on all four pages. Screenshots reviewed for Copilot, Settings, Library and History; the description shows four whole lines and then Show more.
+- `git log --diff-filter=A -- "Aside 2.app"` showed it was added in 7f10ad1.
+- Not run: the installed app.

@@ -181,7 +181,7 @@
 .rich__body p + p, .rich__body p + ul, .rich__body ul + p { margin-top: 6px; }
 .rich__body ul { margin: 0; padding-left: 18px; }
 .rich__body li::marker { color: var(--text-3); }
-.rich__body[data-clipped] { -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+.rich__body[data-clipped] { -webkit-mask-image: linear-gradient(#000 calc(100% - 22px), rgb(0 0 0 / 0.45)); mask-image: linear-gradient(#000 calc(100% - 22px), rgb(0 0 0 / 0.45)); }
 .rich__more { justify-self: start; padding: 0; border: 0; background: none; color: var(--accent-ink); font-size: 13px; font-weight: 560; }
 .rich__more:hover { text-decoration: underline; }
 

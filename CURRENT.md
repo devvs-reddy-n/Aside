@@ -2,11 +2,18 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): no boxes around sections
+## Latest change, 2026-10-04 (latest): four-line previews and one outer border
+
+- Job description, Guidance and Strict rules now show four whole lines before "Show more" (never half a line).
+- Each page's sections sit inside one rounded border, with the page title above it. Sections inside still have no boxes of their own.
+- Space between sections is a little tighter, so Copilot and Settings still fit the window without scrolling.
+- A stray 58 MB copy, `Aside 2.app`, had been committed by mistake in 7f10ad1. It is now removed and `.gitignore` skips copies like it; the file still sits in the unpushed branch history.
+
+## Earlier today: no boxes around sections
 
 - Every section on every page (and in the live window) is now a small icon and title with its content underneath and a thin line between sections. No outer card, no inner box.
 - Only things you use keep a shape: fields, the drop area, menus and buttons.
-- Long text shows two lines with a "Show more" link.
+- Long text shows a few lines with a "Show more" link.
 - AI model, Save transcript and Start session are in the bottom bar. An Aside opened before 20:08 still shows the old top layout until it is quit and reopened.
 
 ## Earlier today: live window in the same style

@@ -4,25 +4,40 @@ import { toBlocks } from "../core/text";
 import { Icon } from "./Icon";
 import { BASE, EASE_OUT } from "./motion";
 
+/** Matches .rich__body line-height in kit.css. */
+const LINE = 22;
+
 /**
- * Shows plain text with its paragraphs and bullets, cut to a few lines with a
- * readable preview. A centered chevron opens the complete text.
+ * Shows plain text with its paragraphs and bullets, cut to a few whole lines
+ * (never half a line). "Show more" opens the complete text.
  */
 export function RichText({ text, lines = 6, empty, onExpand, label = "text", expandable = true }: { text: string | null | undefined; lines?: number; empty?: string; onExpand?: () => void; label?: string; expandable?: boolean }) {
   const body = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [overflows, setOverflows] = useState(false);
-  const clampPx = lines > 0 ? lines * 22 : Infinity;
+  const [clampPx, setClampPx] = useState(lines * LINE);
 
   useLayoutEffect(() => {
     const node = body.current;
     if (!node) return;
-    const measure = () => setOverflows(node.scrollHeight > clampPx + 4);
+    // Cut at the bottom of the last whole line, counting the gaps between paragraphs.
+    const measure = () => {
+      let left = lines;
+      let cut = 0;
+      for (const block of node.querySelectorAll<HTMLElement>("p, li")) {
+        const take = Math.min(Math.max(1, Math.round(block.offsetHeight / LINE)), left);
+        cut = block.offsetTop + take * LINE;
+        left -= take;
+        if (left === 0) break;
+      }
+      setClampPx(cut);
+      setOverflows(node.scrollHeight > cut + 4);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [text, clampPx]);
+  }, [text, lines]);
 
   if (!text?.trim()) return <p className="rich rich--empty">{empty}</p>;
   if (!expandable) return <p className="rich rich--preview selectable" style={{ WebkitLineClamp: lines }}>{text.replace(/\s+/g, " ").trim()}</p>;

@@ -11,6 +11,7 @@ src-tauri/gen/schemas
 
 # Generated app bundle (rebuilt via scripts/build-app.sh)
 /Aside.app
+/Aside *.app
 
 # Third-party reference code (license-restricted, not for redistribution)
 /references/

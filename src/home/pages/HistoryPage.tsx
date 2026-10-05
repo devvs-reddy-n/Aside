@@ -107,7 +107,7 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
           Finished sessions appear here, with their transcript when it was saved.
         </EmptyState>
       ) : (
-        <>
+        <div className="pg-panel">
           {hits.length > 0 ? (
             <section aria-label="Found in conversations" className="pg-card hm-hits">
               <header className="pg-card__head"><Icon name="search" size={15} /><h2>Found in conversations</h2></header>
@@ -144,7 +144,7 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
             </p>
           ) : null}
           {loaded && matching.length === 0 && visible.length > 0 && hits.length === 0 && !searching ? <p className="lib-none">No call matches “{query}”.</p> : null}
-        </>
+        </div>
       )}
 
       {selected ? <SessionSheet session={selected} onClose={() => navigate("history")} /> : null}

@@ -356,7 +356,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
             <div className="cp-well">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div key={importing ? "loading" : "text"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
-                  {importing ? <Skeleton lines={2} /> : <RichText text={input.job_description} lines={2} label="description" empty="Import the job post above, or add the description yourself." />}
+                  {importing ? <Skeleton lines={4} /> : <RichText text={input.job_description} lines={4} label="description" empty="Import the job post above, or add the description yourself." />}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -384,7 +384,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
 
           <Tile name="guidance" title="Guidance" icon="bulb" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
             action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>}>
-            <RichText text={input.instructions} lines={2} label="guidance" empty="Set the tone and what to focus on or avoid." />
+            <RichText text={input.instructions} lines={4} label="guidance" empty="Set the tone and what to focus on or avoid." />
           </Tile>
         </div>
       </div>
