@@ -417,3 +417,7 @@ Owner: move AI model, Save transcript and Start session to the bottom; more padd
 ## 2026-10-04 - Library and History in the same style
 
 Owner asked for Library and History, and the UI overall, to match. Library became one section card: its header row holds the All/Resumes/Documents filter, file search and the list/grid toggle, and files sit in the shared inner box (grid tiles become quiet boxes inside it). History became one card per day, with a calendar icon and the day as the title. Page titles lost their icon boxes and line up at the same height on every page. Detail chips became plain icon-and-text facts, like the resume line on the copilot page. In the call detail window, the title block now sits beside the initial instead of floating mid-header, and your own transcript bubbles are grey so green only marks Aside's suggestion. Rollback: revert this commit.
+
+## 2026-10-04 - live window in the main window's style
+
+Owner asked for the live window to match the rest. It now uses the same pieces: the near-black ground and grey layers (faded by Background), one section card whose title is the question (with a small question or screen icon) and whose dark inner box holds the answer and is the only part that scrolls, boxed 32 to 36px controls in the top and bottom bars, End boxed like them in red, and the main window's floating-menu style for options. Kept from the owner's earlier live-window request: no green, a light neutral Answer button, one question and one answer. Rollback: revert this commit.

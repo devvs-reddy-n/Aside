@@ -356,3 +356,11 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Headless Chrome at 1180×860 with demo data: Library (list and grid), History and the call detail window screenshotted and reviewed. First card spans x 374 to 1046 on Library and History, same as Copilot and Settings. Page title tops measured at 64px on Copilot, Settings, Library and History. Copilot (739 of 739) and Settings (800 of 800) still fit without scrolling.
 - Fixed from the review: call detail title floated in the middle of its header; Settings title sat 2px lower than the others.
 - Not run: the installed app.
+
+## 2026-10-04 - live window restyle
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed.
+- Headless Chrome at 420×600 (demo): waiting question, streamed answer with list and code, options menu, mic failure at 55% over a striped background. Screenshots reviewed.
+- Class audit: every `lv-` class in `live.css` is used by the live window's components.
+- Contrast from values at 100%: lightest grey (#b2b6bc) on the card about 8.5:1.
+- Not run: the real live window in `Aside.app`.

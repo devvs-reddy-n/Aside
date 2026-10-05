@@ -2,7 +2,13 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): Library and History in the same style
+## Latest change, 2026-10-04 (latest): live window in the same style
+
+- The live window uses the main window's pieces: same card, same dark inner box, same boxed buttons, same menu style.
+- The question is the card's title; the answer sits in the inner box and is the only part that scrolls.
+- Still no green in the live window, and Background still sets how see-through it is.
+
+## Earlier today: Library and History in the same style
 
 - Library and History use the same cards, inner boxes, titles and column as Copilot and Settings.
 - Library: one card with the filter, search and list/grid toggle as its header. History: one card per day.

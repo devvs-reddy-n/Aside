@@ -1,9 +1,10 @@
 /*
  * The live window: one question and its answer on a dark, see-through panel
  * (no blur; the desktop shows through a neutral tint). Three parts only: a
- * single top bar, the reading area, and a single bottom bar. No accent
- * colour: depth comes from layered greys, a faint top highlight and a soft
- * shadow. Colour appears only for problems (amber, red) and the status dot.
+ * single top bar, one card holding the question and its answer, and a
+ * single bottom bar. It uses the main window's building blocks: the same
+ * near-black ground, section card, dark inner box and boxed controls. No
+ * accent colour here; colour appears only for problems (amber, red).
  *
  * The Background setting (--alpha, 40–100%) sets how solid the panel, bars
  * and code are; text always stays solid, and below 75% a dark halo keeps
@@ -21,11 +22,14 @@ html.live-window #root {
 
 .lv-root {
   --a: var(--alpha, 0.92);
-  --panel-top: rgb(30 31 34 / var(--a));
-  --panel-bottom: rgb(18 19 21 / var(--a));
-  --layer: rgb(255 255 255 / 0.06);
-  --layer-hover: rgb(255 255 255 / 0.1);
-  --layer-edge: rgb(255 255 255 / 0.08);
+  /* The main window's layers (--bg, --surface, --field), faded by Background. */
+  --panel-top: rgb(16 17 17 / var(--a));
+  --panel-bottom: rgb(11 12 12 / var(--a));
+  --card: rgb(24 25 25 / var(--a));
+  --well: rgb(0 0 0 / calc(var(--a) * 0.2));
+  --layer: var(--field);
+  --layer-hover: var(--field-hover);
+  --layer-edge: var(--field-edge);
   --edge: rgb(255 255 255 / calc(0.04 + var(--a) * 0.06));
   --code-fill: rgb(8 9 10 / max(0.55, var(--a)));
   --code-head-fill: rgb(255 255 255 / 0.04);
@@ -111,7 +115,8 @@ html.live-window #root {
 .lv-chip[data-solid]:hover { background: #fff; }
 
 /* ---------- top bar: everything in one row ---------- */
-.lv-bar { position: relative; display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 7px 0 12px; border-bottom: 1px solid var(--edge); }
+.lv-bar { position: relative; display: flex; align-items: center; gap: 6px; height: 48px; padding: 0 8px 0 14px; }
+.lv-bar > .lv-iconbtn { width: 32px; height: 32px; border: 1px solid var(--layer-edge); border-radius: var(--r-s); background: var(--layer); box-shadow: var(--highlight); }
 .lv-status { display: inline-flex; flex: none; align-items: center; gap: 7px; margin-right: 8px; color: var(--text-2); font-size: 12px; font-weight: 650; }
 .lv-status__dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #d7dade; }
 .lv-status[data-tone="warn"] .lv-status__dot { background: var(--warning); }
@@ -121,12 +126,12 @@ html.live-window #root {
 @keyframes lv-pulse { from { opacity: 0.5; transform: scale(1); } to { opacity: 0; transform: scale(2.6); } }
 
 /* You and Them: icon buttons that light up while sound comes in. */
-.lv-ear { position: relative; display: inline-grid; flex: none; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: var(--text-3); transition: background-color var(--fast), color var(--fast), box-shadow var(--fast); }
+.lv-ear { position: relative; display: inline-grid; flex: none; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--layer-edge); border-radius: var(--r-s); background: var(--layer); box-shadow: var(--highlight); color: var(--text-3); transition: background-color var(--fast), color var(--fast), box-shadow var(--fast); }
 .lv-ear:hover:not(:disabled) { background: var(--layer-hover); color: var(--text); }
-.lv-ear[data-heard] { background: var(--layer); color: var(--text); box-shadow: inset 0 0 0 1px var(--layer-edge); }
-.lv-ear[data-status="off"] { color: var(--text-3); opacity: 0.75; }
+.lv-ear[data-heard] { border-color: rgb(255 255 255 / 0.22); background: var(--layer-hover); color: var(--text); }
+.lv-ear[data-status="off"] { border-style: dashed; color: var(--text-3); }
 .lv-ear[data-status="error"] { color: var(--danger-ink); }
-.lv-ear__slash { position: absolute; width: 18px; height: 1.5px; border-radius: 1px; background: currentColor; transform: rotate(-45deg); box-shadow: 0 0 0 1.5px var(--panel-top); }
+.lv-ear__slash { position: absolute; width: 18px; height: 1.5px; border-radius: 1px; background: currentColor; transform: rotate(-45deg); box-shadow: 0 0 0 1.5px rgb(30 31 31); }
 
 .lv-history { display: inline-flex; flex: none; align-items: center; color: var(--text-2); font-size: 12px; font-weight: 650; }
 .lv-history .lv-iconbtn { width: 26px; }
@@ -137,12 +142,11 @@ html.live-window #root {
   flex: none;
   align-items: center;
   gap: 5px;
-  height: 28px;
-  margin-left: 4px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 12px;
   overflow: hidden;
-  border: 0;
-  border-radius: 9px;
+  border: 1px solid rgb(242 85 95 / 0.3);
+  border-radius: var(--r-s);
   background: rgb(242 85 95 / 0.16);
   color: var(--danger-ink);
   font-size: 12.5px;
@@ -152,17 +156,21 @@ html.live-window #root {
 }
 .lv-end:hover:not(:disabled) { background: rgb(242 85 95 / 0.26); }
 .lv-end:active:not(:disabled) { transform: scale(0.96); }
-.lv-end[data-armed] { background: #a8192b; color: #fff; }
+.lv-end[data-armed] { border-color: transparent; background: #a8192b; color: #fff; }
 .lv-end > * { position: relative; }
 .lv-end__fill { position: absolute !important; inset: 0; background: rgb(0 0 0 / 0.24); transform-origin: left; animation: lv-drain 4s linear forwards; }
 @keyframes lv-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 /* ---------- the question and its answer ---------- */
-.lv-reading { overflow-y: auto; padding: 14px 16px 16px; outline: none; overscroll-behavior: contain; scrollbar-width: thin; }
+/* One section card, like the main window's: the question is its title, the answer sits in the dark inner box and is the only part that scrolls. */
+.lv-reading { display: flex; flex-direction: column; padding: 0 8px; }
+.lv-card { display: flex; flex: 1 1 0; flex-direction: column; gap: 10px; min-height: 0; padding: 12px 12px 12px; border: 1px solid var(--edge); border-radius: var(--r-l); background: var(--card); box-shadow: var(--highlight), 0 1px 2px rgb(0 0 0 / 0.3); }
+.lv-card[data-empty] { flex: none; }
+.lv-card__head { display: flex; flex: none; align-items: flex-start; gap: 8px; padding: 0 4px; }
+.lv-card__head > .icon, .lv-card__head > .lv-spin { flex: none; margin-top: 0.2em; color: var(--text-3); }
+.lv-well { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 12px 14px 14px; border: 1px solid var(--layer-edge); border-radius: var(--r-m); background: var(--well); outline: none; overscroll-behavior: contain; scrollbar-width: thin; }
 .lv-quiet { display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: calc(13.5px * var(--fs, 1)); }
-.lv-question { margin-bottom: 10px; color: var(--text-2); font-size: calc(13.5px * var(--fs, 1)); font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
-.lv-question[data-waiting] { color: var(--text); font-size: calc(15px * var(--fs, 1)); }
-.lv-question[data-waiting] + .lv-quiet { margin-top: 4px; }
+.lv-question { color: var(--text); font-size: calc(14px * var(--fs, 1)); font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
 .lv-answer { color: var(--text); font-size: calc(15px * var(--fs, 1)); line-height: 1.6; overflow-wrap: anywhere; animation: lv-rise var(--base) var(--out) both; }
 .lv-prose { white-space: pre-wrap; }
 .lv-steps { margin: 8px 0 0; padding-left: 1.3em; }
@@ -195,7 +203,7 @@ html.live-window #root {
 .tok-num { color: var(--tok-num); font-style: normal; }
 
 /* ---------- alerts: only when something needs attention ---------- */
-.lv-alert { max-height: 30%; margin: 8px 10px 0; overflow-y: auto; border: 1px solid var(--layer-edge); border-radius: 12px; background: var(--layer); color: var(--text); animation: lv-rise var(--base) var(--out) both; }
+.lv-alert { max-height: 30%; margin: 0 8px 8px; overflow-y: auto; border: 1px solid var(--layer-edge); border-radius: var(--r-m); background: var(--layer); color: var(--text); animation: lv-rise var(--base) var(--out) both; }
 .lv-alert__line { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 4px 4px 8px; }
 .lv-alert__icon { display: grid; flex: none; place-items: center; width: 22px; height: 22px; }
 .lv-alert__line b { display: -webkit-box; flex: 1; min-width: 0; overflow: hidden; font-size: 12.5px; font-weight: 650; line-height: 17px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -213,20 +221,20 @@ html.live-window #root {
 .lv-alert[data-tone="bad"] { border-color: rgb(242 85 95 / 0.32); background: rgb(242 85 95 / 0.1); color: var(--danger-ink); }
 
 /* ---------- bottom bar: one row ---------- */
-.lv-composer { display: flex; align-items: center; gap: 6px; padding: 8px; border-top: 1px solid var(--edge); }
-.lv-ask { display: flex; flex: 1; align-items: center; gap: 4px; min-width: 0; height: 34px; padding: 0 2px 0 12px; border: 1px solid var(--layer-edge); border-radius: 10px; background: var(--layer); transition: border-color var(--fast), background-color var(--fast); }
+.lv-composer { display: flex; align-items: center; gap: 8px; padding: 10px; }
+.lv-ask { display: flex; flex: 1; align-items: center; gap: 4px; min-width: 0; height: 36px; padding: 0 3px 0 14px; border: 1px solid var(--layer-edge); border-radius: var(--r-m); background: var(--layer); box-shadow: var(--highlight); transition: border-color var(--fast), background-color var(--fast); }
 .lv-ask:focus-within { border-color: rgb(255 255 255 / 0.28); background: var(--layer-hover); }
 .lv-ask input { flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: transparent; color: var(--text); font-size: 13px; -webkit-user-select: text; user-select: text; cursor: text; caret-color: var(--text); }
 .lv-ask input::placeholder { color: var(--text-3); }
 .lv-ask .lv-iconbtn { width: 28px; height: 28px; }
-.lv-iconbtn--field { width: 34px; height: 34px; border: 1px solid var(--layer-edge); border-radius: 10px; background: var(--layer); }
-.lv-go { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 7px; height: 34px; padding: 0 16px; border: 0; border-radius: 10px; background: rgb(255 255 255 / 0.92); color: #111214; font-size: 13px; font-weight: 700; white-space: nowrap; box-shadow: 0 1px 2px rgb(0 0 0 / 0.4); transition: background-color var(--fast), transform var(--fast) var(--out); }
+.lv-iconbtn--field { width: 36px; height: 36px; border: 1px solid var(--layer-edge); border-radius: var(--r-s); background: var(--layer); box-shadow: var(--highlight); }
+.lv-go { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 16px; border: 0; border-radius: var(--r-s); background: rgb(255 255 255 / 0.92); color: #111214; font-size: 13px; font-weight: 700; white-space: nowrap; box-shadow: 0 1px 2px rgb(0 0 0 / 0.4); transition: background-color var(--fast), transform var(--fast) var(--out); }
 .lv-go:hover:not(:disabled) { background: #fff; }
 .lv-go:active:not(:disabled) { transform: scale(0.97); }
 .lv-go:disabled { background: rgb(255 255 255 / 0.7); }
 
 /* ---------- window options ---------- */
-.lv-menu { position: absolute; top: 44px; right: 4px; z-index: 30; width: min(280px, calc(100vw - 36px)); max-height: calc(100vh - 70px); padding: 6px; overflow-y: auto; border: 1px solid var(--layer-edge); border-radius: 14px; background: #1c1d20; color: var(--text); box-shadow: 0 18px 40px rgb(0 0 0 / 0.5); outline: none; text-shadow: none; transform-origin: top right; animation: lv-menu-in var(--base) var(--out) both; }
+.lv-menu { position: absolute; top: 46px; right: 6px; z-index: 30; width: min(280px, calc(100vw - 36px)); max-height: calc(100vh - 70px); padding: 6px; overflow-y: auto; border: 0; border-radius: var(--r-l); background: var(--raised); color: var(--text); box-shadow: var(--e3); outline: none; text-shadow: none; transform-origin: top right; animation: lv-menu-in var(--base) var(--out) both; }
 @keyframes lv-menu-in { from { opacity: 0; transform: scale(0.96) translateY(-4px); } }
 .lv-menu__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 38px; padding: 0 8px; font-weight: 600; }
 .lv-menu__row input[type="range"] { flex: 1; min-width: 0; max-width: 130px; accent-color: #e8eaec; }

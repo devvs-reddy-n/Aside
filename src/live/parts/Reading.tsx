@@ -70,17 +70,32 @@ export function Reading() {
   useLayoutEffect(() => { if (box.current) box.current.scrollTop = 0; }, [id]);
   const question = page ? questionOf(page) : null;
 
+  const screenAnswer = page?.kind === "answer" && page.answer.source === "screen";
+
+  // Same shape as the main window's section cards: a small icon and a title
+  // (here, the question), then the answer in the dark inner box, which is the
+  // only part that scrolls.
   return (
-    <div ref={box} className="lv-reading" tabIndex={0} aria-live="polite">
-      {capturing ? (
-        <p className="lv-quiet" role="status"><span className="lv-spin" aria-hidden="true" />Reading your screen…</p>
-      ) : !page ? (
-        <p className="lv-quiet">{paused || resting ? "Listening is paused." : "Listening. The next question shows here."}</p>
+    <div className="lv-reading">
+      {capturing || !page ? (
+        <section className="lv-card" data-empty="">
+          <header className="lv-card__head">
+            {capturing ? <span className="lv-spin" aria-hidden="true" /> : <Icon name={paused || resting ? "pause" : "wave"} size={15} />}
+            <p className="lv-quiet" role="status">{capturing ? "Reading your screen…" : paused || resting ? "Listening is paused." : "Listening. The next question shows here."}</p>
+          </header>
+        </section>
       ) : (
-        <>
-          {question ? <p className="lv-question selectable" data-waiting={page.kind === "question" || undefined}>{question}</p> : null}
-          {page.kind === "answer" ? <AnswerText key={page.answer.id} answer={page.answer} /> : <p className="lv-quiet">Press Answer when you're ready.</p>}
-        </>
+        <section className="lv-card">
+          {question ? (
+            <header className="lv-card__head">
+              <Icon name={screenAnswer ? "screen" : "question"} size={15} />
+              <p className="lv-question selectable">{question}</p>
+            </header>
+          ) : null}
+          <div ref={box} className="lv-well" tabIndex={0} aria-live="polite">
+            {page.kind === "answer" ? <AnswerText key={page.answer.id} answer={page.answer} /> : <p className="lv-quiet">Press Answer when you're ready.</p>}
+          </div>
+        </section>
       )}
     </div>
   );
