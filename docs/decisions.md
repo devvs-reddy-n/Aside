@@ -405,3 +405,7 @@ Owner: "One straight question and answer window, that's it." Removed the Thread 
 ## 2026-10-04 - copilot page fits one screen; main window solid
 
 Owner: sections must be minimal and all on one page with no scrolling; Description and Guidance show two lines with an arrow that shows the full text; the see-through main window background "is not good", make it fully tinted. Sections lost their round icons (small icon beside the title instead) and tightened spacing; the header title went 28px → 24px. The expand arrow sits on the text box's bottom edge so it costs no height. The main window is no longer transparent at the window level (`transparent: false`, background #0b0c0c) and paints solid near-black; the live window keeps its Background slider. If macOS shrinks the window to fit a small screen (minimum 960×640), the page scrolls again; that is accepted. Rollback: revert this commit.
+
+## 2026-10-04 - Settings in the same minimal style
+
+Owner asked for Settings to match the copilot page. Settings sections now use the copilot section card (one shared CSS rule for `.cp-tile` and `.set-sec`): small icon beside the title, same padding, same inner box; the page title lost its icon box and matches the copilot title size; Strict rules shows two lines with the same edge arrow. The round section icons (`ToneIcon`) and the five section-colour tokens had no users left and were deleted. Every page's column now has the copilot page's exact edges (Library and History became 48px narrower). Rollback: revert this commit.

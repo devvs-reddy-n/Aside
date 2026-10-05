@@ -334,3 +334,10 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Clicked the description arrow: full text with paragraphs and bullets opened in place; clicked again: back to two lines. Screenshots reviewed.
 - Demo data only: the demo copilot's description and guidance were lengthened in `src/bridge/mock.ts` to test the worst case.
 - Not run: the solid background in the installed `Aside.app`.
+
+## 2026-10-04 - Settings minimal style
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed.
+- Headless Chrome at 1180×860 (dev server, demo data), measured in the page: Settings, copilot, Library and History all fit with no scrolling (scroll height 800 = visible 800), and their first card spans x 374 to 1046 on every page. Settings and copilot screenshots reviewed.
+- Strict rules arrow clicked headlessly: it opened (aria-expanded true, box 202px tall).
+- Not run: the installed app.

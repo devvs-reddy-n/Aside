@@ -2,7 +2,13 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): copilot page on one screen, solid main window
+## Latest change, 2026-10-04 (latest): Settings in the same minimal style
+
+- Settings sections look exactly like the copilot sections: small icon beside the title, same card, same inner box.
+- Strict rules shows two lines with the arrow to open the rest.
+- Settings fits the window without scrolling, and all four pages line up on the same edges.
+
+## Earlier today: copilot page on one screen, solid main window
 
 - All five copilot sections now fit the window with no scrolling (checked with long text).
 - Sections are smaller and plainer: a small icon beside each title instead of a big round one.

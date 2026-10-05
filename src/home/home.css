@@ -303,8 +303,6 @@
 .set-inline .btn { height: 28px; padding-inline: 10px; font-size: 12px; }
 .set-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--set-secondary); font-size: 11.5px; }
 .set-bad { color: var(--danger-ink); font-size: 12px; }
-.set-rules { padding: 4px 0; }
-.set-rules__preview { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; min-height: 90px; margin: 0; color: var(--set-ink); font-size: 12px; line-height: 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
 #st-shortcuts .set-row { min-height: 36px; padding-block: 4px; }
 #st-shortcuts .set-row__label b { line-height: 16px; }
 #st-shortcuts .set-row__label { display: grid; gap: 0; }

@@ -54,13 +54,6 @@
   --hover: rgb(255 255 255 / 0.06);
   --press: rgb(255 255 255 / 0.1);
 
-  /* Sections share one quiet look; the names stay so markup can keep them. */
-  --tone-bg: transparent;
-  --tone-soft: rgb(255 255 255 / 0.06);
-  --tone-icon: var(--text-2);
-  --tone-ink: var(--text);
-  --tone-solid: var(--accent-solid);
-
   /* shape: one radius scale everywhere */
   --r-xs: 8px;
   --r-s: 10px;
@@ -139,6 +132,3 @@
   --t-med: var(--base);
   --t-slow: var(--slow);
 }
-
-/* Every section reads the same quiet --t-* set; data-tone stays in markup only as a name. */
-[data-tone] { --t-bg: var(--tone-bg); --t-soft: var(--tone-soft); --t-icon: var(--tone-icon); --t-ink: var(--tone-ink); --t-solid: var(--tone-solid); }

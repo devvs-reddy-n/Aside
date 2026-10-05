@@ -39,17 +39,6 @@ export function Callout({ tone = "info", title, children, actions }: { tone?: "i
   );
 }
 
-export type Tone = "blue" | "green" | "purple" | "amber" | "rose";
-
-/** A soft round badge holding a section's icon in its colour. */
-export function ToneIcon({ tone, icon, size = 40 }: { tone: Tone; icon: IconName; size?: number }) {
-  return (
-    <span className="tone-icon" data-tone={tone} style={{ width: size, height: size }} aria-hidden="true">
-      <Icon name={icon} size={Math.round(size * 0.48)} strokeWidth={2} />
-    </span>
-  );
-}
-
 const FILE_TILES: Record<string, { label: string; kind: string }> = {
   Word: { label: "W", kind: "word" },
   PDF: { label: "PDF", kind: "pdf" },
