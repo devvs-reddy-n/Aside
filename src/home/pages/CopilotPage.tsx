@@ -8,7 +8,7 @@ import { displayFileName, fileKind, isWebUrl, wordCount } from "../../core/text"
 import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Select, Toggle } from "../../kit/Form";
-import { FileTile, ToneIcon, type Tone } from "../../kit/Bits";
+import { FileTile } from "../../kit/Bits";
 import { Icon, type IconName } from "../../kit/Icon";
 import { Menu } from "../../kit/Menu";
 import { EASE_OUT, FAST } from "../../kit/motion";
@@ -103,21 +103,18 @@ function SaveIndicator({ state }: { state: SaveState }) {
 }
 
 /** One copilot section: a pastel card with its round coloured icon, heading, help and content. */
-function Tile({ name, title, tone, icon, helper, children, action }: { name: string; title: string; tone: Tone; icon: IconName; helper?: ReactNode; children: ReactNode; action?: ReactNode }) {
+function Tile({ name, title, icon, helper, children, action }: { name: string; title: string; icon: IconName; helper?: ReactNode; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className={`cp-tile cp-tile--${name} tcard`} data-tone={tone} aria-label={title}>
-      <ToneIcon tone={tone} icon={icon} />
-      <div className="tcard__main">
-        <header className="cp-tile__head">
-          <div className="cp-tile__label"><h2>{title}</h2>{helper ? (
-            <Popover side="bottom" trigger={<button type="button" className="cp-info" aria-label={`About ${title}`}><Icon name="info" size={15} /></button>}>
-              <div className="cp-help">{helper}</div>
-            </Popover>
-          ) : null}</div>
-          {action}
-        </header>
-        <div className="cp-tile__content">{children}</div>
-      </div>
+    <section className={`cp-tile cp-tile--${name}`} aria-label={title}>
+      <header className="cp-tile__head">
+        <div className="cp-tile__label"><Icon name={icon} size={15} /><h2>{title}</h2>{helper ? (
+          <Popover side="bottom" trigger={<button type="button" className="cp-info" aria-label={`About ${title}`}><Icon name="info" size={14} /></button>}>
+            <div className="cp-help">{helper}</div>
+          </Popover>
+        ) : null}</div>
+        {action}
+      </header>
+      <div className="cp-tile__content">{children}</div>
     </section>
   );
 }
@@ -359,7 +356,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
       </header>
 
       <div className="cp-body">
-        <Tile name="url" title="Job URL" tone="blue" icon="link" helper="Import the role from its job posting.">
+        <Tile name="url" title="Job URL" icon="link" helper="Import the role from its job posting.">
           <div className="cp-url">
             <Icon name="link" size={15} />
             <input ref={urlField} value={importUrl} placeholder="Paste job post URL" aria-label="Job post URL" aria-invalid={importError ? true : undefined}
@@ -370,22 +367,22 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
           {importError ? <p className="cp-error" role="alert">{importError}</p> : null}
         </Tile>
 
-        <Tile name="description" title="Description" tone="green" icon="doc" helper="Aside reads this before every answer."
+        <Tile name="description" title="Description" icon="doc" helper="Aside reads this before every answer."
           action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("job")}>{input.job_description ? "Edit" : "Add"}</Button>}>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={importing ? "loading" : "text"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
-              {importing ? <Skeleton lines={5} /> : <RichText text={input.job_description} lines={5} expandable={false} empty="Import a job URL, or add the description yourself." />}
+              {importing ? <Skeleton lines={2} /> : <RichText text={input.job_description} lines={2} label="description" empty="Import a job URL, or add the description yourself." />}
             </motion.div>
           </AnimatePresence>
         </Tile>
 
-        <Tile name="resume" title="Resume" tone="purple" icon="file" helper="Your experience, ready for each answer.">
+        <Tile name="resume" title="Resume" icon="file" helper="Your experience, ready for each answer.">
           {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
             <ResumeCard doc={resume} onPreview={() => setViewing(resume)} onReplace={() => setPicking(true)} />
           ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
         </Tile>
 
-        <Tile name="supporting" title="Supporting files" tone="amber" icon="folder" helper="Add notes, project details or other useful context."
+        <Tile name="supporting" title="Supporting files" icon="folder" helper="Add notes, project details or other useful context."
           action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
           {chosenExtras.length > 0 ? <ul className="file-chips">
             {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
@@ -399,9 +396,9 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
           </div>
         </Tile>
 
-        <Tile name="guidance" title="Guidance" tone="rose" icon="bulb" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
+        <Tile name="guidance" title="Guidance" icon="bulb" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
           action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>}>
-          <RichText text={input.instructions} lines={5} expandable={false} empty="Set the tone and what to focus on or avoid." />
+          <RichText text={input.instructions} lines={2} label="guidance" empty="Set the tone and what to focus on or avoid." />
         </Tile>
       </div>
 

@@ -18,8 +18,8 @@ const DAY = 86_400_000;
 let copilots: CopilotSummary[] = [
   {
     id: "c1", name: "Nimbus platform interview", company: "Nimbus", target_role: "Senior Platform Engineer",
-    job_description: "Own the reliability of our multi-region API platform. Work with product teams on rate limiting, observability and incident response.",
-    instructions: "Keep answers under a minute. Lead with the outcome, then the how.", save_transcript: true,
+    job_description: "Own the reliability of our multi-region API platform. Work with product teams on rate limiting, observability and incident response.\n\nWhat you'll do:\n- Design and run the global traffic layer across three regions\n- Lead incident reviews and turn them into lasting fixes\n- Build the tooling that keeps deploys safe at 400 releases a week\n\nYou have eight or more years running large distributed systems, strong Go or Rust, and you explain trade-offs clearly to people outside engineering.",
+    instructions: "Keep answers under a minute. Lead with the outcome, then the how. Mention the payments migration when reliability comes up, and keep numbers concrete. Avoid jargon unless they use it first.", save_transcript: true,
     llm_provider: "open_ai", llm_model: "gpt-5.6-luna", created_at_ms: now - 6 * DAY, updated_at_ms: now - 2 * 3_600_000,
     document_count: 3, has_resume: true,
   },

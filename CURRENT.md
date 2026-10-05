@@ -2,7 +2,14 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (later): minimal live window
+## Latest change, 2026-10-04 (latest): copilot page on one screen, solid main window
+
+- All five copilot sections now fit the window with no scrolling (checked with long text).
+- Sections are smaller and plainer: a small icon beside each title instead of a big round one.
+- Description and Guidance show two lines; an arrow on the box edge opens the full text, and clicking it again closes it.
+- The main window is solid near-black now: nothing behind it shows through. The live window still has its Background slider.
+
+## Earlier today: minimal live window
 
 The live window is now just one question and its answer:
 - **Top bar, one row:** status dot and call clock, You and Them icons, ‹ 2/5 › history, options, End.

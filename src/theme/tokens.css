@@ -1,7 +1,7 @@
 /*
- * Aside design tokens: one near-black, see-through look for both windows.
- * Each window is transparent and paints a dark tint, so the desktop shows
- * through softly; nothing blurs it. Neutrals are plain greys with no colour
+ * Aside design tokens: one near-black look for both windows. The main
+ * window is solid; the live window paints a dark tint whose strength the
+ * person sets, so the desktop can show through; nothing blurs it. Neutrals are plain greys with no colour
  * cast. One deep emerald is the only accent, kept for the main action, the
  * current place and things that are on. Depth comes from layered surfaces,
  * soft shadows and a faint top highlight.

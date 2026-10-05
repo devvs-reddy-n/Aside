@@ -326,3 +326,11 @@ Add only the command, test, inspection, or owner observation that actually occur
 - CSS class audit: every `lv-` class used in `src/live` is defined in `live.css` and every defined one is used.
 - Contrast from token values at 100%: lightest grey text (#b2b6bc) 8.0:1 on the panel top, 9.0:1 at the bottom.
 - Not run: the real live window in `Aside.app`.
+
+## 2026-10-04 - copilot page on one screen, solid main window
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed; `cargo build` passed (config change: main window `transparent: false`, `backgroundColor`).
+- Browser preview at 1180×860 with a long demo description (four paragraphs and a list) and a three-sentence guidance: page scroll height 800 = visible height 800, so nothing scrolls; section heights 96 / 122 / 116 / 134 / 122 px.
+- Clicked the description arrow: full text with paragraphs and bullets opened in place; clicked again: back to two lines. Screenshots reviewed.
+- Demo data only: the demo copilot's description and guidance were lengthened in `src/bridge/mock.ts` to test the worst case.
+- Not run: the solid background in the installed `Aside.app`.
