@@ -77,7 +77,6 @@
 .hm-page > * { flex: none; }
 .pg-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); min-height: 40px; }
 .pg-head h1 { display: flex; align-items: baseline; gap: 10px; font: 650 23px/30px var(--font-display); letter-spacing: -0.02em; }
-.pg-count { color: var(--text-3); font-size: 15px; font-weight: 500; letter-spacing: 0; }
 .pg-head__actions { display: flex; flex: none; gap: var(--s2); }
 .hm-drop { position: absolute; inset: 60px 16px 16px; z-index: 10; display: grid; place-content: center; justify-items: center; gap: 10px; border: 2px dashed var(--accent); border-radius: var(--r-l); background: color-mix(in srgb, var(--accent-soft) 88%, var(--surface)); color: var(--accent-ink); font-weight: 650; pointer-events: none; }
 

@@ -387,3 +387,11 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Pressing Add URL in the demo showed the link field and put the cursor in it (focused element: "Job post URL").
 - Screenshots reviewed: Copilot (closed and with the link field open), Settings, live window.
 - Not run: the installed app; a real job-post import.
+
+## 2026-10-04 - Library and History match the copilot page
+
+- `npx tsc --noEmit` passed; `npm test` 60 pass / 0 fail; `npm run build` passed; `cargo build` passed.
+- The Resume to Supporting files block was diffed against 4939e96 (before the side-by-side change): identical.
+- Headless Chrome at 1180×860: Copilot 754 of 754, new copilot 754 of 754, Library 812 of 812, History 812 of 812 (no scrolling). Library's Add files and the copilot's Start session both end at x 1046, 18px from the bottom; Library at 1180×640 the same.
+- Screenshots reviewed: Copilot, Library, History.
+- Not run: the installed app.

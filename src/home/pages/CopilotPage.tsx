@@ -130,7 +130,7 @@ function TextSheet({ open, title, value, placeholder, onChange, onClose }: {
   );
 }
 
-function ResumeCard({ doc, onPreview }: { doc: StoredDocument; onPreview: () => void }) {
+function ResumeCard({ doc, onPreview, onReplace }: { doc: StoredDocument; onPreview: () => void; onReplace: () => void }) {
   return (
     <div className="file-card">
       <FileTile kind={fileKind(doc.file_name, doc.mime_type)} />
@@ -138,7 +138,10 @@ function ResumeCard({ doc, onPreview }: { doc: StoredDocument; onPreview: () => 
         <b title={doc.file_name}>{displayFileName(doc.file_name)}</b>
         <small>{[fileKind(doc.file_name, doc.mime_type), formatBytes(doc.byte_size), `Added ${formatDate(doc.created_at_ms)}`].filter(Boolean).join(" · ")}</small>
       </div>
-      <IconButton icon="eye" label="Preview resume" onClick={onPreview} />
+      <div className="file-card__actions">
+        <Button size="sm" variant="secondary" icon="eye" aria-label="Preview resume" title="Preview resume" onClick={onPreview}>Preview</Button>
+        <Button size="sm" variant="secondary" onClick={onReplace}>Replace</Button>
+      </div>
     </div>
   );
 }
@@ -376,29 +379,25 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
             </div>
           </Tile>
 
-          {/* Resume and Supporting files sit side by side. */}
-          <div className="cp-pair">
-            <Tile name="resume" title="Resume" icon="file" helper="Your experience, ready for each answer."
-              action={resume ? <Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Replace</Button> : undefined}>
-              {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
-                <ResumeCard doc={resume} onPreview={() => setViewing(resume)} />
-              ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
-            </Tile>
+          <Tile name="resume" title="Resume" icon="file" helper="Your experience, ready for each answer.">
+            {!sourcesReady ? <Skeleton lines={2} /> : resume ? (
+              <ResumeCard doc={resume} onPreview={() => setViewing(resume)} onReplace={() => setPicking(true)} />
+            ) : <button type="button" className="file-empty" onClick={() => setPicking(true)}><Icon name="plus" size={15} />Choose a resume</button>}
+          </Tile>
 
-            <Tile name="supporting" title="Supporting files" icon="folder" helper="Add notes, project details or other useful context."
-              action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
-              {chosenExtras.length > 0 ? <ul className="file-chips">
-                {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
-                  <Icon name="note" size={13} /><span title={doc.file_name}>{displayFileName(doc.file_name)}</span>
-                  <button type="button" aria-label={`Remove ${doc.file_name}`} onClick={() => set("document_ids", input.document_ids.filter((id) => id !== doc.id))}><Icon name="x" size={12} /></button>
-                </li>)}
-                {chosenExtras.length > 2 ? <li><button type="button" className="cp-more-files" onClick={() => setPicking(true)}>+{chosenExtras.length - 2} more</button></li> : null}
-              </ul> : null}
-              <div className="dropzone" data-over={dropOver || undefined}>
-                <Icon name="upload" size={18} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
-              </div>
-            </Tile>
-          </div>
+          <Tile name="supporting" title="Supporting files" icon="folder" helper="Add notes, project details or other useful context."
+            action={<Button size="sm" variant="ghost" onClick={() => setPicking(true)}>Manage{chosenExtras.length ? ` · ${chosenExtras.length}` : ""}</Button>}>
+            {chosenExtras.length > 0 ? <ul className="file-chips">
+              {chosenExtras.slice(0, 2).map((doc) => <li key={doc.id}>
+                <Icon name="note" size={13} /><span title={doc.file_name}>{displayFileName(doc.file_name)}</span>
+                <button type="button" aria-label={`Remove ${doc.file_name}`} onClick={() => set("document_ids", input.document_ids.filter((id) => id !== doc.id))}><Icon name="x" size={12} /></button>
+              </li>)}
+              {chosenExtras.length > 2 ? <li><button type="button" className="cp-more-files" onClick={() => setPicking(true)}>+{chosenExtras.length - 2} more</button></li> : null}
+            </ul> : null}
+            <div className="dropzone" data-over={dropOver || undefined}>
+              <Icon name="upload" size={18} /><span>Drop files or <button type="button" onClick={() => void addFiles("other")}>browse</button></span>
+            </div>
+          </Tile>
 
           <Tile name="guidance" title="Guidance" icon="bulb" helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
             action={<Button size="sm" variant="ghost" icon="edit" onClick={() => setSheet("guidance")}>{input.instructions ? "Edit" : "Add"}</Button>}>

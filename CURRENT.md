@@ -2,13 +2,19 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): floating buttons, side-by-side files, Add URL, Geist
+## Latest change, 2026-10-04 (latest): Library and History match the copilot page
+
+- Library and History headers now look like a copilot's: the title, then a grey line under it ("4 files", "3 calls").
+- Library's Paste text and Add files float at the bottom right, in the same spot and style as Start session.
+- Resume and Supporting files are stacked again (owner's request), with Preview and Replace back on the resume.
+
+## Earlier today: floating buttons, side-by-side files, Add URL, Geist
 
 - The search box at the top is gone, along with the search pop-up and the pieces only it used.
 - The whole app uses the Geist font (it was Plus Jakarta Sans).
 - The inside of each page's border is slightly grey.
 - No bottom bar: AI model, Save transcript and Start session float at the bottom right.
-- Resume and Supporting files sit side by side. Replace moved up beside the Resume title; Preview is an eye button.
+- Resume and Supporting files sat side by side briefly; stacked again in the next change.
 - The job-post link field shows only after pressing Add URL (far right of Job description, beside Edit). It closes again after an import or with Escape.
 - Corners are rounder everywhere (the radius scale went up by about a third), including the sidebar and the live window.
 

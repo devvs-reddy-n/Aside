@@ -169,10 +169,9 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
   return (
     <div className="hm-page lib">
       <header className="pg-head">
-        <h1>Library <span className="pg-count tabular">{counts.all}</span></h1>
-        <div className="pg-head__actions">
-          <Button variant="secondary" icon="note" onClick={() => setPasting(true)}>Paste text</Button>
-          <Button variant="primary" icon="upload" busy={busy} onClick={pick}>Add files</Button>
+        <div className="pg-head__titles">
+          <h1>Library</h1>
+          {loaded ? <p className="pg-sub tabular">{plural(counts.all, "file")}</p> : null}
         </div>
       </header>
 
@@ -229,6 +228,14 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
           </ul>
         </section>
       )}
+
+      {/* Like Start session on a copilot: the page's actions float at the bottom right. */}
+      {counts.all > 0 ? (
+        <div className="pg-float">
+          <Button variant="secondary" icon="note" onClick={() => setPasting(true)}>Paste text</Button>
+          <Button variant="primary" icon="upload" busy={busy} onClick={pick}>Add files</Button>
+        </div>
+      ) : null}
 
       <AnimatePresence>
         {over ? (

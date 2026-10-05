@@ -89,7 +89,10 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   return (
     <div className="hm-page hist">
       <header className="pg-head">
-        <h1>History {visible.length > 0 ? <span className="pg-count tabular">{visible.length}</span> : null}</h1>
+        <div className="pg-head__titles">
+          <h1>History</h1>
+          {visible.length > 0 ? <p className="pg-sub tabular">{plural(visible.length, "call")}</p> : null}
+        </div>
       </header>
 
       {error ? <Callout tone="bad" title="Couldn't load your history">{error}</Callout> : null}
