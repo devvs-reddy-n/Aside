@@ -416,3 +416,9 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Checked that no code saves or restores the main window size, so the new size applies on launch.
 - Screenshots reviewed: Copilot, Settings.
 - Not run: the installed app.
+
+## 2026-10-04 - app icon is the emerald mark
+
+- Rendered the icon at 1024×1024 with a transparent background in headless Chrome; viewed the result. Built `icon.icns` with `iconutil` from a 10-size iconset made with `sips`.
+- `./scripts/build-app.sh` rebuilt Aside.app with the new icon; codesign verify passed.
+- Not checked: how the Dock and Finder display it (macOS can keep showing a cached old icon for a while).

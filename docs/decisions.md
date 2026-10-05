@@ -453,3 +453,7 @@ Owner marked the empty space around the content and noted the window size is fix
 ## 2026-10-04 - smaller fixed window; buttons under the panel
 
 Owner found the panel too wide and the gap between it and the bottom controls too big, and asked for a smaller window. Main window 1180×860 became 1000×800 (still not resizable; screen-fit minimum 960×640 unchanged). 1000×780 was tried first but the copilot page overflowed by 19px with the job link field open, so 800 tall. The copilot's controls moved inside the scrolling area, right after the panel, and stick to the bottom only if the page grows past the window; Library's floating buttons follow the same rule. The Strict rules title and "Applies to every copilot." note were removed, leaving only the button. Rollback: revert this commit.
+
+## 2026-10-04 - app icon is the emerald mark
+
+Owner sent the sidebar's emerald logo (32px) and asked for it to replace the current logo; the in-app logo already matched, so the change is the app icon (`src-tauri/icons/icon.icns` and `icon.png`), which was a black arrow with the "ASIDE" wordmark on white. Redrawn at 1024px from the same source (the `mark` path in `src/kit/Icon.tsx` and the emerald gradient) rather than upscaling the 32px image, on the standard macOS 824px rounded square with a soft shadow, then exported at 16-1024px with `sips` and `iconutil`. Rollback: revert this commit.

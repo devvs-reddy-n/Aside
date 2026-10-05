@@ -2,7 +2,11 @@
 
 **PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
 
-## Latest change, 2026-10-04 (latest): smaller window, buttons under the panel
+## Latest change, 2026-10-04 (latest): new app icon
+
+- The app icon (Dock, Finder, app switcher) is now the emerald rounded square with the white Aside mark, the same mark as the sidebar logo. It replaces the black arrow and "ASIDE" wordmark on white.
+
+## Earlier today: smaller window, buttons under the panel
 
 - The main window is smaller: 1000 × 800 (was 1180 × 860). Still fixed size; every page still fits without scrolling, even with the job link field open.
 - AI model, Save transcript and Start session (and Library's Paste text and Add files) sit just under the panel instead of at the window's bottom edge.
