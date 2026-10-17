@@ -23,6 +23,9 @@ pub mod resample;
 pub mod speechmatics;
 pub mod speechmatics_live;
 pub mod wav;
+pub mod vocabulary;
+pub mod connection;
+mod speechmatics_buffer;
 
 use serde::{Deserialize, Serialize};
 
@@ -192,6 +195,7 @@ pub struct Transcript {
 /// when transcription stops — not on every speaking-light pause.
 #[async_trait::async_trait]
 pub trait SttEngine: Send {
+    fn connection_status(&self) -> Option<tokio::sync::watch::Receiver<connection::SpeechConnection>> { None }
     /// Buffers audio for later transcription. `samples` are mono `f32` in
     /// `[-1.0, 1.0]`.
     fn push_audio(&mut self, samples: &[f32], sample_rate: u32);
@@ -209,7 +213,7 @@ pub trait SttEngine: Send {
 
     /// Releases any held resources (open sockets, buffers). Takes `self` by
     /// value via `Box` so it can be called on a `Box<dyn SttEngine>`.
-    async fn shutdown(self: Box<Self>);
+    async fn shutdown(self: Box<Self>) -> Vec<Transcript>;
 }
 
 #[cfg(test)]

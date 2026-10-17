@@ -143,13 +143,12 @@ fn session_glossary(app: &AppHandle, db: &Db) -> Vec<String> {
         if let Ok(gl) =
             crate::storage::knowledge::glossary(&conn, sid, crate::storage::knowledge::GLOSSARY_CAP)
         {
-            for t in gl {
-                if !terms.iter().any(|e| e.eq_ignore_ascii_case(&t)) {
-                    terms.push(t);
-                }
-                if terms.len() >= crate::storage::knowledge::GLOSSARY_CAP {
-                    break;
-                }
+            crate::stt::vocabulary::merge(&mut terms, gl);
+            if let Ok(Some(session)) = crate::storage::sessions::get(&conn, sid) {
+                let role_terms = crate::stt::vocabulary::extract(None, Some(&session.title));
+                let mut prioritized = role_terms;
+                crate::stt::vocabulary::merge(&mut prioritized, terms);
+                terms = prioritized;
             }
         }
     }
@@ -181,7 +180,17 @@ async fn build_engine(
                 let conn = db.0.lock().unwrap_or_else(|p| p.into_inner());
                 config.language = crate::commands::overlay::current_language(&conn);
             }
-            Ok(Box::new(SpeechmaticsLiveEngine::start(key, config)))
+            // Connection states only (connecting / ready / retrying / failed,
+            // with the provider's error kind). Never the key, audio, words or
+            // vocabulary. Lets a vague "Speechmatics rejected" be diagnosed.
+            let log = app
+                .path()
+                .app_log_dir()
+                .map(|dir| dir.join("speechmatics-connection.log"));
+            Ok(Box::new(match log {
+                Ok(path) => SpeechmaticsLiveEngine::start_with_diagnostics(key, config, path),
+                Err(_) => SpeechmaticsLiveEngine::start(key, config),
+            }))
         }
         EngineKind::ParakeetLocal => {
             let dir = models_dir(app)?;
@@ -257,6 +266,12 @@ pub(crate) async fn start_channel_transcription_inner(
     // mic/system audio captured during that gap would otherwise have nowhere
     // to go and be silently lost rather than just delayed. See
     // `pipeline::prepare_route`'s doc comment for the full reasoning.
+    //
+    // Starts are serialized per channel and the previous engine is fully
+    // closed first, so an old cloud session never overlaps a new one or
+    // leaks its last words into the new call.
+    let _one_start = routing.start_lock(channel).lock().await;
+    pipeline::stop_and_wait(routing, channel).await;
     let prepared = pipeline::prepare_route(routing, channel);
     let engine = match build_engine(app, db, engine_kind).await {
         Ok(engine) => engine,
@@ -265,6 +280,7 @@ pub(crate) async fn start_channel_transcription_inner(
             return Err(err);
         }
     };
+    let connection = engine.connection_status();
     pipeline::start_with_prepared_route(
         app.clone(),
         prepared,
@@ -272,6 +288,15 @@ pub(crate) async fn start_channel_transcription_inner(
         session_id,
         engine_kind.origin_db_value(),
     );
+    // A saved key is not proof the service accepted the session. "Started"
+    // means Speechmatics answered RecognitionStarted; audio captured while
+    // waiting is queued and sent the moment it does.
+    if let Some(connection) = connection {
+        if let Err(err) = crate::stt::connection::wait_ready(connection).await {
+            pipeline::stop_and_wait(routing, channel).await;
+            return Err(err);
+        }
+    }
     Ok(())
 }
 

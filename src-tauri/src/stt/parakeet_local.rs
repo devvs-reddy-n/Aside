@@ -244,7 +244,7 @@ impl SttEngine for ParakeetLocalEngine {
         Ok(out.into_iter().filter(|t| t.is_final).collect())
     }
 
-    async fn shutdown(self: Box<Self>) {}
+    async fn shutdown(self: Box<Self>) -> Vec<Transcript> { Vec::new() }
 }
 
 #[cfg(test)]

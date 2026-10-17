@@ -55,7 +55,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::sync::mpsc as tokio_mpsc;
+use tokio::sync::{mpsc as tokio_mpsc, watch};
 use uuid::Uuid;
 
 use crate::audio::channel::{Channel, StreamMsg, StreamRoute};
@@ -77,12 +77,34 @@ pub struct TranscriptionRouting {
     pub mic: StreamRoute,
     pub system: StreamRoute,
     running: Mutex<RunningState>,
+    /// One start at a time per channel, so a double click cannot build two
+    /// cloud sessions that compete for the same Speechmatics slot.
+    mic_start: tokio::sync::Mutex<()>,
+    system_start: tokio::sync::Mutex<()>,
+}
+
+impl TranscriptionRouting {
+    pub fn start_lock(&self, channel: Channel) -> &tokio::sync::Mutex<()> {
+        match channel {
+            Channel::Mic => &self.mic_start,
+            Channel::System => &self.system_start,
+        }
+    }
 }
 
 #[derive(Default)]
 struct RunningState {
-    mic: Option<Arc<AtomicBool>>,
-    system: Option<Arc<AtomicBool>>,
+    mic: ChannelTask,
+    system: ChannelTask,
+}
+
+/// `active` is the running task's stop flag. `finishing` tells when the most
+/// recently stopped task has flushed and closed its engine.
+#[derive(Default)]
+struct ChannelTask {
+    active: Option<Arc<AtomicBool>>,
+    done: Option<watch::Receiver<bool>>,
+    finishing: Vec<watch::Receiver<bool>>,
 }
 
 /// One transcript segment emitted to the frontend over `mic-transcript` /
@@ -149,6 +171,7 @@ pub struct PreparedRoute {
     channel: Channel,
     tokio_rx: tokio_mpsc::UnboundedReceiver<StreamMsg>,
     stop_flag: Arc<AtomicBool>,
+    done: watch::Sender<bool>,
 }
 
 /// Installs `channel`'s audio route immediately and returns a handle to
@@ -195,19 +218,19 @@ pub fn prepare_route(routing: &TranscriptionRouting, channel: Channel) -> Prepar
         .unwrap_or_else(|p| p.into_inner()) = Some(std_tx);
 
     let stop_flag = Arc::new(AtomicBool::new(false));
+    let (done, done_rx) = watch::channel(false);
     {
         let mut running = routing.running.lock().unwrap_or_else(|p| p.into_inner());
-        let slot = match channel {
-            Channel::Mic => &mut running.mic,
-            Channel::System => &mut running.system,
-        };
-        *slot = Some(stop_flag.clone());
+        let slot = task_slot(&mut running, channel);
+        slot.active = Some(stop_flag.clone());
+        slot.done = Some(done_rx);
     }
 
     PreparedRoute {
         channel,
         tokio_rx,
         stop_flag,
+        done,
     }
 }
 
@@ -231,7 +254,30 @@ pub fn start_with_prepared_route(
         prepared.stop_flag,
         session_id,
         origin,
+        prepared.done,
     ));
+}
+
+fn task_slot(running: &mut RunningState, channel: Channel) -> &mut ChannelTask {
+    match channel {
+        Channel::Mic => &mut running.mic,
+        Channel::System => &mut running.system,
+    }
+}
+
+/// Stops `channel` and waits until its old engine has sent its last words and
+/// closed. A new cloud session must not overlap the old one: Speechmatics
+/// counts both against the account's concurrent-session limit.
+pub async fn stop_and_wait(routing: &TranscriptionRouting, channel: Channel) {
+    stop(routing, channel);
+    let waiting = {
+        let mut running = routing.running.lock().unwrap_or_else(|p| p.into_inner());
+        std::mem::take(&mut task_slot(&mut running, channel).finishing)
+    };
+    for mut done in waiting {
+        // Bounded: a stuck network close must not freeze the mic button.
+        let _ = tokio::time::timeout(Duration::from_secs(8), done.wait_for(|d| *d)).await;
+    }
 }
 
 /// Stops `channel`'s transcription task if one is running. A no-op, not an
@@ -242,12 +288,13 @@ pub fn stop(routing: &TranscriptionRouting, channel: Channel) {
         .unwrap_or_else(|p| p.into_inner()) = None;
 
     let mut running = routing.running.lock().unwrap_or_else(|p| p.into_inner());
-    let slot = match channel {
-        Channel::Mic => &mut running.mic,
-        Channel::System => &mut running.system,
-    };
-    if let Some(flag) = slot.take() {
+    let slot = task_slot(&mut running, channel);
+    if let Some(flag) = slot.active.take() {
         flag.store(true, Ordering::SeqCst);
+    }
+    if let Some(done) = slot.done.take() {
+        slot.finishing.retain(|d| !*d.borrow());
+        slot.finishing.push(done);
     }
 }
 
@@ -255,8 +302,8 @@ pub fn stop(routing: &TranscriptionRouting, channel: Channel) {
 pub fn is_running(routing: &TranscriptionRouting, channel: Channel) -> bool {
     let running = routing.running.lock().unwrap_or_else(|p| p.into_inner());
     match channel {
-        Channel::Mic => running.mic.is_some(),
-        Channel::System => running.system.is_some(),
+        Channel::Mic => running.mic.active.is_some(),
+        Channel::System => running.system.active.is_some(),
     }
 }
 
@@ -269,7 +316,10 @@ async fn run(
     stop: Arc<AtomicBool>,
     session_id: Option<Uuid>,
     origin: &'static str,
+    done: watch::Sender<bool>,
 ) {
+    let mut connection = engine.connection_status();
+    let mut was_recovering = false;
     let mut tick = tokio::time::interval(DRAIN_TICK_INTERVAL);
     // The default. Stated explicitly since it's what makes a fixed-interval
     // `tokio::time::interval` behave like the "self-rescheduling, don't pile
@@ -314,6 +364,22 @@ async fn run(
         }
         tokio::select! {
             _ = tick.tick() => {
+                if let Some(status) = connection.as_mut() {
+                    if status.has_changed().unwrap_or(false) {
+                        use crate::stt::connection::SpeechConnection;
+                        // Only a recovery is announced; the first Ready is the
+                        // mic button turning on.
+                        match status.borrow_and_update().clone() {
+                            SpeechConnection::Recovering { .. } => was_recovering = true,
+                            SpeechConnection::Ready if was_recovering => {
+                                was_recovering = false;
+                                last_reported_error = None;
+                                let _ = app.emit(error_event_name(channel), "Speech recognition reconnected.".to_string());
+                            }
+                            _ => {}
+                        }
+                    }
+                }
                 match engine.drain().await {
                     Ok(transcripts) => {
                         persist_and_emit(
@@ -371,7 +437,19 @@ async fn run(
         }
         Err(e) => report_error(&app, channel, e, &mut last_reported_error),
     }
-    engine.shutdown().await;
+    // A cloud engine's last sentence arrives only after it is told the audio
+    // has ended, so shutdown's words are saved like any other final.
+    let trailing = engine.shutdown().await;
+    persist_and_emit(
+        &app,
+        session_id,
+        channel,
+        origin,
+        trailing,
+        &mut segment_start_ms,
+        &mut utterance_started_ms,
+    );
+    let _ = done.send(true);
 }
 
 fn now_ms() -> u64 {
@@ -951,7 +1029,7 @@ mod tests {
         // test is about `RunningState` bookkeeping, not the async loop.
         {
             let mut running = routing.running.lock().unwrap();
-            running.mic = Some(Arc::new(AtomicBool::new(false)));
+            running.mic.active = Some(Arc::new(AtomicBool::new(false)));
         }
         assert!(is_running(&routing, Channel::Mic));
         assert!(
@@ -961,6 +1039,45 @@ mod tests {
 
         stop(&routing, Channel::Mic);
         assert!(!is_running(&routing, Channel::Mic));
+    }
+
+    #[tokio::test]
+    async fn stop_and_wait_returns_only_after_the_old_task_has_closed() {
+        let routing = TranscriptionRouting::default();
+        let prepared = prepare_route(&routing, Channel::Mic);
+        let flag = prepared.stop_flag.clone();
+        let done = prepared.done;
+        // Stand-in for `run`: closes 150ms after it is told to stop.
+        let finished = Arc::new(AtomicBool::new(false));
+        let finished_by_task = finished.clone();
+        tokio::spawn(async move {
+            while !flag.load(Ordering::SeqCst) {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            finished_by_task.store(true, Ordering::SeqCst);
+            let _ = done.send(true);
+        });
+        stop_and_wait(&routing, Channel::Mic).await;
+        assert!(finished.load(Ordering::SeqCst), "the new session would have overlapped the old one");
+        assert!(!is_running(&routing, Channel::Mic));
+    }
+
+    #[tokio::test]
+    async fn a_plain_stop_is_still_awaited_by_the_next_start() {
+        // audio.rs stops synchronously; the next start must still wait.
+        let routing = TranscriptionRouting::default();
+        let prepared = prepare_route(&routing, Channel::System);
+        let done = prepared.done;
+        stop(&routing, Channel::System);
+        let closer = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            let _ = done.send(true);
+        });
+        let began = std::time::Instant::now();
+        stop_and_wait(&routing, Channel::System).await;
+        assert!(began.elapsed() >= Duration::from_millis(90));
+        closer.await.unwrap();
     }
 
     #[test]

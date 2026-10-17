@@ -11,6 +11,77 @@
 
 pub const STT_SAMPLE_RATE: u32 = 16_000;
 
+/// Causal, continuous conversion for live audio. The low-pass filter prevents
+/// high-frequency input from folding into speech when reducing the rate.
+/// History and fractional position survive callback boundaries (44.1kHz too).
+pub struct StreamingResampler {
+    from: u32,
+    to: u32,
+    taps: Vec<f32>,
+    history: Vec<f32>,
+    cursor: usize,
+    input_index: u64,
+    next_output: f64,
+    previous: f32,
+}
+
+impl Default for StreamingResampler {
+    fn default() -> Self {
+        Self { from: 0, to: 0, taps: Vec::new(), history: Vec::new(), cursor: 0,
+            input_index: 0, next_output: 0.0, previous: 0.0 }
+    }
+}
+
+impl StreamingResampler {
+    pub fn process(&mut self, input: &[f32], from: u32, to: u32) -> Vec<f32> {
+        if from == 0 || to == 0 || input.is_empty() { return Vec::new(); }
+        if self.from != from || self.to != to {
+            *self = Self::default();
+            self.from = from;
+            self.to = to;
+            if from > to {
+                let count = 95;
+                let center = (count - 1) as f64 / 2.0;
+                let cutoff = 0.47 * to as f64 / from as f64;
+                self.taps = (0..count).map(|i| {
+                    let x = i as f64 - center;
+                    let sinc = if x == 0.0 { 2.0 * cutoff } else {
+                        (2.0 * std::f64::consts::PI * cutoff * x).sin() / (std::f64::consts::PI * x)
+                    };
+                    let phase = 2.0 * std::f64::consts::PI * i as f64 / (count - 1) as f64;
+                    (sinc * (0.42 - 0.5 * phase.cos() + 0.08 * (2.0 * phase).cos())) as f32
+                }).collect();
+                let sum: f32 = self.taps.iter().sum();
+                self.taps.iter_mut().for_each(|tap| *tap /= sum);
+                self.history = vec![0.0; count];
+            }
+        }
+        if from == to { return input.to_vec(); }
+        let ratio = from as f64 / to as f64;
+        let mut out = Vec::with_capacity((input.len() as f64 / ratio).ceil() as usize + 1);
+        for &sample in input {
+            let filtered = if self.taps.is_empty() { sample } else {
+                self.history[self.cursor] = if sample.is_finite() { sample } else { 0.0 };
+                let n = self.history.len();
+                let value = self.taps.iter().enumerate().map(|(i, tap)| {
+                    tap * self.history[(self.cursor + n - i) % n]
+                }).sum();
+                self.cursor = (self.cursor + 1) % n;
+                value
+            };
+            let index = self.input_index as f64;
+            while self.next_output <= index + 1e-8 {
+                let fraction = (self.next_output - (index - 1.0)).clamp(0.0, 1.0) as f32;
+                out.push(self.previous + (filtered - self.previous) * fraction);
+                self.next_output += ratio;
+            }
+            self.previous = filtered;
+            self.input_index += 1;
+        }
+        out
+    }
+}
+
 /// Resamples `input` from `from_rate` to `to_rate` via linear interpolation.
 ///
 /// Matches this codebase's established pattern of treating a degenerate rate
@@ -41,6 +112,40 @@ pub fn resample_linear(input: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn live_conversion_is_identical_across_irregular_callback_boundaries() {
+        for rate in [24_000, 44_100, 48_000] {
+            let input: Vec<f32> = (0..rate).map(|i| (i as f32 * 0.13).sin()).collect();
+            let expected = StreamingResampler::default().process(&input, rate, 16_000);
+            let mut converter = StreamingResampler::default();
+            let actual: Vec<f32> = input.chunks(137).flat_map(|c| converter.process(c, rate, 16_000)).collect();
+            assert_eq!(actual, expected, "callback boundaries changed {rate}Hz audio");
+            assert_eq!(actual.len(), 16_000);
+        }
+    }
+
+    #[test]
+    fn live_downsampling_preserves_speech_and_rejects_high_frequency_aliases() {
+        let amplitude = |hz: f64| {
+            let input: Vec<f32> = (0..48_000).map(|i| (2.0 * std::f64::consts::PI * hz * i as f64 / 48_000.0).sin() as f32).collect();
+            let output = StreamingResampler::default().process(&input, 48_000, 16_000);
+            (output[1600..].iter().map(|v| v*v).sum::<f32>() / (output.len()-1600) as f32).sqrt()
+        };
+        assert!(amplitude(1000.0) > 0.69);
+        assert!(amplitude(6000.0) > 0.65);
+        assert!(amplitude(10_000.0) < 0.005, "10kHz must not become a false 6kHz tone");
+    }
+
+    #[test]
+    fn live_conversion_handles_a_device_rate_change_without_old_filter_history() {
+        let mut converter = StreamingResampler::default();
+        converter.process(&[1.0; 480], 48_000, 16_000);
+        let switched = converter.process(&[0.0; 240], 24_000, 16_000);
+        assert_eq!(switched.len(), 160);
+        assert!(switched.iter().all(|v| *v == 0.0));
+        assert_eq!(converter.process(&[0.25; 160], 16_000, 16_000), vec![0.25;160]);
+    }
 
     #[test]
     fn same_rate_returns_the_input_unchanged() {

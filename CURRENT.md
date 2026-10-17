@@ -1,166 +1,21 @@
 # Current status
 
-**PARTIAL: a minimal one-question, one-answer live window, the minimal near-black main app, and new window buttons are built and checked in the browser preview and by unit tests. The real window buttons, Command+H and the see-through look in the installed app are still owed to the owner.**
+**BUILT + VERIFIED — grey live-session reimplementation and light workspace (2026-10-17). PARTIAL — reliable native audio startup. PARTIAL — Speechmatics live connection rework (2026-10-17).**
 
-## Latest change, 2026-10-04 (latest): new app icon
+## Current result
 
-- The app icon (Dock, Finder, app switcher) is now the emerald rounded square with the white Aside mark, the same mark as the sidebar logo. It replaces the black arrow and "ASIDE" wordmark on white.
+- Speechmatics (2026-10-17): mic/speaker only show as listening once Speechmatics confirms the session; a new session waits for the old one to close (no overlapping sessions); dropped connections resend only unheard audio; the last sentence on stop is kept; "no free slot" retries slowly; wrong key fails once clearly. Verified with 11 fake-server tests and a real-service test using generated speech (all technical terms right, first words ~0.5s, full sentence ~2.2s after speaking stops). Standard model and current delays kept — Enhanced was no better. Connection states (never key/audio/words) log to `speechmatics-connection.log` in the app log folder. Real mic, AirPods, long calls and real network drops not yet tested.
 
-## Earlier today: smaller window, buttons under the panel
-
-- The main window is smaller: 1000 × 800 (was 1180 × 860). Still fixed size; every page still fits without scrolling, even with the job link field open.
-- AI model, Save transcript and Start session (and Library's Paste text and Add files) sit just under the panel instead of at the window's bottom edge.
-- Settings: only the red "Edit default rules" button remains below the panel (no "Strict rules" title or note).
-
-## Earlier today: fuller width, deeper indent, rules outside the border
-
-- The window can't be resized, so page content now fills it with a 24px gap on each side, and the empty strip above the title is half as tall.
-- Content under every section title (Job description, Resume, Settings rows, History days) is indented further right.
-- Settings: Strict rules sits below the bordered panel.
-- Start session: the shortcuts are one per row.
-
-## Earlier today: connection dots, Default model, rules button, shortcuts in Start session
-
-- The sidebar's bottom shows the default AI model and speech engine, each with a green dot when Aside could reach it and a red one when it couldn't (grey while checking). Clicking opens the details with a Fix link.
-- A copilot's AI model list starts with "Default", which follows the model in Settings. New copilots start on Default. When a call starts, Default becomes the real model, so History names it.
-- Settings no longer shows the strict rules text: one red "Edit default rules" button in the middle warns first, then opens the editor.
-- The four shortcuts moved from Settings to the bottom of the Start session panel.
-- Not yet run: a real connection check against OpenAI and Speechmatics in the installed app.
-
-## Earlier today: Library and History match the copilot page
-
-- Library and History headers now look like a copilot's: the title, then a grey line under it ("4 files", "3 calls").
-- Library's Paste text and Add files float at the bottom right, in the same spot and style as Start session.
-- Resume and Supporting files are stacked again (owner's request), with Preview and Replace back on the resume.
-
-## Earlier today: floating buttons, side-by-side files, Add URL, Geist
-
-- The search box at the top is gone, along with the search pop-up and the pieces only it used.
-- The whole app uses the Geist font (it was Plus Jakarta Sans).
-- The inside of each page's border is slightly grey.
-- No bottom bar: AI model, Save transcript and Start session float at the bottom right.
-- Resume and Supporting files sat side by side briefly; stacked again in the next change.
-- The job-post link field shows only after pressing Add URL (far right of Job description, beside Edit). It closes again after an import or with Escape.
-- Corners are rounder everywhere (the radius scale went up by about a third), including the sidebar and the live window.
-
-## Earlier today: four-line previews and one outer border
-
-- Job description, Guidance and Strict rules now show four whole lines before "Show more" (never half a line).
-- Each page's sections sit inside one rounded border, with the page title above it. Sections inside still have no boxes of their own.
-- Space between sections is a little tighter, so Copilot and Settings still fit the window without scrolling.
-- A stray 58 MB copy, `Aside 2.app`, had been committed by mistake in 7f10ad1. It is now removed and `.gitignore` skips copies like it; the file still sits in the unpushed branch history.
-
-## Earlier today: no boxes around sections
-
-- Every section on every page (and in the live window) is now a small icon and title with its content underneath and a thin line between sections. No outer card, no inner box.
-- Only things you use keep a shape: fields, the drop area, menus and buttons.
-- Long text shows a few lines with a "Show more" link.
-- AI model, Save transcript and Start session are in the bottom bar. An Aside opened before 20:08 still shows the old top layout until it is quit and reopened.
-
-## Earlier today: live window in the same style
-
-- The live window uses the main window's pieces: same card, same dark inner box, same boxed buttons, same menu style.
-- The question is the card's title; the answer sits in the inner box and is the only part that scrolls.
-- Still no green in the live window, and Background still sets how see-through it is.
-
-## Earlier today: Library and History in the same style
-
-- Library and History use the same cards, inner boxes, titles and column as Copilot and Settings.
-- Library: one card with the filter, search and list/grid toggle as its header. History: one card per day.
-- File and call details are plain icon-and-text instead of outlined chips.
-- Call detail window: tidier header; only Aside's suggestion is green.
-
-## Earlier today: controls at the bottom, roomier layout
-
-- Copilot page: AI model, Save transcript and Start session now sit in a bar at the bottom that never scrolls; the ⋯ menu sits beside the name.
-- Job URL is now the first line inside the Job description card, since it fills the description. Four cards instead of five, and everything still fits one screen.
-- More room everywhere: wider padding inside cards and text boxes, wider sidebar margins and taller rows.
-- Settings shortcuts sit in a 2×2 grid.
-
-## Earlier today: Settings in the same minimal style
-
-- Settings sections look exactly like the copilot sections: small icon beside the title, same card, same inner box.
-- Strict rules shows two lines with the arrow to open the rest.
-- Settings fits the window without scrolling, and all four pages line up on the same edges.
-
-## Earlier today: copilot page on one screen, solid main window
-
-- All five copilot sections now fit the window with no scrolling (checked with long text).
-- Sections are smaller and plainer: a small icon beside each title instead of a big round one.
-- Description and Guidance show two lines; an arrow on the box edge opens the full text, and clicking it again closes it.
-- The main window is solid near-black now: nothing behind it shows through. The live window still has its Background slider.
-
-## Earlier today: minimal live window
-
-The live window is now just one question and its answer:
-- **Top bar, one row:** status dot and call clock, You and Them icons, ‹ 2/5 › history, options, End.
-- **Middle:** the question, then the answer filling the rest of the window. No "Suggested answer" title, no option buttons after the answer.
-- **Bottom bar, one row:** follow-up box, Screenshot answer, Answer.
-- **Look:** dark see-through greys, no green.
-- **Options menu:** Background (40–100%), Text size (four sizes, now actually scales question, answer and code), Pause listening, Reset window, Open Aside.
-- **Removed with their code:** Thread and Prompter layouts, Transcript view, Short/Medium/Long, the refine buttons.
-
-## Latest change, 2026-10-04: minimal dark look + window buttons
-
-**Look (both windows):**
-- Dark only. The window is a near-black tint over the desktop, no blur; panels and cards sit in front with soft shadows.
-- One deep emerald accent, used only for the main action (Start session, Answer), the selected copilot, switches that are on and the AI answer edge. Everything else is plain grey.
-- Section colours removed: all copilot and Settings sections share one quiet look.
-- Every page uses one 720px column, so fields and buttons inside the cards are narrower.
-- Copilot header: title, role, then one even row of 36px controls (AI model, Save transcript, more, Start session). The big company tile is gone.
-- Live window: same layouts, now near-black with the emerald answer highlight; the You/Them lanes show a thin edge while speaking.
-
-**Window buttons (main window):**
-- Only red and yellow show; no green button and no full screen.
-- Red quits Aside at once, no question.
-- Yellow, with Hide from screen sharing on: hides all Aside windows; Command+H brings them back (claimed only while hidden). With it off: normal minimize to the Dock.
-- The app menu's Quit still asks first.
-
-## Previous change, 2026-10-03
-
-— soft pastel look + live session rebuilt
-
-The owner sent a reference picture for the whole app and asked for the live session to be rebuilt from scratch with a more logical layout.
-
-**Main app** (same screens and flows, new look):
-- Soft blue-lavender gradient behind slightly see-through white panels; no blur of the desktop.
-- Each copilot section is a pastel card with a round coloured icon: Job URL blue, Description green, Resume purple, Supporting files amber, Guidance rose. Buttons take their section's colour.
-- Big blue company icon tile beside the copilot name, robot icon on the AI model picker, gradient "Start session" with a play icon.
-- Navy selected copilot with a blue edge, round monograms, tinted status pill.
-- Settings sections are coloured cards with icons; Library shows coloured file tiles (Word blue, PDF red); History rows have monograms.
-- Font: Plus Jakarta Sans (bundled); code in Geist Mono.
-
-**Live window** (all view parts rewritten; call logic and backend contract unchanged):
-- Three layouts, switched in the ⋯ menu and remembered: **Focus** (default: question card, then its answer, with Answer | Transcript tabs), **Thread** (one conversation with answers under each question), **Prompter** (large answer text, transcript drawer).
-- Shared parts:
-  - top bar: copilot, status chip with clock, menu and End (4-second cancel)
-  - You/Them lanes with live meters
-  - the "They asked" card with ‹ 2/5 › history
-  - the answer card with refine chips and a terminal-style code block
-  - an always-visible follow-up box
-  - Short/Medium/Long and a labelled Answer button
-- **Background slider** is now 40–100% (default 92%). It fades the panel, cards, buttons and code block together. Text stays solid, and below 75% a soft halo is added behind it.
-- In tiny windows, You and Them move into the top bar as icons; in narrow ones, Short/Medium/Long shrink to S/M/L.
-
-Commits on `redesign-dock` (not pushed):
-- `8769b8b` is the Bento undo point.
-- `c26890d` is the pastel main app.
-- `dfa8e8b` is the live rebuild, plus a docs commit.
-
-## Verified (2026-10-04)
-
-- Type check passed; 60 frontend tests passed (tests for removed live features removed); `npm run build` passed; `cargo build` passed; 803 Rust tests passed (3 new for the window buttons).
-- Live window in the browser preview: waiting question, answer with list and code, options menu, mic problem at 55% see-through; text size measured scaling 15px → 23px.
-- Browser preview screenshots reviewed: copilot, Settings, Library, History at 1180×860; live Focus (before and after an answer) and Thread at 440×720.
-- Contrast worked out from the colour values over white and black: main app grey text at least 6.2:1, live window at 100% at least 7.4:1, white on green buttons at least 5.0:1. The older per-element browser checker was not re-run.
-- No em dashes in on-screen text.
-
-## Owed (can't be checked here)
-
-- Clicking the real red and yellow buttons in `Aside.app`, with hiding on and off, and Command+H bringing Aside back.
-- The installed app's see-through dark look, and the live window over a real meeting app.
-- Earlier device checks still open: global shortcuts while another app has focus, real microphone/system audio, screen capture through the AI provider, native resize dragging, screen-share hiding.
+- Live session redesigned with Apple Design principles: a subdued grey window edge, solid grey controls, separate capsule mic/speaker buttons, filled question surface and clear answer area. No resting borders on audio, question actions, lengths or alert buttons. Main app remains light.
+- History moves to the bottom left; a flat joined capsule Short / Med / Long strip with 11px labels and a stable-width silver-grey Answer button stay on the right. Busy state no longer expands the button or clips the footer at 340×260. Question, answer, follow-up, errors and menus adapt to small windows. Saved opacity, text size, keyboard shortcuts and audio behavior are retained.
+- Computer preview verified at 440×640 and 340×260: answer streaming/busy state, previous-answer navigation, mic off/on, search draft + Escape, options scrolling and expanded microphone errors at 40% opacity. Measured audio/length/alert controls have 0px borders; outer edge is rgb(55,55,59). Reduced-motion emulation removed animation; reduced-transparency fallback exists, but the browser did not confirm that media feature in emulation.
+- 81 frontend tests pass; production build, cargo build and git diff --check pass. Scoped design detector has no findings. Latest CSS baseline /tmp/aside-capsule-correction-before.css; detailed checks in docs/evidence.md. Native session capture/cloud requests were not run for this visual change.
+- Earlier changes retained: 85% Settings row spacing; light workspace; saved documents/history/logo; quicker measured readiness checks. Audio reliability remains PARTIAL: built-in mic/speakers passed in the earlier clean-start test, while AirPods startup was intermittent. Windows installer/runtime and real cloud-answer checks remain unverified.
 
 ## Next action
 
-The owner opens `Aside.app`: clicks yellow (Aside should vanish), presses Command+H (it should come back), clicks red (it should quit with no question), and says whether the emerald is dark and sparing enough.
+Quit and reopen Aside.app (the open copy predates the rebuild), then do one real call with Speechmatics: confirm both lanes transcribe, and if anything is rejected, check `speechmatics-connection.log` for the exact reason. Resolve intermittent native capture startup and verify a repeatable cold-start preflight on the owner's chosen microphone/output. UI work is complete; existing real-call/cloud-answer/transcript and Windows runtime checks remain.
+
+## Rollback
+
+Latest control CSS baseline is /tmp/aside-capsule-correction-before.css; broader live redesign baseline is /tmp/aside-live-grey-before/source.tgz. Restore only this turn's files and rebuild; preserve all pre-existing changes. No schema, key, document or history changes.

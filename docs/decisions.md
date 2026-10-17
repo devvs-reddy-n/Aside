@@ -457,3 +457,242 @@ Owner found the panel too wide and the gap between it and the bottom controls to
 ## 2026-10-04 - app icon is the emerald mark
 
 Owner sent the sidebar's emerald logo (32px) and asked for it to replace the current logo; the in-app logo already matched, so the change is the app icon (`src-tauri/icons/icon.icns` and `icon.png`), which was a black arrow with the "ASIDE" wordmark on white. Redrawn at 1024px from the same source (the `mark` path in `src/kit/Icon.tsx` and the emerald gradient) rather than upscaling the 32px image, on the standard macOS 824px rounded square with a soft shadow, then exported at 16-1024px with `sips` and `iconutil`. Rollback: revert this commit.
+
+## 2026-10-04 — frosted charcoal and restrained corners
+
+The owner requested WhatsApp-like frost across the app, then supplied a cropped reference for modest rounding. Use native macOS window materials (Sidebar for the workspace, HUD for live) under a charcoal tint; CSS blur cannot sample the desktop. Keep the existing 1000×800 layout. Use 12px throughout, flat emerald actions, and lighter text; keep round status dots and familiar switches. Browser/non-Mac surfaces remain opaque, and Reduce Transparency has an opaque fallback. Icon Composer is deferred and the existing logo stays.
+
+The two standing reference directories are absent; leftover temporary audit folders also contain no source files. The available Assistant reference uses native macOS vibrancy with a separate tint, which supports this approach. Adapted the idea through Tauri's built-in window effects; no reference source copied.
+
+The owner also requested no outline around the sidebar model/speech status box. Remove only that outline, retaining its fill, connection dots and text.
+
+## 2026-10-04 — readable labels and simpler choices
+
+- Follow the owner’s refinements: 8px Company/Role spacing, 16px Role, slightly larger sidebar labels, and a Supporting files button styled like Resume using the existing picker. Keep file chips and native file drops.
+- Remove Settings option dividers while retaining main section dividers. Model/speech status has no border or fill, including on hover.
+- Tighten Copilot section padding so the larger header fits with the widest sidebar and the job-link field open. Required Natively/OpenCluely reference folders remain unavailable; no source was copied.
+
+## 2026-10-04 — Stealth state and motion
+
+- Rename screen-share hiding to Stealth. Use “Hidden from screen sharing” rather than claiming the process is undetectable. Keep the existing protection and relaunch behavior.
+- Use one shared state provider in both windows: a short activation sweep, slow emerald edge glow, workspace status and compact live shield. No click interception or added dependency. Reduce Motion retains a still edge; hidden pages pause motion. Small live windows prioritize controls and answer history over the visible clock (elapsed time remains in its accessible label).
+- Natively and OpenCluely reference folders are still absent. The available Assistant reference applies saved content protection to new windows, matching Aside’s existing approach; no reference source copied.
+
+## 2026-10-05 — white workspace, black live session
+
+Owner request fixes the palette across the product: white with black elements in the main app; black with white text in live sessions. The uploaded reference supplies subtle raised and inset surfaces, without its purple tint. Existing layouts and shared controls remain. All UI accents, file marks, syntax colours and Stealth feedback are neutral; native macOS traffic-light buttons and the existing app icon remain platform/brand assets.
+
+Opacity now spans 0–100%, with solid text and a halo below 75%. Removed the live window’s fixed native HUD material so 0% can reveal the desktop rather than retaining a native dark haze. The workspace is opaque with native Light appearance. Existing saved values and defaults are retained.
+
+Repo1-Natively and Repo2-OpenCluely are absent again. The available Assistant reference separates shared colours from a saved transparent tint and notes that native frost can impose its own background. Adapted that separation to Aside’s existing Rust/React preference path; no reference source copied.
+
+## 2026-10-05 — red actions and Stealth feedback
+
+Owner added red to the black-and-white system. Dedicated action colours keep navigation, file marks and reading surfaces neutral: primary buttons and live End are solid red; secondary buttons use red ink and outlines. White-on-red contrast is 5.62:1, above the body-text threshold. Stealth has a red status and perimeter glow.
+
+A confirmed Stealth toggle gets a brief 420ms red sweep before calling the existing save/relaunch path; off reverses the sweep. This visual acknowledgement does not change the protection label before saving succeeds. Cancellation has no effect, and Reduce Motion or a hidden page skips the delay. Keep the live four-second End countdown and Escape cancellation; the available Assistant reference uses a second-click End confirmation, but changing Aside’s existing behavior is unnecessary for this visual request. Named comparison repos remain absent. No reference code copied.
+
+## 2026-10-05 — reserve red for main action buttons
+
+Owner clarified with a Start session reference: keep that kind of prominent button red; toggles and other controls stay black-and-white. Return secondary actions, utility icons, active switches, selected segments, live opacity/text-size controls and menu text to neutral colours. On the black live window use white/grey for contrast. Start session, Answer and End remain red; preserve the requested red Stealth sweep/glow. No behavior changes. The named reference folders remain absent; available Assistant uses separate neutral controls and accent action styles, consistent with this separation.
+
+## 2026-10-05 — checklist borders for Copilot and Settings
+
+Owner supplied the pre-session checklist as the border reference. Copilot and Settings now use that same thin grey outline, 12px corners and edge-to-edge section dividers, with no panel shadow. Move horizontal spacing into the sections to preserve content alignment while extending the dividers. Existing buttons, controls and behavior remain. Named comparison repositories remain absent; available Assistant dashboard uses thin outlined rounded cards, consistent with this treatment. No source copied.
+
+## 2026-10-05 — smaller live reading sizes and floating answer controls
+
+Owner wants fewer, smaller text choices and less bottom chrome. Keep Small 13 and Medium 15, add Extra small 11, remove 17/20 and clamp old larger settings to 15. Opacity starts at 20%; preserve the existing 92% default and clamp old lower saved values to 20. No native frost layer returns.
+
+Float search, screenshot, three length buttons and a round white play button at the bottom right. Search opens the draft above the actions, focuses it, and keeps it on Escape. Reserve scroll space so answer endings can clear the controls. Play/Enter choose Auto; Short/Medium/Long send a per-response override for spoken or typed questions, without changing the default for later answers. Typed retries retain their original length. Reuse the existing prompt bands instead of adding a second length system; screenshot and global keyboard answers remain Auto.
+
+The named reference folders are absent. Available Assistant LengthBar also sends a per-answer length override, ChatBar keeps failed drafts, and GlassOpacity saves its range. Adapted these ideas through Aside's existing controller/Rust path without copying code.
+
+## 2026-10-05 — question-row utilities and outlined black pills
+
+Owner moved search and screenshot to the question's top right. Keep length actions and white play at the bottom right. Each length action, search and screenshot uses a fully rounded pitch-black pill, white text/icon and 1px white border. Share one draft and send handler across both rows; request routing remains unchanged. Search expands inline below the question. At short heights, its opened question area scrolls to preserve typing space; answer-end clearance is an internal scroll spacer rather than minimum outer padding.
+
+Named reference repos remain absent. Available Assistant uses separate outlined rounded length actions and toolbar utility buttons; adapted the structure to the owner's requested positions, without source copying.
+
+Owner extended the same outlined black-pill treatment to top-bar microphone, speaker and options. Keep their compact widths so history still fits; muted slash/dashed outline and hearing inner edge preserve audio state feedback. End remains red. Available Assistant toolbar also keeps utility state separate from the main End action.
+
+## 2026-10-05 — blend live controls into the window
+
+Owner rejected the pitch-black/bright-outline button treatment. Use shared translucent charcoal fills, light-grey text/icons and faint edges for top utilities, search/screenshot, length pills and follow-up input. Hover/open/hearing states brighten subtly; keep the white play and red End actions. Positions, shape, draft handling and answer requests remain unchanged. The control tint stays readable at low background opacity.
+
+Named reference repositories remain absent; available Assistant uses low-opacity neutral fills and faint borders for subdued controls. Adapted the palette idea without copying source.
+
+## 2026-10-08 — Recruiter calls: one shared guidance, answers inside the main window
+
+Owner wants fast recruiter screens before the real interviews. Add a Recruiter calls page: each company holds only its name, role, job description and resume; every one uses a single shared guidance (saved in settings as `screen_guidance`, with a recruiter-screen starting text). Stored as copilots with `kind = 'screen'` (schema v10) rather than a new table, so starting, saving files, History, memory and answer paths all stay shared. The shared guidance replaces the copilot's own at call start and is copied into the call snapshot like any guidance.
+
+Start call skips the pre-call checklist (only speech/AI setup is checked) and shows the call on the page, reusing the live window's panel and controller with an "embedded" backend (no window to fade, resize, reset or reopen). The controller lives outside the page so answers survive moving between pages; it lets go when the call ends. Return to call points to the page for these calls. The available Assistant reference keeps one shared prompt per "mode" reused by every session; the shared guidance adapts that idea without copying code. Named reference repos remain absent.
+
+Same day, owner correction: no list of companies. The page is one setup, the job description and resume, each uploadable or pastable as text, autosaved into a single screen copilot; the shared guidance and in-page call are unchanged.
+
+Owner follow-up: the in-page call must blend into the workspace and not look like the live window. Replaced the embedded dark live panel with a new workspace screen (page title, outlined panel with Question and Answer sections, kit buttons, floating actions) on top of the same live controller. Removed the earlier dark-island tokens and embedded live-menu changes.
+
+## 2026-10-08 — Square-inspired redesign and one app in search
+
+Owner requested a full Square payments-style UI and matching logo. Use Square’s clean desktop-dashboard language: white surfaces, pale grey navigation, blue actions, simple rows and thin dividers. Preserve the existing Rust call engine, contents and settings. Light live-call styling shares the workspace palette while retaining opacity; red remains meaningful for End, errors and Stealth. The geometric A/corner mark is authored locally and rendered reproducibly, with no copied Square identity or restricted source.
+
+The requested Natively/OpenCluely directories remain absent. Compared the available Assistant dashboard, tokens and overlay controls: its dark glowing dashboard does not match the owner’s Square direction, so retain functional separation but replace the material styling. Square’s official dashboard/design pages informed the chosen direction. The owner’s context-kernel rule overrides skill requests for extra PRODUCT/DESIGN documents.
+
+Keep generated Cargo files in `target.noindex`, which macOS excludes from Spotlight, rather than resetting the whole system search database. Retain the local old-path symlink for absolute build paths cached before the move; a fresh checkout generates those paths correctly. Refresh only the canonical root bundle registration/metadata after each build. Old icon and a provisional build cache were moved to Trash, preserving recovery. No SQLite, files, keys, permissions or unrelated apps were removed.
+
+## 2026-10-08 — Correct Square palette to monochrome
+
+Owner clarified that the wanted Square style uses only black, white and grey with clean border separations. This supersedes the earlier blue palette and custom red/green status styling. Keep the approved layout; use black primary actions/logo, neutral status/error/Stealth/code styling, clearer 1px `#d6d6d6` section/panel borders, and grey control edges. Existing words and icons keep states understandable without colour. Native system window buttons are unchanged. Comparison repositories remain absent; the available Assistant colour palette does not match this explicit direction.
+
+## 2026-10-09 — Preserve app identity and refresh the affected folder
+
+Owner screenshot shows repeated Spotlight rows after the earlier metadata-only cleanup. Treat the visible issue as unresolved. The build had deleted/recreated the root bundle on every run; change it to synchronize generated bundle contents in place, preserving the root folder identity while removing obsolete resources only inside the bundle. Rebuild verified the inode is unchanged. New file identities may contribute to stale search records, but that causal link is not proven from the screenshot.
+
+Follow Apple’s supported targeted reindex procedure for only the Aside project folder, then restore its original Search Privacy state. Restart only the current user’s Core Spotlight cache service. Preserve app data, keys, recording permissions, unrelated search records and search history. Reference repositories remain absent; available Assistant packaging separates build output from saved data, and the same boundary is respected here.
+
+## 2026-10-09 — Windows build from the owner's Mac
+
+- Keep one Rust/Tauri app. Use Tauri's Windows platform config and per-user NSIS setup; build x64 through cargo-xwin on macOS. Do not replace the Mac build script or expose restricted reference sources in the package.
+- Both required reference directories are absent. Checked the available Assistant reference's `electron-builder.yml`, audio capture and window manager: adapted its per-user Windows setup pattern and capture separation. Aside keeps its existing Rust WASAPI/xcap paths rather than copying Electron source. Its hidden-owner window pattern is unnecessary for this task's supported taskbar-hiding contract; Alt+Tab hiding is not newly claimed.
+- Windows follows default audio devices by stable identity every 500ms through CPAL. Reuse existing restart/coalescing and pinned-device rules rather than introducing another COM notification implementation. Worker drop signals shutdown and joins the thread.
+- Native Windows minimize is disabled while the main taskbar button is hidden to avoid an inaccessible minimized window. The existing menu hide and Ctrl+H restore path remains. Mac's native button behavior is preserved.
+- Executable import inspection showed Microsoft C++ runtime DLLs. Bundle a pinned Microsoft-signed runtime installer in NSIS's temporary area and check/upgrade its installed version before copying Aside. Handle cancellation/failure, reboot-required and already-newer results. Do not uninstall this shared runtime with Aside.
+- Cross-compilation and browser platform previews prove build/labels only. UTM is installed, but no Windows guest or native recording test was run. Wine installation was rejected by Homebrew's Gatekeeper policy; that restriction was not bypassed.
+
+## 2026-10-09 — Black live window and direct Regular Call answers
+
+Use a scoped dark neutral theme for the separate live window and its menus; keep the workspace light. Short/Medium/Long are actions rather than a remembered selection, matching the available Assistant reference's immediate answer pattern. The requested Natively/OpenCluely folders are absent. Sidebar starts with Regular Call and New Copilot, followed by navigation and saved copilots. Version 0.1.1 packages contain application/runtime files only; production bundling explicitly excludes development preview data. The owner will share the installer with a friend for native Windows checks.
+
+## 2026-10-09 — Confirmed End/close, minimize bubble and red Stealth edge
+
+Replace the live countdown with the existing accessible confirmation dialog. Native overlay close requests the same choice; confirmed teardown destroys the overlay to avoid reopening confirmation. Workspace close and Quit share the existing quit guard. Minimize creates one transparent, protected bubble and remembers previously visible windows; calls and drafts remain alive. Repeated empty minimize notifications cannot erase the restore list. Only Cmd/Ctrl+H explicitly hides/restores Aside. Enabled Stealth alone now uses red by explicit owner request, with masked moving perimeter gradient and reduced-motion support. Buttons become pills; the duplicate Copilots navigation row is removed. Available reference app uses a second End action and preserves windows; the named Natively/OpenCluely folders remain absent.
+
+## 2026-10-09 — Half-size bubble
+
+Bubble window is 32px, with a 28px button and 13px mark. Its border is red when saved Stealth is enabled and white when disabled. Drag and restore behavior is preserved. Version 0.1.3 packages requested.
+
+## 2026-10-09 — Mid-size bubble
+
+Owner chose the midpoint: 48px window, 42px button and 19px mark. Red/white border and drag/restore behavior stay the same. Version 0.1.4.
+
+## 2026-10-09 — Red End and Quit
+
+Owner requested red End and Quit buttons. Apply a dedicated red fill with white text to live End, Regular Call End and both confirmation actions; other destructive actions keep their previous styling. Version 0.1.5.
+
+## 2026-10-14 — Screenshot-led dark workspace
+
+Use the owner's supplied dashboard as the visual authority: black sidebar, inset charcoal workspace, rounded task panels and muted grey controls. Regular Call and New Copilot are navigation links alongside Library/History/Settings. Keep the existing Regular Call name, call behavior, storage and live opacity. `references/Repo1-Natively` and `references/Repo2-OpenCluely` remain absent; the available Assistant reference uses a flat sidebar and dark surface tokens, which supports the pattern, while its blue glows are not part of the owner's reference. Adapt structure only; no source copied. Keep context in the existing standing docs as required by AGENTS.md; do not create skill-specific product/design documents.
+
+## 2026-10-14 — Sidebar priority and soft Stealth gradient
+
+Owner requested New Copilot first, Regular Call second with a phone icon. Keep both as plain navigation links. Replace the sharp red Stealth outline with a soft red gradient fading inward; apply the same treatment to workspace, live window and minimized bubble. Preserve saved-state meaning, Reduce Motion and hidden-window pause behavior.
+
+## 2026-10-14 — Fixed setup pages and bulk History deletion
+
+Keep all setup controls on screen: a two-by-two Copilot grid, Regular Call job context left and Resume/Guidance right. Full text uses existing editors rather than expanding a card; title/role are single-line fields. History Delete all confirms an explicit ID snapshot and removes it atomically. SQL excludes active sessions; separate search-index rows are removed within the transaction, and old session-bound uploads are detached first so Library files survive. Cancellation/failure keeps history; no Undo after confirmed deletion. Both requested reference directories are absent; available Assistant only deletes single sessions. Implement the batch in Aside's existing Rust/SQLite style without copying reference source.
+
+## 2026-10-14 — Remove unused space inside Copilot cards
+
+The owner marked excess space beneath the card contents. Stop stretching the setup grid across all remaining height: rows and cards now size to content, and model/transcript controls follow directly below. Keep the non-scrolling setup and existing two-column order.
+
+## 2026-10-14 — Vertical setup consistency and dependable Regular Call startup
+
+Owner superseded the two-column setup with one vertical order. Share section headers and full-width preview fields across Copilot/Regular Call; keep labels/actions aligned and text editors separate so setup stays on one screen. Regular Call uses the default model from Settings and offers direct model/speech links. Resume remains optional. Import/start locks prevent overlapping file reads and launches; startup waits for the newest saved setup/guidance, with visible retry when saving fails. The shared autosave queue must await in-flight writes, drain newer edits and report failures rather than treating an empty queue as saved. Required reference folders remain absent; available Assistant's direct controls and shared field styling informed the flow. No source copied.
+
+## 2026-10-14 - Open forms fill the setup window
+
+The owner rejected the nested box layout and then explicitly asked to use the empty bottom space. Keep the established dark app identity and vertical section order, replace the enclosing section card with an open form, and let the Job description/Guidance editors take the spare height. File choices stay compact; footer stays at the bottom; long text scrolls internally. Company/Role become properly labelled fields below a compact page title. The identity pair shares one row so the four main sections and footer stay usable at 650px height. Inline text removes redundant Edit dialogs and actions. Keep existing Radix primitives, Lucide and Geist, without adding a second component system or decorative imagery to a task surface. Design-taste calibration: variance4/motion2/density5; Impeccable Operate guidance leads. Both named reference folders absent; available Assistant shared input/textarea styling reviewed. No source copied.
+
+## 2026-10-14 - Rounder filled setup fields
+
+Owner requested rounder boxes, no borders and a greyer fill, using an Apple design skill. No Apple skill was installed; installed Emil Kowalski's community apple-design skill from emilkowalski/skills into the user Codex skills directory and read its WWDC-inspired restraint/material/feedback guidance. This is Apple-inspired styling, not Apple's native material implementation. Apply one scoped fill/radius rule to Company/Role, text editors, file fields, URL entry and model selectors across both setup pages: #242424 fill, 18px corners, no resting border. Preserve focus/error outlines and full-height sizing. Required reference directories remain absent; available Assistant shared field styling was checked, but owner's borderless direction leads. No reference code copied.
+
+## 2026-10-14 - Remove Regular Call
+
+Owner requested complete removal. Remove the navigation/page and all dedicated frontend call code, adapter, shared-guidance commands and styling. Keep only backward-compatible storage markers/filtering so older databases remain readable and old setups stay hidden. Guard creation/update/start of retired kind in Rust; older page links resolve to Copilots. Preserve History/Library and saved setup records rather than treating a feature removal as permission to purge data. Normal Copilot calls continue through their checklist/live window. Both named reference folders absent; available Assistant's standard session/navigation flow checked. No source copied.
+
+## 2026-10-14 - One Documents panel with distinct selection rules
+
+Owner requested Resume and Supporting documents become one aligned section. Use a single borderless grey panel with equal row columns. Resume is one replaceable file with Preview and a focused single-choice dialog. Supporting documents use an anchored checkbox popover that stays open during selection, with search/count/Select all/Clear and upload. Existing resume_id/document_ids storage remains; replacing a resume changes one ID, supporting selections change the ID list. Import only one resume per upload and block session start until file reading finishes. Preserve vertical full-height layout and18px filled corners. Both named reference folders absent; available Assistant field styling checked, no equivalent selection flow found or source copied.
+
+## 2026-10-14 - Five-point setup summaries and parallel attachments
+
+- Owner requested AI summaries instead of the raw setup paragraphs. Show five short factual points per section; preserve the complete original as session context and in Edit. Saving updates the original and regenerates the display only. Empty states stay empty; failures show recovery, never invented summary text.
+- Reuse the existing fast OpenAI background path and saved key, separate from live answers. Validate exactly five nonempty single-line points up to90 characters, timeout45 seconds. Cache exact source/version locally per copilot/section; clean it up when the copilot is deleted and ignore late UI results for replaced text.
+- Put Resume and Supporting documents side by side within the shared grey surface. Keep one resume and independent supporting checkboxes; matching action baselines remain reachable at the compact window height.
+- Named reference folders absent; available Assistant summary service uses factual prompts and explicit failure handling. Adapted those principles; its long-meeting chunking is unnecessary for bounded setup text. No code copied.
+
+## 2026-10-14 - Document actions beside details
+
+- Owner requested Replace/Select beside document details. Preserve the dark grey surface and side-by-side grouping; each group now has icon, flexible text and a trailing action. Preview moves onto the resume filename, keeping the action column clear. Supporting count precedes names so truncation preserves selection status.
+- Narrow scope, Operate mode. Design dials: DESIGN_VARIANCE3, MOTION_INTENSITY2, VISUAL_DENSITY5. Existing React/Radix, Geist, Lucide and CSS tokens retained; Apple-inspired alignment and direct feedback, no decorative animation. Marketing-only rules from Design Taste do not apply to this desktop surface.
+- Named comparison repositories absent. Available Assistant settings patterns reviewed; no directly comparable document group. No source copied.
+
+## 2026-10-14 - Whole-app refinement from assessment
+
+- Refine the established monochrome desktop language under Apple Design and Impeccable Operate guidance. Preserve all owner-pinned behavior: New Copilot first, no Regular Call, five summary bullets, original full text in Edit, side-by-side documents with trailing actions, full-height setup and Stealth gradient.
+- One geometry scale: controls10px, fields18px, grouped panels20px, window22px. Remove blanket pill styling and obsolete copilot card overrides. Keep component-specific structure; avoid a new UI dependency.
+- Load page foundations once before refinements, rather than lazy CSS overriding controls later. Always show collection search when items exist. Give important values enough width; separate roles from metadata. Use generated-summary labels, five-line loading placeholders and plain recovery.
+- Add only task guidance to the live empty state; real question/answer content takes over. Keep the live window independently translucent and desktop controls compact, including the minimum window. Reduced Motion keeps static feedback and status text.
+- No new backend/storage behavior. Named references absent; available Assistant patterns served only as inspiration.
+
+
+### 2026-10-14 — direct resume preview and Library quick calls
+
+- Resume text itself opens Preview; remove the separate eye glyph. Keep Replace and supporting Select inline. Summarize attachments as the first name plus the count of other files, reserving visible space for that count.
+- Model belongs at the setup's top right; transcript and Start session anchor the bottom left/right. Tighten spacing at shorter heights to preserve all five summary bullets.
+- Resume is Library's default, followed by Supp Docs and All. A per-resume quick call reuses pre-call checks/live controls without restoring the retired Regular Call destination or saving an otherwise unnecessary Copilot.
+- A quick call uses only the chosen resume and the current global model/rules, with no JD/company. Persist its resolved model in the existing call snapshot with no Copilot reference. Save call + snapshot + attachment in one transaction; a failed attachment leaves no partial History record. No database migration needed.
+
+
+### 2026-10-14 — compact Library and local audio checks
+
+- Remove the decorative Stealth aura and420ms pulse/wait across workspace, live and bubble; preserve actual protection and saved-state shield status. Red errors and destructive actions retain their meaning.
+- Library toolbar is category (Resume / Other / All), layout, flexible space, Search. Documents live in a separate rounded surface below; narrower containers may wrap search. Keep keyboard/DOM order aligned. Settings spacing reduces about10%, as clarified by the owner, while control sizes and readable model values remain.
+- Native output creates a quiet440ms two-note tone through the same output device as the capture check. It is local only, never injected into the microphone or sent to meeting participants. Measured capture, not successful playback alone, decides the check result. Honor pinned devices, preserve ongoing streams, release capture/listeners on cancellation, show real stream/playback errors, and offer retries.
+- Native testing exposed a pre-existing main-thread wait for microphone startup. Move capture start/stop/device checks off the UI thread; cap startup at8s and cancel late workers. Cap tone startup at3s with cancellation. A timeout must not be mislabeled as denied permission or treated as a working device. No OS audio service reset or privacy changes.
+
+
+### 2026-10-14 — model and quick-call details
+
+- Remove the decorative bot beside the Copilot model field; retain its accessible label and dropdown chevron. Use the existing white primary button style for Library quick calls, including list and grid.
+
+
+### 2026-10-14 — quick call in the file menu
+
+- Owner supersedes the visible white quick-call button: place Start quick call after Open in each resume’s existing three-dot menu in list/grid. Keep Delete separated below. Other documents retain Open/Delete. Reuse the existing quick-call setup and remove unused button spacing.
+
+
+### 2026-10-14 — generated Aside identity
+
+- Owner requested a new logo suited to the current theme. Use a generated ivory A with a small companion stroke on a rounded charcoal tile, with transparent outer corners and no added color. One master PNG feeds the interface and platform icon exports so the app has one consistent identity.
+- Replace the old SVG mark with a shared decorative image component; accessible link/button labels remain. The existing Swift icon command now exports the master through Tauri, retaining only desktop assets used by this project.
+- Both named reference repos remain absent. The available Assistant reference similarly uses a simple symbol/tile and exports native icon sizes; adapt that packaging idea, with original generated artwork rather than copied source.
+
+
+### 2026-10-17 — light workspace, capsule controls and quicker readiness
+
+- Owner requests a light main app and dark live session. Apply the theme once per window, including portaled menus/dialogs. Preserve the existing layout, saved data and ivory-on-charcoal brand. Use capsule controls and larger rounded panels, with readable light surfaces and visible focus. Text panels keep practical rounded rectangles.
+- Replace Play with Answer. Short / Med / Long are three immediate answer actions in one divided capsule; keep automatic length for Answer and existing shortcuts. Reserve a footer so controls cannot cover answer text in small windows.
+- Known readiness rows appear immediately. Two consecutive measured sound buffers end the wait; quiet mic observation is 2.2s and system observation after playback is 1.2s. A real first buffer warms the tap, with a 200ms fallback. Meter updates cap at ten per second. Remove automatic retry on focus: returning from another app must not replay a tone or queue another native worker behind a timeout. Retry stays explicit. No transcription or saving during checks; silence and playback success alone cannot pass.
+- Native AirPods tests rejected parallel device startup: microphone profile changes and a second HAL playback stream caused stalls. Check system output before opening the microphone, and release each channel before the next. For the current default output on macOS, play the original generated chime using /usr/bin/afplay rather than opening a second CPAL AudioUnit beside the tap. Cancellation kills/reaps the player and removes its temporary WAV. Custom outputs and Windows keep the explicitly routed CPAL path.
+- Pages mount immediately with a 120ms fade, removing the prior 100ms exit gate. Sheets use the existing restrained spring; Reduce Motion remains supported. Both named reference repos are absent. The available Assistant reference uses shared shape tokens and independent audio health; adapt the shared styling idea while retaining Aside's stronger measured-audio checks (its probe returns cached status).
+
+
+### 2026-10-17 — grey live-session reimplementation
+
+- Owner rejects bright borders and asks for a complete live-window redesign. Use grey fill changes and spacing to distinguish controls/content. Perimeter is a fixed subdued #37373b; audio, length segments, question actions, code and recovery controls have no resting outlines. Keyboard focus retains a grey ring. Keep the light workspace.
+- Group mic/speaker together; move history to the footer left so the top bar has room. Question gets one grey surface, answer stays open and scrolls independently. Compact Short/Med/Long keep immediate-request behavior. Answer becomes silver grey and keeps its label/width while a spinner indicates work, preventing minimum-width overflow.
+- Preserve call engine, existing shortcuts, preferences and source data. Error recovery, muted states, menu controls and portaled dialogs use the same palette. Reduce Motion removes movement. Avoid costly backdrop effects and decorative pulses.
+- Based on Apple HIG materials/toolbar hierarchy and the supplied Apple Design skill: https://developer.apple.com/design/human-interface-guidelines/materials . Both named reference repos remain absent; available Assistant overlay uses grouped toolbar actions and soft fill states, but its white-alpha stroke pattern conflicts with the owner's direction and is not adopted. No reference source copied.
+
+
+### 2026-10-17 — Speechmatics-only reliability and speed
+
+- Owner: Speechmatics only, best output and speed, avoid earlier connection problems, test step by step. No provider migration or local fallback.
+- Native app sends the saved key directly as `Authorization: Bearer` on the realtime websocket; the extra token-mint request is dropped from the live path (probe: ready in ~350 ms). Region stays US1. The Connections dot keeps its token-mint key check, which does not use a realtime session slot.
+- "Started" means Speechmatics returned RecognitionStarted, not that a key exists. Audio spoken while connecting is queued and sent once ready. Starts are serialized per channel and wait (bounded 8s) for the previous engine to flush and close, because overlapping sessions count against the account's concurrent-session limit — a plausible source of the earlier vague "Speechmatics rejected".
+- Reconnects replay only audio not yet confirmed by a final's timing, from a 20s bounded buffer. Only evicted audio with sound (above about -40 dBFS) is reported as lost. On stop, queued audio goes out unpaced, then EndOfStream and up to 3s for trailing finals; shutdown's words are saved like any final.
+- Kept Standard, 4.0s max delay, 1.5s end-of-utterance. Same synthetic technical phrase on the real service: Enhanced gave identical text with slower readiness; 2.0s delay did not change when the sentence lands (~2.2s, driven by the 1.5s pause rule). Custom vocabulary is essential: without it "RAG"→"Rag", "Kiro"→"Cairo".
+- Safe diagnostics: connection state transitions only, to the app log folder, rotated at 64 KB. Never key, audio, transcript, vocabulary or URL.
+- Removed dead token-in-URL helpers and ForceEndOfUtterance flush. Named comparison repos remain absent; the available Assistant reference is local-whisper only (no cloud transcription), so only its general readiness/state patterns informed this; no source copied.

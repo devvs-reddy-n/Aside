@@ -10,9 +10,9 @@ pub const KIND_JD_LINE: &str = "jd_line";
 pub const KIND_COMPANY_TERM: &str = "company_term";
 pub const KIND_STT_GLOSSARY: &str = "stt_glossary";
 
-/// Speechmatics `additional_vocab` / Deepgram `keyterm=` union. ~40 keeps
+/// Speechmatics `additional_vocab` / Deepgram `keyterm=` union. A bounded list keeps
 /// the extra-vocab payload small on the live socket.
-pub const GLOSSARY_CAP: usize = 40;
+pub const GLOSSARY_CAP: usize = crate::stt::vocabulary::CAP;
 
 pub fn insert(
     conn: &Connection,
@@ -132,6 +132,6 @@ mod tests {
         }
         let g = glossary(&conn, session.id, GLOSSARY_CAP).unwrap();
         assert_eq!(g.len(), GLOSSARY_CAP);
-        assert_eq!(GLOSSARY_CAP, 40);
+        assert_eq!(GLOSSARY_CAP, 64);
     }
 }

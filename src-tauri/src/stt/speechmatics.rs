@@ -170,42 +170,6 @@ pub const JWT_MINT_URL: &str = "https://mp.speechmatics.com/v1/api_keys?type=rt"
 /// live engine remints before this expires.
 pub const JWT_TTL_SECS: u64 = 3600;
 
-/// The connect URL without a session token. Unlike Deepgram's, this carries
-/// no transcription config — only the region — because everything else goes
-/// in `StartRecognition`.
-pub fn build_url(config: &SpeechmaticsConfig) -> String {
-    config.region.url().to_string()
-}
-
-/// Realtime websocket URL. A minted JWT is also placed in `jwt=`, matching
-/// the official JS client. A long-lived portal key is **not** — that query
-/// slot is for JWTs, and stuffing a raw key there is how a valid US1 key
-/// can fail as a retryable handshake error instead of authenticating via
-/// `Authorization: Bearer`.
-pub fn build_session_url(config: &SpeechmaticsConfig, session_token: &str) -> String {
-    let base = build_url(config);
-    if looks_like_jwt(session_token) {
-        format!("{base}?jwt={}", query_escape(session_token))
-    } else {
-        base
-    }
-}
-
-/// RFC 3986 unreserved stay as-is; everything else is percent-encoded so a
-/// JWT (or a pasted key with `+` `/` `=`) cannot break URI parsing.
-fn query_escape(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for b in value.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char);
-            }
-            _ => out.push_str(&format!("%{b:02X}")),
-        }
-    }
-    out
-}
-
 /// Speechmatics uses `Authorization: Bearer <key>` — **not** Deepgram's
 /// `Token <key>`.
 ///
@@ -316,7 +280,7 @@ pub fn start_recognition_message(config: &SpeechmaticsConfig) -> Result<String, 
             .additional_vocab
             .iter()
             .filter(|w| !w.trim().is_empty())
-            .map(|w| serde_json::json!({ "content": w.trim() }))
+            .map(|w| super::vocabulary::entry(w.trim(), config.language == "en"))
             .collect::<Vec<_>>());
     }
 
@@ -337,43 +301,7 @@ pub fn start_recognition_message(config: &SpeechmaticsConfig) -> Result<String, 
 /// interviewer will say (the company, a product, a stack) are less likely
 /// to come back mangled.
 pub fn vocab_from_session(company: Option<&str>, job_description: Option<&str>) -> Vec<String> {
-    let mut terms: Vec<String> = Vec::new();
-    if let Some(c) = company.map(str::trim).filter(|s| !s.is_empty()) {
-        terms.push(c.to_string());
-    }
-    if let Some(jd) = job_description {
-        for word in jd.split(|c: char| !c.is_alphanumeric()) {
-            let w = word.trim();
-            if w.len() < 5 {
-                continue;
-            }
-            // Prefer words that look like names or tech (capitalized, or
-            // mixed-case like GraphQL), not filler.
-            let first = w.chars().next().unwrap_or(' ');
-            if first.is_uppercase() || w.chars().any(|c| c.is_ascii_uppercase()) {
-                let owned = w.to_string();
-                if !terms.iter().any(|t| t.eq_ignore_ascii_case(&owned)) {
-                    terms.push(owned);
-                }
-            }
-            if terms.len() >= 20 {
-                break;
-            }
-        }
-    }
-    terms
-}
-
-/// "Give me a final for what you have so far" — the soft finalize that
-/// `SttEngine::flush` actually means. **Not** `EndOfStream`; see the module
-/// doc comment for why that distinction is load-bearing.
-///
-/// `timestamp` is optional in the protocol and deliberately omitted: it is
-/// "the number of seconds since the beginning of the audio", a quantity this
-/// engine has no reason to track, and getting it wrong is worse than leaving
-/// the server to use its own position.
-pub fn force_end_of_utterance_message() -> &'static str {
-    r#"{"message":"ForceEndOfUtterance"}"#
+    super::vocabulary::extract(company, job_description)
 }
 
 /// Ends the session for good. `last_seq_no` is required by the protocol, and
@@ -575,7 +503,7 @@ mod tests {
     #[test]
     fn each_region_maps_to_its_documented_endpoint() {
         assert_eq!(
-            build_url(&SpeechmaticsConfig::default()),
+            SpeechmaticsConfig::default().region.url(),
             "wss://us.rt.speechmatics.com/v2"
         );
         for region in [Region::Global, Region::Eu, Region::Eu2, Region::Us] {
@@ -595,31 +523,6 @@ mod tests {
         }
         assert_ne!(Region::Eu.url(), Region::Us.url());
         assert_ne!(Region::Eu.url(), Region::Eu2.url());
-    }
-
-    #[test]
-    fn session_url_puts_the_token_in_the_jwt_query() {
-        let url = build_session_url(&SpeechmaticsConfig::default(), "eyJ.abc.def");
-        assert_eq!(url, "wss://us.rt.speechmatics.com/v2?jwt=eyJ.abc.def");
-    }
-
-    #[test]
-    fn session_url_percent_encodes_query_unsafe_characters() {
-        let url = build_session_url(&SpeechmaticsConfig::default(), "eyJ.abc+def/ghi=.sig");
-        assert_eq!(
-            url,
-            "wss://us.rt.speechmatics.com/v2?jwt=eyJ.abc%2Bdef%2Fghi%3D.sig"
-        );
-    }
-
-    #[test]
-    fn a_long_lived_portal_key_does_not_go_in_the_jwt_query() {
-        let url = build_session_url(
-            &SpeechmaticsConfig::default(),
-            "wmz9fkLJM6U5NdyaG3HLHybGZj65PXp",
-        );
-        assert_eq!(url, "wss://us.rt.speechmatics.com/v2");
-        assert!(!url.contains("jwt="));
     }
 
     #[test]
@@ -909,19 +812,6 @@ mod tests {
                 transcript: String::new()
             }
         );
-    }
-
-    #[test]
-    fn flush_maps_to_force_end_of_utterance_and_never_to_end_of_stream() {
-        // The single most dangerous confusion in this protocol. `flush()` is
-        // still ForceEndOfUtterance (used when transcription stops). If it
-        // ever sent EndOfStream, a stop-or-reconnect would kill the session
-        // and then transcribe nothing.
-        let flush = force_end_of_utterance_message();
-        assert!(flush.contains("ForceEndOfUtterance"));
-        assert!(!flush.contains("EndOfStream"));
-        let v: serde_json::Value = serde_json::from_str(flush).expect("must be valid JSON");
-        assert_eq!(v["message"], "ForceEndOfUtterance");
     }
 
     #[test]

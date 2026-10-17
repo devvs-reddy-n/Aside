@@ -18,7 +18,7 @@ use sonora::{AudioProcessing, Config, StreamConfig};
 
 use super::channel::{StreamMsg, SttAudioFilter};
 use super::device_util::is_open_loudspeaker;
-use crate::stt::resample::resample_linear;
+use crate::stt::resample::StreamingResampler;
 
 const AEC_SAMPLE_RATE: u32 = 16_000;
 const FRAME_LEN: usize = 160; // 10 ms at 16 kHz
@@ -150,13 +150,15 @@ fn worker(rx: Receiver<AecMsg>) {
     let mut capture_buf = Vec::new();
     let mut render_dest = vec![0.0f32; FRAME_LEN];
     let mut capture_out = vec![0.0f32; FRAME_LEN];
+    let mut render_resampler = StreamingResampler::default();
+    let mut capture_resampler = StreamingResampler::default();
     while let Ok(msg) = rx.recv() {
         match msg {
             AecMsg::Render {
                 samples,
                 sample_rate,
             } => {
-                let resampled = resample_linear(&samples, sample_rate, AEC_SAMPLE_RATE);
+                let resampled = render_resampler.process(&samples, sample_rate, AEC_SAMPLE_RATE);
                 render_buf.extend_from_slice(&resampled);
                 if render_buf.len() > RENDER_CAP {
                     let extra = render_buf.len() - RENDER_CAP;
@@ -170,7 +172,7 @@ fn worker(rx: Receiver<AecMsg>) {
                 stt,
             } => {
                 drain_render(&mut apm, &mut render_buf, &mut render_dest);
-                let resampled = resample_linear(&samples, sample_rate, AEC_SAMPLE_RATE);
+                let resampled = capture_resampler.process(&samples, sample_rate, AEC_SAMPLE_RATE);
                 capture_buf.extend_from_slice(&resampled);
                 while capture_buf.len() >= FRAME_LEN {
                     let frame: Vec<f32> = capture_buf.drain(..FRAME_LEN).collect();

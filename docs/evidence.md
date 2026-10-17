@@ -422,3 +422,482 @@ Add only the command, test, inspection, or owner observation that actually occur
 - Rendered the icon at 1024×1024 with a transparent background in headless Chrome; viewed the result. Built `icon.icns` with `iconutil` from a 10-size iconset made with `sips`.
 - `./scripts/build-app.sh` rebuilt Aside.app with the new icon; codesign verify passed.
 - Not checked: how the Dock and Finder display it (macOS can keep showing a cached old icon for a while).
+
+## 2026-10-04 — frosted charcoal UI, 12px corners throughout
+
+- Read `CONTEXT.md`, `CURRENT.md`, git status/diff and five recent commits before editing; the working tree began clean. Neither standing reference directory exists. The remaining temporary reference audit directories have no source files. Inspected the available Assistant window and surface treatment; it uses native macOS vibrancy with a separate tint.
+- `npm test`: 60 pass, 0 fail. `npm run build`: passed, with the pre-existing large-chunk advisory. `cargo build` in `src-tauri/`: passed, including native effects at 12px. `git diff --check`: passed.
+- Headless Chrome via `/tmp/aside-ui-final-check.cjs` at 1000×800: Copilot with Add URL open, new copilot, Settings, Library and History all measured 748px content height / 748px available and 760px width / 760px available. Edit and Start session sheets opened. Their screenshots were inspected after the opening animations finished.
+- Final corner measurements: edit sheet 12px, existing sidebar logo wrapper 12px, minimum live panel 12px. The live preview at 340×260 had 322px content width / 322px available; its menu opened and was visually inspected. No browser page errors. Edit sheet computed backdrop filter: blur(28px) saturate(1.1).
+- Impeccable detector ran once. Its three warnings refer to the existing spring easing in tokens and live animations; no new spring animation was introduced. Native live-panel entrance animation is disabled to avoid moving its content over the fixed system material.
+- `./scripts/build-app.sh` passed, refreshed root `Aside.app`, and verified its strict signature as `com.aside.desktop`. Earlier bundle attempts hit the known iCloud FinderInfo race; the script's retries succeeded. The final 12px build passed verification immediately.
+- Reopened the completed 12px app through computer use and inspected its welcome screen. Also inspected native Settings during the frosted UI pass. The native main window is charcoal with the existing logo; OpenAI and Speechmatics connection checks both reported connected. No live call was started. Live Mac frost and Windows appearance remain unverified.
+- Icon Composer was opened and one original layer imported before the owner deferred icon work. No icon asset change ships; artwork is preserved under `/tmp/aside-icon-draft-source` and the current logo is retained.
+
+- Follow-up status outline check: `node /tmp/aside-status-check.cjs` measured the sidebar model/speech status at border 0px, corner radius 12px, with the grey fill retained. `git diff --check` passed after that adjustment.
+
+## 2026-10-04 — text, file chooser, Settings dividers and clear status
+
+- Required reference directories are absent; temporary audit directories contain no source. Reviewed the actual changes to CopilotPage, home.css and spatial.css. Impeccable detector reported no findings for CopilotPage/spatial.css.
+- `npm test`: 60 pass, 0 fail. `cargo build`: passed. `npm run build`: passed with the existing large-chunk advisory.
+- Headless Chrome via `/tmp/aside-copilot-refinement.cjs`: Company/Role gap 8px, Role 16px; both file choosers 36px high, dashed edge and 12px corners. Supporting picker changed its selection and preserved the resume. No page errors.
+- A first spacing pass overflowed by 19px with a 300px sidebar and Add URL open. After reducing Copilot section padding, selected/new Copilot and the open URL case measured 748px content / 748px available at 1000×800 with both 240px and 300px sidebars.
+- `/tmp/aside-settings-check.cjs`: AI model row borders 0px; section borders 1px; Settings fits 748px / 748px. Demo stayed on Parakeet; the final installed-app inspection confirmed Speechmatics Engine, API key and Language have no intervening row lines.
+- `/tmp/aside-status-check.cjs`: model/speech border 0px, fill rgba(0,0,0,0), both idle and hovered. Screenshot inspected. Sidebar navigation is 15px, copilot names/status 14px, copilot roles/section labels 13px.
+- `./scripts/build-app.sh`: passed and refreshed root `Aside.app`; strict signature verification passed after one retry for the known iCloud FinderInfo race. The build reran the frontend checks and compiled the release app.
+- Reopened the refreshed Mac app and inspected Settings and new Copilot: clear model/speech status, larger sidebar labels, matching compact file buttons, larger Role with more space. Settings retains Privacy/AI/Speech section dividers and has no option dividers. Both provider connection checks showed connected.
+
+## 2026-10-04 — Stealth label and overall glow
+
+- Read context/current state and inspected git status, diff and recent history. Checked reference folder absence and available Assistant WindowManager protection behavior.
+- `npm run build`: passed (existing chunk-size advisory). `npm test`: 60 pass, 0 fail. `cargo build`: passed. Impeccable detect on the new Stealth component/styles: no findings. Actual source changes and screenshots reviewed.
+- `/tmp/aside-stealth-check.cjs`: confirmed switch on/off and cancellation, aura/indicator removal when off, enabled state running the 850ms sweep and 5s breathing animation, pointer-events none, Reduce Motion (no animation or sweep), usable live menu, and no Stealth claim in a plain preview. No page errors.
+- Initial on/off assertion ran before the mock response settled; corrected the check to await settled state and kept the toggle disabled while refreshing. A full-history toolbar check exposed crowding at 340×260; compact status now keeps its width, gaps tighten, and the visible clock is omitted only at narrow sizes with history.
+- Final browser check: live bar with and without history measures 322px content / 322px available at 340×260; screenshot confirms separate shield, mic, speaker, history, menu and End controls without overlap.
+- `./scripts/build-app.sh`: passed; rebuilt root `Aside.app`, release and frontend builds passed, strict signature verification passed. `git diff --check`: passed.
+- Reopened final Mac app and navigated Settings. Accessibility shows the renamed Stealth switch on and “Stealth on. Hidden from screen sharing.” status; both providers connected. The tool screenshot returned a blank protected window, so no claim of native visual-glow inspection is made. Browser screenshots supplied visual confirmation. Actual Zoom/Meet/Teams capture coverage remains unverified.
+
+## 2026-10-05 — monochrome theme and clear live background
+
+- Startup: read CONTEXT/CURRENT, reviewed working changes and five recent commits. Snapshot of prior edited theme files and full prior diff saved under `/tmp/aside-monochrome-before` for rollback without losing existing work.
+- Reference comparison: named Repo1-Natively/Repo2-OpenCluely absent; inspected available Assistant `styles/tokens.css`, `styles/base.css`, and `windows/WindowManager.ts` transparency patterns.
+- `npm test`: 61 passed, 0 failed; added a controller check that saved 0% survives opening a session.
+- `npm run build`: passed; existing bundle-size advisory remains. `cargo build`: passed.
+- `cargo test commands::overlay::tests --lib`: 8 passed, 0 failed; 0% accepted by Rust preference validation.
+- Browser via computer-use: 1000×800 Copilot, Library, History and Settings inspected. Settings fits without page scrolling; switch knob is inside its track after the page settles.
+- Live preview at 480×560 and 340×260: generated an answer and code, opened options, set slider to 0 and 100, selected extra-large text, closed with Escape. Measured zero-alpha panel gradient at 0%, text opacity 1 and a protective text halo; fully solid gradient/no halo at 100%. Minimum-size bottom bar remains inside the panel and no horizontal page overflow. Live error log empty.
+- Impeccable detector completed and flagged inherited overshoot easing only; replaced the shared easing with the existing smooth ease-out. No new standing design documents added, following the owner’s context-file limit.
+- `./scripts/build-app.sh`: passed frontend/release builds, created root `Aside.app`, strict signature verification passed and bundle identifier is `com.aside.desktop`. Final pass follows comment/document cleanup.
+- `git diff --check`: passed. Compared new theme/native-window changes against the saved pre-task files to confirm existing work remains. Workspace browser error log also empty. Preview screenshots saved under `/tmp/aside-monochrome-proof`.
+
+## 2026-10-05 — red buttons and Stealth motion
+
+- Read CONTEXT/CURRENT and reviewed git status, diff and recent log. Prior files saved under `/tmp/aside-red-before` for rollback.
+- Named reference folders remain absent. Inspected available Assistant `overlay.css` for brief motion/reduced-motion handling and `NavBar.tsx` for End confirmation and screen-sharing controls. Existing Aside cancellation retained.
+- `npm test`: 61 passed, 0 failed. `npm run build` and `cargo build`: passed. `git diff --check`: passed.
+- Browser: Settings and Copilot red controls inspected at 1000×800; live red End/Answer/screenshot controls at 340×260 and 480×560. No overflow observed and both page error logs empty.
+- Stealth demo: Cancel keeps protection on and adds no transition. Confirmed on shows `data-transition=on`, a red gradient sweep named `stealth-engage` for 0.42s while protection claim is absent until saved. Confirmed off shows `data-transition=off`, reverse sweep, and retains the prior protection claim until saved; indicator/glow then disappear. Reduce Motion and hidden-page paths reviewed in code; no OS preference changed.
+- Live End: armed state uses dark red with white text, fill duration 4s. Escape removes armed state and returns End without ending the call. Generated answer streaming still works.
+- Contrast calculation: white/red 5.62:1; white/hover 6.99:1; supporting red/light 6.20:1 and light-red/dark 8.02:1.
+- Design detector flagged two inherited uses of the name `--spring`; this alias already resolves to smooth `--ease-out` with no overshoot. No new detector findings.
+- `./scripts/build-app.sh`: passed frontend and release builds; refreshed root Aside.app; strict signing verification passed for `com.aside.desktop` after the script’s metadata retry. Native Stealth relaunch/device appearance not re-tested.
+- Preview screenshots saved under `/tmp/aside-red-proof`.
+
+## 2026-10-05 — neutral controls with red main actions
+
+- Startup context, working diff/status and recent commits reviewed; named reference folders still absent. Available Assistant neutral `.pill`/`.chip` and accent `.pill-accent` styles checked; no source copied.
+- Style-only correction; prior CSS saved under `/tmp/aside-neutral-controls-before`.
+- `npm run build` and `cargo build`: passed. `git diff --check`: passed.
+- Browser at 1000×800: Save transcript and Stealth switches measured black rgb(23,23,23), selected speech engine neutral, Start session remains red rgb(198,40,40). Secondary button text measured neutral. Workspace screenshot saved under `/tmp/aside-neutral-controls-proof`.
+- Live at 480×560: opacity thumb/track accent, selected text-size and menu text measured white rgb(245,245,245); End and Answer remain red rgb(198,40,40). Live page error log empty. No behavior code changed; existing End/Stealth verification remains applicable.
+- Design detector only repeated its inherited `--spring` naming warnings; the alias already resolves to smooth ease-out.
+- `./scripts/build-app.sh`: passed; root `Aside.app` refreshed, strict signature verification passed for `com.aside.desktop`.
+
+## 2026-10-05 — checklist borders for Copilot and Settings
+
+- Startup CONTEXT/CURRENT, git status/diff/recent history reviewed. Named reference repositories remain absent; available Assistant dashboard `.card` border/radius treatment checked alongside Aside checklist `.pf` styles.
+- Prior CSS saved under `/tmp/aside-bordered-before`; actual change reviewed against that copy. Styling only; no behavior code changed.
+- `npm run build` and `cargo build`: passed. `git diff --check`: passed. Impeccable detector on spatial.css: no findings.
+- Browser at 1000×800: both panels measure 1px solid rgba(0,0,0,0.1), radius 12px, no shadow. Sections span the 730px panel interior with full-width hairline dividers and 22px horizontal content spacing. Copilot and Settings each fit without scrolling (748px content/available); no horizontal overflow or browser error logs. Screenshots saved under `/tmp/aside-bordered-proof`.
+- `./scripts/build-app.sh`: passed frontend/release builds; root `Aside.app` refreshed. Strict signature verification passed for `com.aside.desktop` after the script's iCloud metadata retry.
+
+## 2026-10-05 — compact floating live controls
+
+- Read startup context/current, git status/diff/recent commits. Named reference repositories absent; available Assistant LengthBar, ChatBar and GlassOpacity compared. Pre-change files saved under `/tmp/aside-live-controls-before`.
+- `npm test`: 63 passed. Initial typed-retry test emitted its fake stream after the request finished, unlike the real backend; corrected the fake to emit within the request. Verified explicit lengths, Auto reset, typed retry and old preference migration.
+- `npm run build` and `cargo build`: passed. `cargo test commands::overlay::tests --lib`: 9 passed. `cargo test explicit_length_overrides_live_in_system_and_do_not_leak_into_auto --lib`: 1 passed, checks all three word bands and non-leaking Auto behavior.
+- Browser at 480×560 and 340×260: Short/typed Medium/Long/Auto requests stream; search opens with focused input, Escape retains draft, reopening restores it, successful typed submission closes it. Floating controls and opened field stay within panel bounds; no horizontal overflow.
+- Menu: exactly Extra small/Small/Medium. Slider Home gives 20%, End 100%; saved size 11 produces 12.69px answer text through the existing scaling. Size 13 and 15 preserve previous scales.
+- Actual diff reviewed against saved files; `git diff --check` passed. Design detector repeats two inherited `--spring` naming warnings; alias is already smooth ease-out. No new findings.
+- Screenshot preview: immediate capture feedback, response streaming and usable answer history. Scroll-to-end leaves 24px clearance above the controls. Browser error log empty; screenshots under `/tmp/aside-live-controls-proof`.
+- `./scripts/build-app.sh`: passed frontend/release builds; root `Aside.app` refreshed. Strict signature verification passed for `com.aside.desktop` after the script's metadata retry. Real native capture/cloud response lengths not re-tested.
+
+## 2026-10-05 — question-row tools and separate outlined pills
+
+- Startup context/current and working git status/diff/recent history checked. Named comparison directories absent. Available Assistant toolbar utility structure and `.length-btn` outline/radius treatment inspected. Prior files saved under `/tmp/aside-question-actions-before`.
+- Moved shared draft state to one hook used by question-row search/screenshot and floating length/play actions; no backend/request logic changed. Initial compile found a missing JSX fragment in the moved field; corrected it. `npm run build` and `cargo build`: passed. `npm test`: 63 passed.
+- First browser pass at 480×560 and 340×260 found long-question/open-field crowding and revealed the shared radius token was 12px rather than fully round. Fixed in one batch: explicit pill radius, a scrollable question area only while typing at short heights, internal answer-end spacer and a non-scrolling outer panel. Final `npm run build`: passed.
+- Confirmation at 340×260: field bottom 164px, floating controls top 195px (31px clearance), panel scroll 0, question area 44px visible/101px content; no horizontal overflow. Separate length and screenshot pills measure rgb(0,0,0), white text/icons, 1px white borders and 999px radius. Search expands/focuses, Escape retains/reopening restores the draft, and Short sends that typed draft. Relocated screenshot shows capture feedback. Browser error log empty.
+- Actual source diff reviewed against snapshot; `git diff --check` passed. Detector only repeats inherited `--spring` naming warnings (token resolves to smooth ease-out). Screenshots saved under `/tmp/aside-question-actions-proof`.
+- Owner then extended the same treatment to microphone, speaker and top options. Style-only addition saved against `/tmp/aside-top-pills-before.css`; diff reviewed. At 340×260 with history, bar content/available both 322px; all three controls measure black fill, white icons, white 1px border, 999px radius and 28px height. Microphone off/on and options open/close checked; mute keeps its slash/dashed border, hearing keeps an inner edge. No browser errors. Final 480×560 answer-end clearance 23.9px; panel scroll remains zero.
+- `./scripts/build-app.sh`: passed for both the question-row change and the added top-pill styles; final root `Aside.app` refreshed. Frontend/release builds and strict signature verification passed for `com.aside.desktop` after the script's metadata retries.
+
+## 2026-10-05 — subdued controls that blend into the live window
+
+- Startup context/current, git status/diff/recent history reviewed. Named comparison repos remain absent; available Assistant neutral glass-fill and faint-edge tokens checked. Rollback CSS saved at `/tmp/aside-blended-controls-before.css`.
+- CSS only: shared rgba(36,36,36,0.9) resting fill, rgba(255,255,255,0.12) edge and rgb(222,222,222) labels/icons. Hover/open/hearing uses a slightly lighter tint; white play/red End retained. No behavior/request code changed.
+- `npm run build` and `cargo build`: passed. Actual CSS diff reviewed against snapshot; `git diff --check` passed. Detector only repeats inherited `--spring` naming warnings; token resolves to smooth ease-out.
+- Browser at 480×560 and 340×260, including 20% background opacity: shared subdued styling confirmed. Small bar content/available both 322px, page content/available both 340px; open follow-up retains 31px clearance above floating controls. Menu opens/closes, Auto preview streams, history remains usable. Browser error log empty. Screenshots saved under `/tmp/aside-blended-controls-proof`.
+- `./scripts/build-app.sh`: passed frontend/release builds; root `Aside.app` refreshed and strict signature verification passed for `com.aside.desktop`.
+
+## 2026-10-08 — Recruiter calls
+
+- `cargo test --lib`: 809 passed, 12 ignored (includes new: a screen keeps its kind; a screen uses the shared guidance and an interview its own; migration tests updated to schema v10). `cargo build`: passed.
+- `npx tsc --noEmit`, `npm run build`: passed (existing chunk-size advisory). `npm test`: 63 passed. `git diff --check`: passed.
+- Browser preview (`?demo#/screens`, 1000×800): page lists companies with one shared guidance; screens stay out of the Copilots sidebar list; Add company saves (newest resume preselected); Start call shows the black question-and-answer panel inside the page; play streams an answer; options menu shows only Text size and Pause listening; leaving to Library and back keeps the answer and clock; End returns to the list; shared guidance edit saves on close. Browser error log empty. First pass found the options menu squashed to 12px by a new height cap; removed it and rechecked.
+- Not checked: a real installed-app recruiter call (audio, Command+Enter from the page, Return to call pill, Call ended sheet) — the browser demo has no backend events.
+- `./scripts/build-app.sh`: passed; root `Aside.app` refreshed (signed as com.aside.desktop). Production bundle checked: no demo-call code included.
+- Owner correction (single setup): `npx tsc --noEmit`, `npm run build`, `cargo build` passed; `npm test` 63 passed. Browser demo at 1000×800: page fits without scrolling; saved job description and resume load; Paste text creates and selects "Pasted resume"; Upload file fills the job description with the file's text; autosave runs; Start call shows the panel; End returns to the setup with the uploaded text kept. Browser error log empty. The demo's fake data always reports the same saved resume, so reloading the pasted resume was not checkable in the browser (the real save path is covered by the Rust copilot tests).
+- `./scripts/build-app.sh` after the single-setup change: passed; root `Aside.app` refreshed (signed as com.aside.desktop).
+- Workspace-styled call screen: `npx tsc --noEmit`, `npm run build`, `cargo build` passed; `npm test` 63 passed; `git diff --check` passed. Browser demo at 1000×800: start call; Answer streams into the Answer section; first pass showed the answer flattened into one paragraph (the shared text component's preview mode), fixed with a dedicated renderer: paragraphs, bullets and a grey code box with Copy confirmed. Typed question with Short, turning You off (struck through), "2 of 2" history, End call confirm dialog and return to setup checked. Browser error log empty.
+- `./scripts/build-app.sh` after the workspace-styled call screen: passed; root `Aside.app` refreshed (signed as com.aside.desktop).
+
+## 2026-10-08 — Square-inspired UI, logo and search cleanup
+
+- Read `CONTEXT.md`, `CURRENT.md`, git status/diff/recent log and both requested reference paths. `Repo1-Natively` and `Repo2-OpenCluely` are absent; inspected available Assistant tokens/dashboard and earlier overlay patterns. Reviewed Square’s official dashboard page and design blog.
+- Saved pre-redesign source in `/tmp/aside-square-before/source.tgz`, with the prior uncommitted diff in `prior-work.diff`. Reviewed the task-only diff saved in `/tmp/aside-square-proof/redesign.diff` plus complete git diff/check. Prior uncommitted recruiter-call work remains.
+- `swift scripts/build-icon.swift` and `npm run tauri icon -- src-tauri/icons/icon.png --output /tmp/aside-square-icons`: passed; retained desktop PNG/ICNS/ICO outputs. Removed obsolete duplicate icon from source by moving it to Trash. Bundle/source ICNS SHA-1 match: `9e9325a8909ec086c690f362ae7cdd3751d84dfd`.
+- `npm test`: all 63 passed, including stylesheet syntax. `npm run build`: passed (existing large-chunk advisory remains). `cargo build` in `src-tauri`: passed. `git diff --check` and `bash -n scripts/build-app.sh`: passed.
+- Initial cache relocation caused stale absolute Tauri permission-file paths; first Cargo/bundle attempts failed with missing `target/.../app_hide.toml`. A local old-path symlink to `target.noindex` restored those saved paths. Root `.cargo/config.toml` sets the new directory for future builds. `cargo metadata --manifest-path src-tauri/Cargo.toml --no-deps --format-version 1` confirmed `/Users/devendra_r_n/Desktop/Projects/Aside/src-tauri/target.noindex`.
+- `./scripts/build-app.sh`: successful twice after cache-path correction; latest final UI build log `/tmp/aside-square-build-final.log`, exit 0. Root `Aside.app` passed strict signature verification after the known iCloud metadata race retry, signed as `com.aside.desktop`. Ad-hoc signature limitation remains.
+- Browser 1000×800: reviewed Copilot, Settings, Library list/grid, History, recruiter setup, Start-session checklist, text editor, recruiter start/typed answer/end. Fixed existing dialog positioning: End-call dialog at x300/y307.5, 400×185, fixed z80, white background, above backdrop. Minimum main 960×640 has normal vertical scrolling and no horizontal overflow. Sidebar collapse/reopen checked.
+- Live browser at 480×560: answer streaming, menu and code reviewed. At 340×260 and 20% opacity: top bar client/scroll width both 322px; follow-up bottom164 and composer top195, leaving31px; options and follow-up open/close checked. No real provider or audio session started.
+- Screenshots `/tmp/aside-square-proof/workspace.jpg` (1000×800), `live.jpg` (480×560), `end-dialog.jpg` (1000×800). Old inactive live tab initially ignored viewport changes; recaptured in a fresh tab and checked both DOM and JPEG dimensions.
+- Mechanical design detector: only two inherited `--spring` name warnings, actual token is smooth ease-out. Independent finish reviewer: no material visual defect; requested updating old design facts in CONTEXT, then returned `disposition: ship` after that correction.
+- `mdfind` for app bundle identifier returns exactly one path: root `Aside.app`. Query for `aside-*` cache entries now returns none. LaunchServices dump has one `com.aside.desktop` registration, pointing to root app. Build script refreshes only that app with `lsregister -f` and `mdimport`. Direct Spotlight-panel automation could not open the OS search process; visible menu check remains unverified.
+- Launched `/Users/devendra_r_n/Desktop/Projects/Aside/Aside.app` with native desktop automation. Revised navigation, saved copilot, resume/supporting file, guidance, Default model and header Start session loaded. The call engine/data were preserved; real call/capture, protection coverage and Windows appearance were not checked by this redesign.
+
+## 2026-10-08 — Monochrome correction
+
+- Snapshot `/tmp/aside-monochrome-before/source.tgz`; task-only colour diffs in `/tmp/aside-monochrome-proof/*.diff`. Inspected existing tokens/live/control/icon styles and available Assistant tokens; requested reference repositories remain missing.
+- `swift scripts/build-icon.swift` and Tauri icon generation passed; retained updated desktop PNG/ICNS/ICO assets. The mark is now white on black.
+- `npm test`: 63 passed. `cargo build` in src-tauri: passed. `./scripts/build-app.sh`: exit 0, frontend/release build and strict bundle signature verification passed (`/tmp/aside-monochrome-build.log`). `git diff --check`: passed.
+- Source scan of CSS six-digit hex colours found no unequal RGB channels. Rendered DOM checks at 1000×800 workspace/Library/History and 340×260 live found no coloured text/fills/borders. Main panel and section divider both measured 1px solid rgb(214,214,214); logo fill rgb(23,23,23). Compact live top bar client/scroll widths both322px.
+- Screenshots of workspace, Settings, Library and compact live reviewed and saved under `/tmp/aside-monochrome-proof`. Design detector reported only the same two inherited `--spring` naming warnings, whose actual curve is ease-out.
+- Palette change preserves call behavior and existing layout. Real audio/provider/device checks were not repeated for this styling-only change.
+
+## 2026-10-09 — Duplicate Spotlight rows follow-up
+
+- Owner screenshot shows at least six Aside rows; earlier one-entry `mdfind`/registry checks were insufficient. Current metadata/LaunchServices still each show one root bundle. Examined Aside-specific registry record and accessible Spotlight app-list cache (no Aside entry); protected CoreSpotlight store could not be read. No protected-store bypass attempted.
+- Apple Support `https://support.apple.com/en-us/102321` describes affected-folder reindexing through Search Privacy. Native System Settings automation added only `/Users/devendra_r_n/Desktop/Projects/Aside`, observed its metadata search result disappear, then removed the exclusion and clicked Done. Verified the exclusion table returned to “No Locations Added.”
+- `cargo build` in src-tauri passed. `./scripts/build-app.sh` passed including frontend build and strict signature verification (`/tmp/aside-search-fix-build.log`). Changed root copy to `rsync -a --delete`; actual app directory inode101664339 before and after. `bash -n` and `git diff --check` passed. Task rollback script in `/tmp/aside-search-fix-before/build-app.sh`.
+- Terminated only PID1075 `corespotlightd`, verified as UID501/current user, then re-imported the root app to refresh cache; no search-history or user-data files deleted.
+- Available desktop controls could open System Settings but could not open/inspect Spotlight’s actual search panel. Requested the duplicate result’s Finder location from owner; no answer yet. Visible duplicate removal remains PARTIAL; do not claim a menu result based only on index counts.
+
+## 2026-10-09 — Windows compatibility built on macOS
+
+- Read `CONTEXT.md`, `CURRENT.md`, working diff/status and recent history before editing; saved pre-task source and existing diff to `/tmp/aside-windows-before`. Existing uncommitted work preserved. Named Natively/OpenCluely references remain absent; compared the available Assistant installer/window/audio patterns.
+- Installed LLVM, LLD, NSIS, cargo-xwin and the `x86_64-pc-windows-msvc` Rust target on this ARM Mac. Windows SDK cache is `.xwin-cache` (ignored). Installed UTM 4.7.5; no Windows guest was installed. `brew install --cask wine-stable` failed because Homebrew disabled it for failing Gatekeeper checks. No workaround or security bypass applied.
+- `cargo xwin build --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc --release --locked`: passed. `npm run build:windows`: passed, producing the x64 NSIS installer. `cargo xwin test ... --lib --no-run`: passed, creating the Windows test executable; **these Windows tests were compiled, not executed**. Logs: `/tmp/aside-windows-cross-build.log`, `/tmp/aside-windows-installer-final.log`, `/tmp/aside-windows-test-build.log`.
+- Inspected the Windows executable imports with `llvm-readobj --coff-imports`: prebuilt inference code needs MSVCP140/MSVCP140_1/VCRUNTIME140/VCRUNTIME140_1 and Windows DirectML/D3D12. Added C++ prerequisite handling and Windows 10 2004+ floor. Reviewed actual generated NSIS Install section: restored `$INSTDIR` after temporary prerequisite extraction, so the app is copied to its install directory. Repackaged the final hook with `npm run tauri bundle -- --target x86_64-pc-windows-msvc --bundles nsis`; passed.
+- Microsoft runtime 14.51.36247.0 downloaded from Microsoft's official endpoint, pinned to SHA-256 `843068991daaa1f73ad9f6239bce4d0f6a07a51f18c37ea2a867e9beca71295c`. Initial Authenticode check lacked Microsoft's issuer roots; obtained the two roots from Microsoft's published PKI repository into `/tmp` only. `osslsigncode verify` with those roots: signature, timestamp and CRL verification succeeded. No certificates installed into the user's trust store.
+- `7zz l` and `7zz t release-windows/Aside-Setup.exe`: final payload includes the main executable, temporary runtime installer, WebView bootstrapper and uninstaller; archive integrity passed. Extracted main/runtime payload for inspection; runtime hash matches the pinned dependency. Logs: `/tmp/aside-windows-payload.log`, `/tmp/aside-windows-installer-integrity.log`, `/tmp/aside-windows-runtime-signature.log`. The installer itself is unsigned.
+- `npm test`: 65 passed. `npm run build`: passed, with existing bundle-size advisory. `cargo build --manifest-path src-tauri/Cargo.toml`: passed. `cargo test --manifest-path src-tauri/Cargo.toml --lib`: 810 passed, 12 ignored; includes the default-device polling change/removal/reconnection/shutdown test. Logs in `/tmp/aside-windows-frontend-tests.log`, `/tmp/aside-windows-mac-build.log`, `/tmp/aside-windows-rust-tests.log`.
+- Chrome previews using Windows and Mac user agents: workspace 1000×800; live 340×260 with answer, expanded follow-up typing, platform shortcut tooltip, and expanded microphone recovery. No horizontal overflow or page errors. Images in `/tmp/aside-windows-proof`; results in `/tmp/aside-windows-ui-results.json`. These are browser checks, not WebView2/Windows system tests. Mechanical detector returned `[]`.
+- `git diff --check` and `node --check scripts/build-windows.mjs`: passed. Whole-repo formatting check found pre-existing unrelated differences; only `audio/device_watch.rs` was formatted. Reviewed this task's diff against the pre-task snapshot in `/tmp/aside-windows-task.diff`.
+- `./scripts/build-app.sh`: passed; root `Aside.app` refreshed and strict signature verification passed as `com.aside.desktop`. Mac bundle logs in `/tmp/aside-windows-mac-bundle-final.log`.
+- **PARTIAL:** native Windows installer execution, audio, device switching, screenshots, global shortcuts, window behavior and screen-share protection were not exercised. UTM installation alone proves none of them. Earlier installed-Mac call/permission and visible Spotlight checks remain open.
+
+## 2026-10-09 — Version 0.1.1 Regular Call and dark live window
+
+- Startup context/status/diff/history reviewed; backup `/tmp/aside-regular-dark-before/source.tgz` and old installer saved. Compared available Assistant `LengthBar.tsx` immediate actions; requested reference folders are absent. Existing uncommitted work preserved.
+- `npm test`: 65 passed (`/tmp/aside-regular-tests.log`). `cargo build` from src-tauri passed (`/tmp/aside-regular-cargo.log`). `cargo test --lib storage::tests::a_fresh_install_starts_without_documents_copilots_or_calls`: 1 passed, 822 filtered (`/tmp/aside-regular-fresh-db.log`).
+- Browser: Regular Call Short, repeated Short, Medium and typed Long each immediately entered Answering without an Answer click; buttons disabled during requests. Sidebar order checked at 1000×800. Black live and dark options reviewed at 480×560 and 340×260; minimum width had no horizontal overflow. Slider Home/End showed 20/100; computed panel at 20 was `linear-gradient(rgba(17,17,17,0.2), rgba(17,17,17,0.2))`. Screenshots `/tmp/aside-regular-dark-proof`. Native transparency/audio remains unverified.
+- `npm run build:windows`: passed (`/tmp/aside-regular-windows-build.log`), current 0.1.1 installer copied to `release-windows/Aside-Setup.exe`. `7zz t`: archive integrity passed. Nine payload files: app/uninstaller, NSIS plugins/artwork and Microsoft prerequisites; no personal docs or database. Extracted exe exactly matches release after normalizing the one Tauri `BUNDLE_TYPE_VAR_NSS` versus `BUNDLE_TYPE_VAR_UNK` marker. Production assets/binary lack preview resume/document names. Audit `/tmp/aside-regular-package-audit.json`; archive listing `/tmp/aside-regular-installer-files.txt`. Setup SHA256: `4daca7e04c5b41817eb28d9908fcc3c70bc6ff61dcff236663389b4313bec2ba`.
+- `./scripts/build-app.sh`: passed (`/tmp/aside-regular-mac-build.log`), frontend build and root app signing/strict verification included. Initial iCloud Finder metadata retry resolved; final signature valid as `com.aside.desktop`. Windows native execution remains PARTIAL.
+- Final source diff reviewed against the task backup (`/tmp/aside-regular-task.diff`); `git diff --check` and `node --check scripts/build-windows.mjs` passed. Mechanical detector reported only two existing `--spring` name warnings; that token resolves to ease-out, with no bounce. Final Mac rebuild passed (`/tmp/aside-regular-mac-final.log`). iCloud reattached Finder metadata afterward; removing the root FinderInfo attribute restored strict deep verification without changing app contents. Launched root version 0.1.1 and confirmed the new sidebar and Regular Call page with existing user setup preserved.
+
+## 2026-10-09 — Confirmations and movable minimize bubble, version 0.1.2
+
+- Startup working state and history inspected; task backup `/tmp/aside-bubble-before/source.tgz` and previous installer preserved. Scoped Impeccable context/craft-floor used; no extra standing design docs added. Compared available reference NavBar/window patterns; requested repositories absent.
+- `npm test`: 65 passed (`/tmp/aside-bubble-tests.log`). `npm run build` passed (`/tmp/aside-bubble-front-final.log`). `cargo build --manifest-path src-tauri/Cargo.toml --locked` passed after correcting the version bump to change only Aside's lock entry. No dependency upgrades. Lifecycle tests: 5 passed; window tests: 2 passed, including repeated empty minimize notification (`/tmp/aside-bubble-lifecycle-tests.log`, `/tmp/aside-bubble-window-tests-final.log`).
+- Browser live 480×560: End opens the dialog, Keep going returns to listening, End call immediately reaches Ended. Workspace 1000×800: only Library/History/Settings above saved copilots, pill actions with computed 999px radius; red inset Stealth glow and masked gradient visible. Images `/tmp/aside-bubble-proof/end-confirm.jpg` and `workspace.jpg`.
+- Installed Mac: Cmd+Q and red close display Quit Aside confirmation. Minimize produced an Aside bubble with accessible Restore Aside button. Native drag exercised; clicking restores workspace. Native screenshot output was blank/protected under Stealth; appearance checked using preview, not by weakening Stealth. Native control interactions were sometimes interrupted by user/app state changes and re-observed before continuing.
+- `impeccable detect --json` on changed UI targets: `[]` (`/tmp/aside-bubble-detector.json`). `git diff --check` passed. First 0.1.2 Windows/Mac packages built successfully (`/tmp/aside-bubble-windows-build.log`, `/tmp/aside-bubble-mac-build.log`); final incremental package build follows the restore-notification guard and documentation changes. Windows execution remains unverified.
+- Final 0.1.2 incremental Windows and Mac builds passed (`/tmp/aside-bubble-windows-final.log`, `/tmp/aside-bubble-mac-final.log`); strict deep Mac signature verified after removing reattached root FinderInfo metadata. NSIS integrity passed and archive list again contains no document/database payload (`/tmp/aside-bubble-installer-integrity.log`, `installer-files.txt`). Reviewed task diff against backup (`/tmp/aside-bubble-task.diff`); lockfiles change only Aside version. Latest frontend modifier correction preserves Control+H text editing on Mac while Command+H hides; Windows uses Ctrl+H. `npm test` repeated for that change: 65 passed (`/tmp/aside-bubble-tests-final.log`). Delivery package builds restarted after that frontend correction; results are in `/tmp/aside-bubble-mac-delivery.log` and `/tmp/aside-bubble-windows-delivery.log`.
+- Hide/restore correction: native menu Hide now toggles the same saved window list, and opening Quit clears hidden-window state before restoring a bubble. Focused tests repeated: 5 lifecycle and 2 window tests passed (`/tmp/aside-bubble-hide-tests.log`); cargo build passed (`/tmp/aside-bubble-cargo-delivery.log`). Confirmed Quit exits the old app. Launched the corrected bundle, hid Aside with Cmd+H, sent Cmd+H from Safari, and observed the restored Aside window. Some synthetic keys sent directly to a hidden app could not be routed by desktop automation; the external-app check succeeded. Delivery2 Windows/Mac builds passed. Final archive audit: integrity, no docs/database, current binary match except Tauri installer marker, no preview file names (`/tmp/aside-bubble-installer-delivery-audit.json`). Final button selector also covers higher-specificity Settings choices; delivery rebuild started after this CSS correction (`/tmp/aside-bubble-mac-final-shape.log`, `/tmp/aside-bubble-windows-final-shape.log`).
+
+## 2026-10-09 — Smaller bubble, version 0.1.3
+
+- Prior affected source saved in `/tmp/aside-small-bubble-before`. Native window and CSS sizes halved together; border reads the existing Stealth context. No new window behavior; prior reference comparison applies. Mac and Windows builds started; results in `/tmp/aside-small-mac.log` and `/tmp/aside-small-windows.log`.
+- Both 0.1.3 package builds passed; root Mac signature strictly verified and app relaunched. Native Minimize displayed the new Restore Aside bubble. Source check confirms 32px window, 28px button, 13px mark, and context-controlled red/white border. `git diff --check` and final NSIS archive integrity passed (`/tmp/aside-small-installer-test.log`). Windows native execution remains unverified.
+
+## 2026-10-09 — 48px bubble
+
+Native and CSS sizes adjusted together to the midpoint; icon and perimeter scale with them. Builds started; results in `/tmp/aside-mid-mac.log` and `/tmp/aside-mid-windows.log`.
+
+## 2026-10-09 — Red End and Quit
+
+Scoped visual change; confirmation behavior unchanged. Package builds started; logs `/tmp/aside-red-actions-mac.log` and `/tmp/aside-red-actions-windows.log`.
+- Browser live confirmation reviewed at 480×560: End call computes red `rgb(201,42,53)` with white text. Dedicated class also applies to Quit and Regular Call End; no global danger/status token change. Screenshot `/tmp/aside-red-end.jpg`. Diff whitespace check passed.
+
+## 2026-10-14 — Dark workspace and plain sidebar navigation
+
+- Read CONTEXT/CURRENT, inspected git status/diff/recent commits; preserved existing uncommitted changes. Snapshot `/tmp/aside-dark-before/source.tgz` contains the pre-change task files.
+- Checked reference locations: both named folders absent. Read available Assistant `styles/tokens.css` and `windows/settings/settings.css` for dark-surface and navigation patterns; no source copied.
+- `npm run build`: passed (existing large-chunk advisory). `npm test`: 65 passed, zero failed. `cargo build` in `src-tauri/`: passed, dev profile finished in 2m12s. `git diff --check`: passed.
+- Impeccable mechanical detector on Sidebar/spatial/tokens: returned `[]`, no findings (`/tmp/aside-dark-detect.json`).
+- Browser preview at 1000×800: saved/new Copilot, Regular Call, Library, History, Settings, Paste text editor, collapsed sidebar. Five navigation links share 44px height and 10px corners with transparent idle backgrounds. New Copilot is the only selected row on its page. Copilot panels have no horizontal overflow; page scroll contains 758px within 712px view. Palette measured sidebar #0a0a0a, main #131313, panels #202020. Proof images `/tmp/aside-dark-proof/*.png`.
+- Source changes reviewed against the pre-change snapshot: Sidebar/theme/tokens/spatial only; no backend or data changes.
+- `./scripts/build-app.sh`: passed; root Aside.app signed and strict verification passed as com.aside.desktop. Launched through CUA from the root app path; native accessibility tree displayed existing saved data and all five sidebar links. Connection status reported AI/speech connected. Native call/audio behavior was not tested.
+- Independent Impeccable finish review inspected all eight screenshots and source and returned **ship** with no required fixes. Browser console errors: none.
+
+## 2026-10-14 — Sidebar order correction
+
+- Moved New Copilot above Regular Call; replaced Regular Call's chat icon with the existing Lucide family's Phone icon. No routing or call changes.
+- Both named reference folders remain absent; existing reference navigation pattern remains applicable. Exact order follows the owner's request.
+- Browser accessibility/DOM and screenshot confirm order New Copilot, Regular Call, Library, History, Settings; Regular Call renders `lucide-phone`. Proof: `/tmp/aside-sidebar-order.png`. Source reviewed against `/tmp/aside-sidebar-order-before`.
+
+- Sidebar-only `npm run build`, `cargo build` and `./scripts/build-app.sh` passed; signature verified as com.aside.desktop.
+
+## 2026-10-14 — Soft red Stealth gradient
+
+- Removed the one-pixel red inset outline and masked line sweep. Added soft inset shading and four edge gradients; the bubble no longer has a sharp red border. The user specifically requested a gradient, so this visual direction governs over generic styling defaults.
+- Compared existing reference: named repositories still absent; available Assistant reference uses soft background gradients, but no equivalent Stealth decoration to reuse. Implemented directly in Aside CSS.
+- Browser screenshots checked workspace and 480×560 live panel; text and controls remain readable. Proof `/tmp/aside-red-gradient.png` and `/tmp/aside-red-gradient-live.png`. Computed shadow blur 28px/64px with zero spread; sweep is radial gradients with no mask. Existing reduced-motion and pause rules retained.
+- Final `npm test`: 65 passed. `./scripts/build-app.sh` (including `npm run build`): passed; root Aside.app signed and strict verification passed as com.aside.desktop. Earlier cargo build in this turn passed; no Rust changes. Final `git diff --check` passed.
+
+## 2026-10-14 — Fixed setup layouts and Delete all history
+
+- Read current context, status, diff and recent log; saved pre-change task source/context in `/tmp/aside-fit-before/source.tgz`. Named reference directories remain absent. Read available Assistant Dashboard deletion and settings layout patterns; it only deletes one call at a time.
+- `npm run build`: passed with existing chunk-size advisory. `npm test`: 65 passed. `cargo build`: passed in 6.49s.
+- `cargo test bulk_history_delete -- --nocapture`: initial test fixture used an invalid speech origin and failed; corrected to local_parakeet. Rerun passed both tests, proving confirmed-only deletion, active-call protection, legacy/Library file preservation, transcript removal, and atomic rollback on a forced database failure. No real user data was modified.
+- Impeccable layout assessment completed independently; detector returned [] for layout changes.
+- Browser at 1000×800 and 1000×650 with sidebar 300: setup page scrollHeight = clientHeight, no offscreen controls. All four populated Copilot cards fit (195px inner height at 650). Full-description Show more opens editor; URL import stays inside card. Regular Call: page 562px/562px, panel 407px/407px, all controls visible. Screenshots `/tmp/aside-fit-proof`.
+- History browser checks use reloadable development-only sample data: Delete all confirms 3 calls; Cancel preserves 3 calls; confirm shows No calls yet and Deleted 3 calls. Library still shows 4 files and saved copilots remain. Owner's real history was not cleared.
+- Review found two material edge cases and both were fixed: supporting filenames now truncate and show one file plus a more control; bulk deletion explicitly clears chunks_fts inside the same guarded transaction.
+- Final focused Rust rerun: 2 passed, including search-index deletion for confirmed calls, active-call search preservation and FTS rollback. Final frontend production build and 65 tests passed.
+- Final long-file browser proof at 1000×650/sidebar300: 680px filename clipped into222px with ellipsis; all four cards scroll/client size195px and311px; setup page562px/562px. Three selected files remain reachable via +2 more. `/tmp/aside-fit-proof/long-files-1000x650.png`.
+- Independent final verdict: both review findings resolved, ship. Browser console errors: none.
+- Final `cargo build`: passed in 8.94s. Final `./scripts/build-app.sh`: passed, including production frontend/release native build and strict signing verification; root Aside.app refreshed as com.aside.desktop. Final `git diff --check`: passed.
+
+## 2026-10-14 — Compact Copilot card spacing
+
+- One CSS rule changed: content-sized grid rows/cards replace equal-height stretched rows. Pre-change CSS `/tmp/aside-tight-cards-before/spatial.css`. Both named reference folders remain absent; available reference Settings uses content-sized sections, consistent with this change.
+- Browser checked populated and new Copilot at 1000×800/650 with 300px sidebar. Populated card heights shrink to approximately198/152/144/172px at800; setup scrollHeight/clientHeight remain712/712. At650 they are186/140/132/160px; page562/562 and no offscreen controls. Footer is at572px. Screenshots `/tmp/aside-tight-cards-800.png` and `/tmp/aside-tight-cards-650.png`.
+- New Copilot at650 also fits: page562/562, compact card content heights125/100/100/80px, no offscreen controls, no browser errors. Final diff review and git diff --check passed. cargo build passed; ./scripts/build-app.sh passed including npm run build and strict signing verification of root Aside.app as com.aside.desktop.
+
+## 2026-10-14 — Vertical setup layout and Regular Call reliability
+
+- Read current context/status, inspected git status/diff/recent commits and preserved existing work. Source rollback snapshot `/tmp/aside-vertical-before/source.tgz`.
+- Named Natively/OpenCluely folders absent. Inspected available Assistant dashboard and shared settings/token styles for direct call controls and consistent fields.
+- `npm test`: 69/69 pass. Four new autosave tests cover consumed-but-in-flight save, failed snapshot retry, draining newer changes, and concurrent flush seeing newest failure. Log `/tmp/aside-vertical-tests.log`.
+- `npm run build`: passed after correcting a TypeScript promise-narrowing error with a small queue helper. Existing chunk-size advisory remains. Log `/tmp/aside-vertical-frontend.log`.
+- `cargo build` in src-tauri: passed, 0.62s. Log `/tmp/aside-vertical-cargo.log`.
+- Browser demo at 1000×800 and 1000×650 with 300px sidebar: shared fields 40px high/10px corners; page scroll/client height equal (712px and 562px); no offscreen setup controls. Copilot new/populated and Regular Call checked. Proof `/tmp/aside-vertical-proof`.
+- Demo interactions: guidance edit/close/start shows Preparing and disables edits; typed question + Short streams an answer immediately; End confirmation returns to saved setup; explicit No resume retained on reload; model button opens AI Settings. Uploaded fake document shows Adding file and disables Start until reading completes. Clearing guidance displays backend-returned saved text. No real capture/key/cloud call or user history deletion during these checks.
+- Browser console: no warning/error entries. One mechanical layout detector run: empty result `[]`, `/tmp/aside-vertical-detector.json`. Independent read-only review of layout/save/start paths: resolved, ship.
+- `./scripts/build-app.sh`: completed successfully; refreshed root Aside.app, valid signature, designated requirement satisfied, com.aside.desktop. Log `/tmp/aside-vertical-app.log`.
+- Opened rebuilt root Aside.app through native UI tools. Saved Amazon Copilot and Regular Call show vertical aligned rows, full-width fields and visible footers; Regular Call loaded saved description/guidance and optional No resume. No real call started or saved text changed in the native app. Native proof `/tmp/aside-vertical-proof/native-regular.png`.
+- Post-launch strict signature recheck hit the documented iCloud FinderInfo reattachment on the Desktop bundle. Removed only root com.apple.FinderInfo; immediate `codesign --verify --deep --strict --verbose=2 Aside.app` then passed (valid on disk/designated requirement). No source/signature change needed. Temporary browser closed and viewport reset.
+
+## 2026-10-14 - Open full-height setup redesign
+
+- Read CONTEXT/CURRENT, git status/diff/log; preserved existing uncommitted work. Rollback source snapshot `/tmp/aside-openform-before/source.tgz`.
+- Read requested Impeccable and design-taste skills plus new-work/operate/layout/craft-floor guidance. Reused session context; owner requires only existing standing docs. Inspected package dependencies; no new package added. Both required reference folders absent; read available Assistant dashboard/settings controls.
+- Initial mechanical layout scan returned `[]`: `/tmp/aside-openform-detector.json`. Read-only independent review returned ship for both setup screens at both heights.
+- `npm run build`: passed, existing large-chunk advisory only; log `/tmp/aside-openform-frontend.log`. `npm test`: 69/69 passed; log `/tmp/aside-openform-tests.log`. `cargo build`: passed in 0.69s; log `/tmp/aside-openform-cargo.log`. `git diff --check` passed.
+- Browser demo1000×800 and1000×650, max300px sidebar: scroll/client712/712 and562/562, no offscreen controls. Footer bottom763/621, leaving normal24/16px padding inside workspace. Job/Guidance editor heights Copilot105.5/58.5px, Regular178.5/128.5px. Inline text foreground rgb241, placeholder rgb160 on rgb25 field, above4.5:1. Primary CTAs stay on one line.
+- Demo checked inline Company/Role/job/guidance input, first-save transition retaining state, resume/supporting selection, URL replacement field, direct guidance edit followed immediately by Start, Preparing/disabled inputs, successful mock start and confirmed End returning to saved guidance. Production data and real audio/cloud calls not used. Screenshots `/tmp/aside-openform-proof`.
+- Final mechanical scan: `[]`, `/tmp/aside-openform-detector-final.json`. Browser warning/error logs empty. Long text check: editor client104px/scroll1092px while page712/712 and footerbottom763; placeholder contrast measured6.72:1. A DOM probe initially targeted the previous route and was corrected after observing current UI.
+- `./scripts/build-app.sh`: completed, root Aside.app refreshed, signed com.aside.desktop and signature valid. Final deep/strict verification passed after removing OS-added root FinderInfo (known iCloud Desktop metadata race). Log `/tmp/aside-openform-app.log`.
+- Quit/reopened root app through native UI, inspected saved Copilot and Regular Call. Both fill the viewport down to their footers with directly editable long text; existing files/context loaded, no native text edited or real call started. Native captures `/tmp/aside-openform-proof/native-copilot.png` and `native-regular.png`.
+
+## 2026-10-14 - Apple-inspired rounder grey fields
+
+- Read current context/status and inspected git status/diff/log. Rollback snapshot `/tmp/aside-rounded-before/source.tgz`.
+- Inspected installed skills and read skill-installer/find-skills. No Apple design skill present. Reviewed community source emilkowalski/skills and skill listing, then installed with the system installer helper: `--repo emilkowalski/skills --path skills/apple-design`. Result: `/Users/devendra_r_n/.codex/skills/apple-design`; read its full SKILL.md. No project dependency added.
+- Both named reference folders absent; available Assistant settings input/focus treatment inspected.
+- `npm run build`: passed (existing chunk advisory); `npm test`:69/69 passed; `cargo build`:passed0.54s; `git diff --check`:passed. Logs `/tmp/aside-rounded-{frontend,tests,cargo}.log`.
+- Browser New Copilot/Regular Call at1000×800 and1000×650/sidebar300: computed fields show border0px, radius18px and rgb36 grey fill. New Copilot page712/712 and562/562; Regular562/562. No offscreen controls. Keyboard Tab to editor shows2px solid focus outline with border0px. Browser warning/error logs empty. Screenshots `/tmp/aside-rounded-proof`.
+- `./scripts/build-app.sh`: completed; refreshed root Aside.app, signed com.aside.desktop, strict verification passed. `/tmp/aside-rounded-app.log`.
+- Quit/reopened root bundle via native UI; checked saved Copilot then New Copilot. Rounder filled fields and footer visible, saved content retained. No real call started or native data edited. Native proof `/tmp/aside-rounded-proof/native-new.png`. Temporary browser closed and viewport reset; dev server stopped.
+
+## 2026-10-14 - Remove Regular Call completely
+
+- Read CONTEXT/CURRENT and inspected status/diff/log. Snapshot `/tmp/aside-remove-call-before/source.tgz` covers changed/deleted task files. Existing uncommitted work preserved.
+- Both required reference folders absent; checked available Assistant navigation/session code. Removed sidebar/page/controller/adapter/shared-guidance commands/styles and demo setup. Compatibility retains old database records but rejects retired kind on create/update/start.
+- `npm run build`:passed, existing chunk advisory only. `npm test`:69/69 passed. `cargo build`:passed8.15s. `cargo test commands::copilots::tests --lib`:3/3 passed, including retired record persistence/readability with blocked launch. `git diff --check`:passed. Logs `/tmp/aside-remove-call-{frontend,tests,cargo,rust-tests}.log`.
+- Browser demo: `#/screens` shows Copilots; Regular Call link count0 expanded/collapsed; New/saved Copilot and normal Start session checklist checked. No real call started; no saved user records removed. Screenshot `/tmp/aside-remove-call-proof/sidebar.png`.
+- Also checked Library, History and Settings page headings after navigation; browser warning/error logs empty. Temporary tab closed, viewport reset and Vite stopped.
+- `./scripts/build-app.sh`: completed; root Aside.app refreshed and signed com.aside.desktop. Script recovered the known iCloud FinderInfo metadata race and strict signature verification passed. Log `/tmp/aside-remove-call-app.log`.
+- Quit/reopened rebuilt native bundle: Regular Call absent, only New Copilot/Library/History/Settings remain. Saved Amazon Copilot loaded; New Copilot opened. Screenshot `/tmp/aside-remove-call-proof/native.png`. No native content edited and no user history deleted.
+
+## 2026-10-14 - Unified Documents section
+
+- Read current context/status, git status/diff/log and existing attachment/storage code. Snapshot `/tmp/aside-documents-before/source.tgz`, plus mock.ts backup; new component CopilotDocuments.tsx. Preserved prior uncommitted work and user data.
+- Both required reference folders absent. Inspected available Assistant settings field controls. Applied existing Apple-inspired filled surfaces and Impeccable grouping/focus guidance; no new dependency.
+- `npm run build`:passed, existing chunk advisory; `npm test`:69/69 passed; `cargo build`:passed6.93s; `cargo test one_resume_and_many_reusable_sources_are_saved_per_copilot --lib`:passed. `git diff --check`:passed. Logs `/tmp/aside-documents-{frontend,tests,cargo,rust-test}.log`. Layout detector once:[], `/tmp/aside-documents-detector.json`.
+- Browser demo1000×800/650/sidebar300: one Documents panel, equal row boundaries, row60px/54px; no offscreen setup controls or page scrolling (712/712 and562/562), footer621px in650px viewport. Popover flips above its trigger and stays inside viewport.
+- Demo verified choose resume, replace with another (one radio selected), Preview control, checkbox two/three supporting files, search/no matches, Clear/Select all, Done, autosaved choices after Library/return. Added fake file selected automatically; while reading file, Start, Replace and checkboxes disable. No actual user upload/call/data deletion. Browser console warning/error logs empty. Proof `/tmp/aside-documents-proof`.
+- `./scripts/build-app.sh`: completed; refreshed root Aside.app and signed com.aside.desktop. Script recovered the known iCloud FinderInfo race; strict signature verification passed, including a final check after launch. Log `/tmp/aside-documents-app.log`.
+- Quit/reopened root bundle via native UI: combined grey Documents panel visible with saved resume, Preview/Replace and supporting Select. Original saved text and attachments retained, no native selections edited or call started. Native proof `/tmp/aside-documents-proof/native.png`.
+- Reset temporary browser viewport, closed test tab and stopped Vite. Final `git diff --check`: passed.
+
+## 2026-10-14 - Five-point setup summaries and side-by-side Documents
+
+- Read CONTEXT/CURRENT, status/diff/log, existing background model and attachment/editor code. Snapshot `/tmp/aside-summaries-before/source.tgz`, plus storage-copilots.rs backup. Preserved earlier uncommitted work. New files SetupSummary.tsx and llm/setup_summary.rs.
+- Required named reference folders absent; inspected available Assistant SummaryService.ts factual prompts and error handling. Applied the existing Apple/Impeccable grouping and typography guidance. No dependency or copied source.
+- `npm run build`:passed (existing chunk advisory). `npm test`:69/69 passed. `cargo build`:passed9.06s. `cargo test setup_summary --lib`:2/2 passed; `cargo test deleting_copilot_also_removes_only_its_display_summaries --lib`:1/1 passed. `git diff --check`:passed. Logs `/tmp/aside-summaries-{frontend,tests,cargo,rust-tests,delete-test}.log`.
+- Browser1000×800 and1000×650/sidebar300: both five-point lists fit without scrolling (118/118 and92/92), page712/712 and562/562. Documents side by side with aligned actions. Checked original editor, Save/Cancel, error/Try again/recovery, two supporting selections, original text after Library/return and new empty setup. Dev fixture initially threw an unhandled test-only error; changed it to return the normal failure result, then recovery checks passed. No further console errors after that correction. Screenshots `/tmp/aside-summaries-proof/{desktop,compact}.png`. No actual user source edits or call started.
+- `./scripts/build-app.sh`: completed, release build26.82s; root Aside.app refreshed and signed com.aside.desktop. Script and final post-launch strict signature verification passed. Log `/tmp/aside-summaries-app.log`.
+- Native app displayed real AI output for the saved Amazon job description and guidance: exactly five factual points each. Screenshot `/tmp/aside-summaries-proof/native.png` shows both full lists and side-by-side Documents. Original content/attachments retained. A file picker was subsequently open from user interaction; left it untouched rather than restarting the app. No actual user source text edited, file uploaded or call started by the agent.
+- Reset temporary browser viewport, closed test tab and stopped Vite. Final diff check passed.
+
+## 2026-10-14 - Inline document actions
+
+- Read CONTEXT/CURRENT, status/diff/log and existing documents/styles. Snapshot `/tmp/aside-inline-before/source.tgz`; earlier uncommitted work preserved. Read supplied Apple Design, Impeccable and Design Taste guidance plus layout/craft-floor/polish playbooks. Existing-session context reused. Named reference directories absent; available Assistant settings UI inspected.
+- Source review: prior two-column inner grid placed actions on a second row. Changed only attachment markup and CSS to icon/details/action columns; filename becomes preview target. Actual diff compared to task snapshot. Layout detector before/after:[], `/tmp/aside-inline-{before,after}-detect.json`.
+- `npm run build`:passed (existing chunk advisory). `npm test`:69/69 passed. `cargo build`:passed0.79s. `git diff --check`:passed. Logs `/tmp/aside-inline-{frontend,tests,cargo}.log`.
+- Browser1000×800/650, sidebar300: action columns are beside details, center difference0 at650, no row overflow. Full page562/562 and both five-point summaries100/100 at650. Empty/populated states, long filename truncation/full tooltip, filename Preview, single resume replacement and two supporting checkboxes checked. Keyboard navigation produced a visible2px outline. Browser warning/error logs empty. Screenshots `/tmp/aside-inline-proof/{desktop,compact,empty}.png`. No actual user files edited or uploaded.
+- `./scripts/build-app.sh`: completed; root Aside.app refreshed and signed com.aside.desktop. Recovered the known iCloud FinderInfo race; script and final strict signature check passed. Log `/tmp/aside-inline-app.log`.
+- Quit/reopened root bundle through native UI with no active call or picker. Native accessibility state confirms filename Preview and trailing Replace/Select controls, original five-point summaries and saved resume/supporting file retained. No native selections edited. Screenshot `/tmp/aside-inline-proof/native.png` returned blank while Stealth was active; did not change the user's protection setting. Browser screenshots supply visual evidence.
+- Reset temporary viewport, closed test tab and stopped Vite. Final `git diff --check`:passed.
+
+## 2026-10-14 - Overall app assessment and refinement
+
+Assessment method: direct source review and rendered app/browser review, followed by implementation and bounded verification. This is an implementation-led design assessment, not a scored formal critique. Checked setup, navigation, Library, History, Settings, editor/pre-call/call-detail/delete overlays and live call states. Product context came from CONTEXT/CURRENT and prior owner requests. Apple Design and Impeccable Operate/craft-floor/layout/polish guidance applied. Existing-session context reused; no new standing design documents.
+
+### Assessment and resolutions
+
+| Finding | Evidence before | Change | Current evidence |
+| --- | --- | --- | --- |
+| P2: competing control styles | Blanket root-button pill rule plus separate6/10/18px field rules in spatial.css; setup differed from settings/overlays | One geometry scale, filled fields, clearer selected state; consolidated spatial.css | Shared controls visible across setup/collections/settings/sheets; token contrast and keyboard focus checked |
+| P2: important values cramped | Settings model width160px and height28px in available pane; screenshot truncated model name | Model width256px, height36px; consistent control type | Rendered control256×36, full OpenAI GPT-5.6 Luna value visible |
+| P2: metadata competes with titles | Role, time, length and transcript shared one History metadata line; repeated file icons | Role gets its own line; quieter file/call metadata and larger file mark | Library/History list screenshots, call detail sheet checked |
+| P2: search cannot be found consistently | Library/History showed search only after6 items | Always expose it when saved items exist; Clear and Escape | STAR file filter and Nimbus History filter produce one result; Clear restores lists |
+| P2: summary status unclear | Generated bullets not labelled, request delayed350ms, single spinner and raw errors | AI overview caption, five-line placeholders, immediate deduplicated request, plain recovery | Five bullets/full original editor remain; source guard unchanged; empty and loaded states checked |
+| P2: initial live area unhelpful | Large empty answer area only said next question appears | Quiet shortcut/play hint only before content; compact windows suppress it | 480×560 first-use cue, live answer/code flow and340×260 control/menu bounds checked |
+| P2: style precedence fragile | Lazy HomeApp imported base page CSS after global styles; overrides competed | Base home/launch imports moved to theme entry before refinements | Reload and cross-page browser checks retain geometry; setup footer fixed after first verification |
+
+Strengths preserved: coherent dark palette, direct sidebar destinations, full-height setup, single resume/multi-select supporting documents, existing destructive confirmations and selectable original text. No P0 blocker or invented WCAG violation was reported.
+
+### Actual checks
+
+- Read CONTEXT/CURRENT, git status/diff/log; task snapshot `/tmp/aside-refinement-before/source.tgz`. Preserved prior uncommitted files. Named references verified absent; available Assistant settings/summary patterns reviewed, no code copied.
+- `npm run build`:passed (existing chunk-size advisory); `npm test`:69/69 passed; `cargo build`:passed0.60s; `git diff --check`:passed. Logs `/tmp/aside-refinement-{frontend,tests,cargo}.log`.
+- Detector on home/kit/live:2 `bounce-easing` warnings in live.css using var(--spring). Reviewed against tokens: --spring is the existing cubic ease-out alias, so both are false positives. No other findings. `/tmp/aside-refinement-detect.json`.
+- Normal setup1000×800/sidebar300: page712/712, both five-point lists125/125. Compact1000×650: page562/562, both lists96/96 with5 items. Inline documents do not overflow. Footer horizontal. Keyboard Tab Company→Role shows2px visible ring. Collapsed navigation retains accessible labels.
+- Settings actual model select256×36, complete selected value. Library search/clear, History title search/clear, delete confirmation/cancel, call detail tabs, original editor/cancel, pre-call ready sheet and new empty setup checked. No actual user history deleted, file uploaded or native call started.
+- Live480×560: first-use hint with correct Mac shortcut, question/answer/code flow. Minimum340×260: bar322/322; answer/length/end/options controls inside viewport, menu bottom245px. Follow-up opens; menu Escape returns control. Reduced-motion emulation: animation none, content opacity1 and status present.
+- Contrast from actual token pairs: body14.43:1, secondary8.26:1, metadata6.23:1, primary17.32:1, error7.04:1. These are token checks, not a claim of exhaustive WCAG certification.
+- Initial verification found lost footer flex and late CSS overrides; corrected both, scoped legacy input rules and confirmed final layouts. Screenshot proof `/tmp/aside-refinement-proof/{before,after}`. Browser viewport emulation used per tab for compact checks, to be reset during cleanup.
+- Final live check includes2/2 answer history at340×260: bar322/322, all top controls within325px right bound; End confirmation cancelled. A wait on the in-progress demo answer exceeded the default selector timeout; waiting on the same running answer with10000ms succeeded. No duplicate request was started.
+- Simulated summary failure on an unnamed new draft displays plain recovery, leaves original text available and offers Try again. Browser warning/error logs empty on workspace and live tabs.
+- `./scripts/build-app.sh`:final run completed; root Aside.app refreshed and signed com.aside.desktop. Final strict signature verification passed. Log `/tmp/aside-refinement-app.log`. Final UI wording fix included in this bundle.
+- Native app: new AI overview captions/five real bullets and saved resume/supporting document present; Library has2 actual files and visible Search files, saved grid view retained; Settings full OpenAI GPT-5.6 Terra value and saved keys/engine present; History shows its existing No calls yet state. Returned to saved Amazon copilot. No native file selection, call, privacy toggle or deletion. Stealth remains active; browser screenshots provide visual proof.
+
+### Completion audit
+
+| Requirement | Evidence | Result |
+| --- | --- | --- |
+| Assess current flaws before implementation | Before captures, source findings and five-point assessment presented before edits; resolution table above | Complete |
+| Apply Apple Design and Impeccable | Shared restrained geometry, direct state feedback, consistent spacing/type, focused sheets, reduced-motion alternative; references read | Complete |
+| Refine the overall app | Navigation, setup, Library, History, Settings, shared dialogs/menus/sheets and live states implemented and rendered | Complete |
+| Preserve owner constraints and stored content | Five bullet summaries/original editor, inline side-by-side documents, no Regular Call, unchanged Stealth; native saved content retained | Complete |
+| Test behavior and inspect actual diff | Search/clear, summary/error/editor, confirmation cancel, focus, collapse, pre-call, history detail, live answer/history/menu/follow-up checked; snapshot diff reviewed | Complete |
+| Keep web/Rust builds green and rebuild root app | Frontend build,69 tests, cargo build, final build-app/signature checks above | Complete |
+
+Limits: native Windows runtime/installer and actual audio/cloud-call checks remain the existing separate device tasks. The design verification uses browser demos for live-call behavior and real Mac app controls for saved-data/navigation checks; it does not claim those device tasks are complete.
+- Cleanup completed: browser viewport/CDP device and media overrides reset, both temporary tabs closed, Vite stopped. Final `git diff --check`:passed.
+
+
+## 2026-10-14 — resume actions, setup controls and Library quick call
+
+- Read CONTEXT/CURRENT and git status/diff/log. Preserved prior uncommitted changes. Baseline `/tmp/aside-resume-actions-before/source.tgz`; task-only source diff `/tmp/aside-resume-actions-proof/changes.diff` reviewed.
+- Apple Design and Impeccable Operate guidance used for the narrow refinement; existing design retained. Named Repo1-Natively/Repo2-OpenCluely directories remain absent. Available Assistant dashboard direct session-start pattern inspected; adapted the approach without copying source.
+- Implemented filename Preview without eye, first supporting filename + remaining count with full-name tooltip, model top right, transcript bottom left, Start session bottom right. Existing save flush/import guards preserved.
+- Library default Resume and Resume / Supp Docs / All order checked by switching filters and returning via Library. Quick-call action is visible only for resume rows/cards. List/grid layouts checked; preview opens on filename. Supporting Select all/Done produces first filename +1other in demo.
+- `npm run build`: passed (existing chunk-size advisory), final log `/tmp/aside-resume-actions-proof/frontend-build.log`. `npm test`:69/69 passed. `cargo build`:passed. `cargo test commands::copilots::tests --lib`:6/6 passed, including selected-resume-only/no-JD/no-Copilot/global-model resolution and frozen call model, invalid/missing/empty/unconfigured resume rejection, and forced attachment failure rolling back the session.
+- Browser at1280×720,1000×650 and supported minimum960×640. At minimum, page552/552px and both summary boxes96/96px, all five bullets and footer controls visible. Attachments284/284 and283/283px; no horizontal overflow. Compact-fit JSON and screenshots in `/tmp/aside-resume-actions-proof`. Long supporting names truncate while remaining count stays visible. Library actions and tools fit at minimum size. A development hot-reload reset demo stores during edits; a full reload restored fixtures; production/native startup checked separately.
+- `./scripts/build-app.sh`:passed; root Aside.app refreshed, com.aside.desktop. macOS reapplied FinderInfo to the bundle root after build; removed that generated metadata only, then `codesign --verify --deep --strict --verbose=2 Aside.app`:valid on disk, satisfies Designated Requirement.
+- Restarted the root app via its normal Quit confirmation. Native AX confirms model before Company/Role and transcript/Start session after Guidance, real filename opens saved resume text, Library default Resume1 / Supp Docs1 / All2 and Start quick call visible. Existing Amazon setup and files retained. Stealth unchanged; native screenshots suppressed by that setting, so visual proof uses made-up browser content. No real call or cloud response initiated.
+- Status: BUILT + VERIFIED for UI, call creation and source/model rules; PARTIAL for native audio/cloud call and existing Windows device checks. No Windows installer refresh. No user records deleted or schema changed.
+- Final browser quick-call check: selected resume and Default model are named, both demo audio checks finish, and Start completes the shared launch flow and dismisses the sheet. This uses simulated devices/window commands, not native capture or a cloud request. Final frontend test log confirms69/69.
+
+
+## 2026-10-14 — Library toolbar, gradient removal, compact Settings and local test sound
+
+- Startup: read CONTEXT/CURRENT, git status/diff/log and memory workflow pointers. Baseline `/tmp/aside-compact-audio-before/source.tgz`. Named Repo1-Natively/Repo2-OpenCluely still absent; available Assistant audio status pattern reviewed, no source copied. Impeccable layout assessment and independent mechanical scan completed before UI edits; scan returned no findings. Owner clarified10% compact Settings and local-only pre-call sound.
+- Library: category (Resume / Other / All), layout, flexible space and Search in one toolbar; documents in a separate surface. Browser checked categories, list/grid, no search matches and Clear. At960×640 toolbar590/590px, file rows558/558px, actions170/170px with no overflow. Search stays on the same row. Normal1280×720 and native1000×800 checked. Screenshots `library.png`, `library-minimum.png`, `native-library.png` in proof folder.
+- Settings computed section padding18px/gap10px and rows48px (was20/12/52). Default model remains256px in normal layout. No overflow at960×640. Screenshot `settings.png`. Stealth aura/pulse markup and CSS removed; native protection setting preserved. Browser Stealth-on preview has zero aura elements. Existing red error/delete treatment retained.
+- Audio: new native two-note chime440ms, amplitude capped0.08 with faded edges, uses captured output device; no injected capture samples or network. Saved device choices honored. The check requires actual measured signal. Active streams are not stopped; stream errors and playback failures retained; cancellation releases capture and listeners. Native test-sound startup capped3s with late-playback cancellation.
+- First native check froze. Process sample (`audio-stall.sample.txt`) showed main thread waiting in start_mic_capture/recv while CoreAudio was opening an input stream. Added asynchronous Tauri command dispatch for audio start/stop/device checks/status and shared8s startup deadline. Late startup workers are cancelled. Second/final builds remain responsive, allow Cancel and display actual timeout messages. Generic permission text no longer replaces a timeout.
+- Native result: microphone and system capture still time out after restart/retry. System Settings showed Aside enabled under Screen & System Audio Recording and System Audio Recording Only. Read-only inspection, no permission/protection/device changes. Built-in microphone/speakers are defaults; no pinned device settings. Separate `/usr/bin/afplay -v 0.15 /System/Library/Sounds/Tink.aiff` succeeded, exit0 in1.47s. This verifies local output playback only, not Aside capture. Exact OS/driver cause is unresolved. No live session/cloud transcription was started. Final timeout AX saved as `native-check.txt`.
+- `npm test`:77/77 passed, including8 new probe tests (no false success from playback, captured output selection, mic stays quiet, cancellation cleanup, active stream protection, stream errors, denied startup, playback failure). `cargo test audio:: --lib`:111 passed,5 ignored; includes waveform safety and startup deadline/error/cancellation tests. `npm run build` and `cargo build`:passed. Root `./scripts/build-app.sh`:passed; final root com.aside.desktop bundle rebuilt. Existing chunk-size advisory only. `git diff --check`:passed.
+- Status: BUILT + VERIFIED for visual changes and automatic check logic/tests; PARTIAL for native measured chime capture. User data and schema unchanged. Windows installer not refreshed.
+- Cleanup: preview viewport reset, temporary preview tab and permission-inspection window closed. Final native app left on Library. Final signature check: valid on disk and satisfies Designated Requirement.
+- Final Impeccable detector on changed Library/Settings/pre-call/CSS files exited0 with no reported findings.
+
+
+## 2026-10-14 — model icon and quick-call contrast
+
+- Two-line source change: removed the bot beside the Copilot model selector and changed Library Start quick call from secondary to primary. Reviewed against task baseline `/tmp/aside-button-polish-before`; prior uncommitted work retained. Named reference repositories remain absent; shared Aside primary button retained for consistency.
+- Browser list/grid buttons computed fill rgb(245,245,245), text rgb(17,17,17). Copilot screenshot confirms the external bot is gone; model label and dropdown arrow remain. Proof `/tmp/aside-button-polish-proof/library.png` and `copilot.png`. No audio/session action triggered.
+- `npm run build`:passed; `npm test`:77/77; `cargo build`:passed; `git diff --check`:passed. Existing audio timeout remains a separate PARTIAL item.
+- `./scripts/build-app.sh`:passed; root Aside.app refreshed. Relaunched the idle native app, visually verified no model bot and a white quick-call button, then restored empty New Copilot. Native screenshots saved beside preview proof. No saved data or audio settings changed.
+
+
+## 2026-10-14 — Library quick-call menu
+
+- Removed the standalone resume quick-call button and moved its unchanged handler into the shared three-dot menu in list/grid. Removed dead button CSS and reserved grid padding. Task diff reviewed against `/tmp/aside-quick-call-menu-before`; prior changes preserved. Named reference repos remain absent, so Aside’s shared accessible menu was reused.
+- Browser verified list/grid menu contains Open / Start quick call / Delete; no standalone quick-call button. Selecting the action opens the existing setup, then Cancel closes it. Other document menu contains only Open/Delete. Proof `/tmp/aside-quick-call-menu-proof/list-menu.png` and `grid-menu.png`. Demo only; no native audio or real call started.
+- `npm run build`:passed; `npm test`:77/77; `cargo build`:passed; `git diff --check`:passed. `./scripts/build-app.sh`:passed; root Aside.app refreshed. Mac locked during final native restart, preventing a screen check of the rebuilt native menu. Visual behavior BUILT + VERIFIED in browser; native menu recheck pending. Existing native audio-capture timeout remains PARTIAL.
+- Final signature check passed: valid on disk and satisfies Designated Requirement, after removing regenerated FinderInfo from the built bundle. Temporary preview tab/server closed.
+
+
+## 2026-10-14 — generated logo
+
+- Used built-in image generation (no API-key CLI fallback). Saved the final transparent 1254×1254 RGBA master to `public/aside-icon.png`; original generated output remains in the Codex generated_images folder. Ivory A, detached rounded crossbar and small companion stroke on a charcoal tile inspected at full size and in the actual UI.
+- Final generation prompt: "Use case: logo-brand. Create ONE finished premium macOS app icon for Aside, a calm AI conversation companion. Square 1024x1024 composition, transparent canvas outside the icon. A single dark charcoal (#242424) rounded-square/squircle tile centered, occupying about 86% of canvas, with generous smooth continuous rounded corners. Within it a distinctive bold ivory-white abstract capital A, built from two beautifully balanced soft tapered strokes and a short rounded crossbar; a small separate parallel companion stroke just to its upper right subtly represents help at your side. The mark must read as an elegant original A at 24px, with generous negative space, no small details. Refined restrained Apple-like craft, almost flat matte surface, very subtle neutral surface depth, crisp silhouette and smooth edges. Theme is exclusively black, charcoal grey and warm white. Center the symbol optically and keep all geometry clean, simple, confident and precise. No text, no wordmark, no badge, no robot, no microphone, no chat bubble, no sparkles, no arrows, no colored accents, no red gradient, no shiny metallic chrome, no scene, no mockup, no multiple variants. Deliver the actual icon asset alone with real transparent corners."
+- `swift scripts/build-icon.swift`:passed. Exported 32/128/256/512 PNG sizes with alpha, ICNS and six-size ICO. Only project desktop files retained. Native packaged ICNS byte-for-byte matches the export. `npm run build`, `cargo build`:passed; `npm test`:77/77; task diff reviewed against `/tmp/aside-logo-before/assets-and-source.tgz`; `git diff --check`:passed. Existing chunk-size advisory only.
+- Browser checks: loaded master at36px in full/collapsed sidebar,30px in restore bubble; home/restore accessible labels retained. Screenshots `/tmp/aside-logo-proof/sidebar.png`, `sidebar-collapsed.png`, `bubble.png`. Rebuilt native sidebar visually verified in `native.png`. No audio/call action started.
+- `./scripts/build-app.sh`:passed, root Aside.app refreshed. Final codesign strict check passed after clearing regenerated root FinderInfo; valid on disk and satisfies Designated Requirement. BUILT + VERIFIED for logo. Windows source icon updated; Windows installer and native audio remain separately unverified.
+
+
+### 2026-10-17 — light workspace, capsule controls and readiness assessment
+
+- Read CONTEXT.md/CURRENT.md, git status/diff/recent log; preserved the existing dirty workspace. Baseline source archive /tmp/aside-light-pill-before/source.tgz. Named Repo1-Natively/Repo2-OpenCluely remain absent. Inspected the available Assistant audio probe/shared tokens: probe returns cached status, so Aside retains measured sound as proof.
+- Impeccable context ran once; scoped refinement allowed. Applied polish/optimize guidance and Apple Design. Manual detector /tmp/aside-light-detect.json: two warnings for --spring; verified that this CSS variable aliases ease-out and has no bounce. No blocking detector findings.
+- npm test: 81 passed, 0 failed (/tmp/aside-light-tests.log). Added tests for early completion, invalid/spike levels, cancellation during observation and failed device release. cargo test audio:: --lib: 112 passed, 5 ignored (/tmp/aside-light-rust-tests.log), including generated half-second WAV structure. cargo build passed (/tmp/aside-light-cargo.log). npm run build passes through app builds; the existing >500kB main-chunk warning remains.
+- Computer browser inspected light Copilot, Library, Settings and preflight; dark live Answer/busy response; 340×260 live layout and 960×640 workspace preflight. Temporary viewport overrides cleared after inspection. Native root bundle reopened and light workspace/preflight inspected. Native macOS recording permission switches for Aside were both enabled; no permission changes made.
+- Baseline native preflight had system sound detected and quiet mic by the 9.3s observation (not a precise completion timer). Parallel startup caused long HAL output-start waits and was rejected. Serialized tests individually detected microphone and system sound, but later cold-start attempts still timed out. Process samples /tmp/aside-light-audio-sample.txt and /tmp/aside-light-final-sample.txt show CoreAudio initialization/output-start/teardown waits. Default macOS playback changed to the built-in player; its first native test hit a capture startup timeout before playback. A later native check showed Sound detected · MacBook Air Speakers and Working · MacBook Air Microphone. The device route changed without any OS setting being changed by this agent. No reliable before/after hardware latency number claimed.
+- ./scripts/build-app.sh completed multiple times, leaving root Aside.app. Build logs /tmp/aside-light-native-player-app.log and final /tmp/aside-light-delivery-app.log. Build script's immediate strict signature check passed; later independent checks hit the already-documented iCloud FinderInfo metadata race. This is not a claim that every later strict check stays clean without stripping metadata.
+- Source diff reviewed against the beginning-of-turn archive, not only HEAD. Formatter-only changes outside scope restored from that exact archive. No live call, cloud transcription/answer, Windows installer rebuild or Windows runtime test performed.
+- Final clean-start root app, with explicit retries and system-first checks: native UI showed Sound detected · MacBook Air Speakers and Working · MacBook Air Microphone by the 7.7s observation. This is an upper-bound observation, not a precise completion time or an AirPods improvement percentage. Closed the preflight cleanly without starting a call.
+
+
+### 2026-10-17 — Settings option spacing at 85 percent
+
+- One scoped CSS change: option rows 48px to 40.8px, with vertical padding 5px to 2.4px so the existing 36px controls still fit. Text sizes, control sizes and group spacing retained. Diff compared with /tmp/aside-settings-spacing-before.css. Both named reference repos still absent; available reference Settings also separates row padding from control sizes.
+- npm run build passed (/tmp/aside-settings-spacing-build.log); cargo build passed (/tmp/aside-settings-spacing-cargo.log); git diff --check passed. Narrow Impeccable detector reported no findings (/tmp/aside-settings-spacing-detect.json).
+
+
+### 2026-10-17 — smaller answer-length pill
+
+- Scoped CSS change to Short / Med / Long only: 23.2px segments, 34.3px minimum width, 5.3px horizontal padding, 10px labels. Answer stays 86 × 36px. Browser Computer screenshot and measured bounds confirm the length pill is 107.4 × 25.2px, about 70% of its prior 154.7 × 36px. Labels fit; divisions and keyboard focus preserved. Original CSS /tmp/aside-length-pill-before.css.
+- npm run build passed (/tmp/aside-length-pill-build.log), cargo build passed (/tmp/aside-length-pill-cargo.log), git diff --check passed. Narrow detector only repeated the two previously reviewed false positives for the non-bouncing --spring alias. Both named reference repos remain absent; available overlay reference uses independently sized compact chips.
+
+
+### 2026-10-17 — grey live-session reimplementation
+
+- Startup docs/status/diff/log read; source archive /tmp/aside-live-grey-before/source.tgz. Apple Design skill and Apple HIG materials/buttons/toolbars reviewed; both named comparison repos still missing, available Assistant overlay/tokens inspected.
+- npm test: 81 passed, 0 failed (/tmp/aside-live-grey-tests.log). npm run build passed (/tmp/aside-live-grey-build.log); cargo build passed (/tmp/aside-live-grey-cargo.log). Existing main-chunk-size warning remains. git diff --check passed. Scoped design detector: [] (/tmp/aside-live-grey-detect.json).
+- Computer browser preview at 440×640 and 340×260 verified Short answer, streaming/busy, history Previous, mic off/on, follow-up draft + Escape, options and its own scroll, microphone failure + expanded details at alpha40. Found busy Answer width116.6px overflowing minimum footer; changed to stable82px with spinner, confirmed right edge321px inside footer331px. Expanded error/question/footer positions do not overlap (error bottom134.4, question bottom186.4, footer top205 at340×260). Audio and length borders measure0px; alert details border0px; window edge rgb(55,55,59).
+- Reduced-motion emulation returned animation:none and colour/opacity transitions. Reduced-transparency fallback implemented in CSS; browser emulation did not confirm it (panel retained rgba), so it is not claimed as verified on macOS. Viewport/media overrides reset after verification. No live call, cloud request, OS permission change or audio-engine modification performed.
+
+
+### 2026-10-17 — flatter live audio and answer controls
+
+- Scoped CSS refinement requested after the nested pills looked too busy. Removed the audio tray; mic/speaker are separate 32×30px grey buttons with 9px corners. Lengths form one joined strip with 28px segments, 11px labels and narrow dark seams. Answer is 82×32px with 10px corners and a softer silver fill. No decorative borders or behavior changes. Original CSS /tmp/aside-flat-controls-before.css; actual diff reviewed. Both named reference repos remain absent; available Assistant overlay/tokens compared. Apple Design and Impeccable craft/polish guidance applied.
+- npm run build passed (/tmp/aside-flat-controls-build.log); cargo build passed (/tmp/aside-flat-controls-cargo.log); git diff --check passed. Scoped Impeccable detector: [] (/tmp/aside-flat-controls-detect.json). Existing main-chunk-size advisory remains. No tests added for this CSS-only change.
+- Computer preview visually reviewed at440×640; valid full screenshot /tmp/aside-flat-controls-preview.png, crops /tmp/aside-flat-audio.png and /tmp/aside-flat-footer.png. At340×260 while streaming with2/2 history, history ends91px, lengths117.2–233px and Answer239–321px inside footer9–331px. No overlap. Mic off/on feedback checked; audio tray transparent, buttons border0px/radius9px. Temporary viewport override reset. Real capture/cloud behavior was not exercised.
+- ./scripts/build-app.sh passed (/tmp/aside-flat-controls-app.log), leaving root Aside.app signed as com.aside.desktop; immediate strict signature verification passed. Native state initially showed setup, then a live session appeared before refresh. Did not quit or interrupt that session. The rebuilt CSS is verified in the browser preview; native live rendering will load on the next app restart.
+
+
+### 2026-10-17 — restore the requested capsule shape
+
+- Corrected the previous refinement: mic/speaker and Answer now use fully rounded capsule corners; the joined Short/Med/Long strip has fully rounded outer ends. Grey fills, dark seams, compact sizes and no outer nesting retained. Only five radius declarations changed. Baseline /tmp/aside-capsule-correction-before.css. Named comparison repos remain absent; available Assistant overlay/LengthBar approach compared. User's requested capsule identity takes priority over its geometry.
+- Computer preview at440×640 confirms capsule radii and zero borders; screenshot /tmp/aside-capsule-correction.png. At340×260 during streaming, lengths117.2–233px and Answer239–321px remain inside footer9–331px. Viewport override reset. Native session left alone. cargo build passed (/tmp/aside-capsule-correction-cargo.log); scoped design detector [] (/tmp/aside-capsule-correction-detect.json).
+- ./scripts/build-app.sh passed including npm run build and strict signature verification; root Aside.app refreshed (/tmp/aside-capsule-correction-app.log). Existing chunk-size advisory only. Actual five-radius diff and git diff --check reviewed/passed.
+
+
+### 2026-10-17 — Speechmatics live connection
+
+- Fixed leftover compile errors in `parakeet_local.rs` (empty async `shutdown` body; stray `Vec::new()` in a test). `cargo test --lib -- stt::` → 134 passed, 8 ignored.
+- New fake local Speechmatics websocket server (`stt/speechmatics_live/fake_server.rs`, no credentials/network): 11 tests pass — readiness only after RecognitionStarted with queued first audio sent and Bearer header; accepted-but-unconfirmed socket stays Connecting; quota on first attempt waits the slow floor then recovers; handshake timeout retried; not_authorised / HTTP 401 / invalid_config fail once without retry; drop after a partial confirmation resends exactly the unconfirmed 0.75s and yields one final "first part second part"; stop during 8s backoff returns <500 ms with no further connections; stop while connecting closes the server socket; a 12s backlog at stop is sent unpaced and the last sentence kept in <3s; three sequential sessions never overlap (max open 1).
+- Mutation check: disabling the unpaced-stop fix and the replay confirmation made the two corresponding tests fail; code restored, tests green again.
+- Pipeline tests: `stop_and_wait` returns only after the old task closes, including after a plain synchronous stop. Replay buffer test: 40s of -60 dBFS hiss stays memory-bounded with 0 bytes reported lost.
+- Real Speechmatics (US1, owner's saved key read locally and never printed; generated `/usr/bin/say` phrase, 9.7s, 16 kHz; no mic/private data). Log /tmp/aside-speech-synth-1.log. Standard 4.0 + vocab: ready 1791 ms (first vocab init), first text 561 ms, final 2239 ms after speech end, shutdown 238 ms, all of RAG/MCP/Kubernetes/Kiro/PostgreSQL correct. Enhanced 4.0 + vocab: ready 2676 ms, identical text, final 2240 ms. Standard 2.0 + vocab: ready 428 ms, identical text, final 2240 ms. Standard 4.0 without vocab: "Rag", "Cairo". Rerun: after 4s trailing silence only the last ~12 of ~344 packets were unconfirmed (silence is acknowledged).
+- `cargo build` clean (no warnings); `cargo test --lib` 840 passed, 14 ignored; `npm test` 81 passed; `npm run build` passed (existing chunk-size advisory); `git diff --check` on Rust sources clean. `./scripts/build-app.sh` passed (/tmp/aside-build-app.log); root Aside.app refreshed. The already-open Aside process predates the rebuild.
+- Not run: real microphone/system audio through the new engine, AirPods, a long call, a real network interruption.

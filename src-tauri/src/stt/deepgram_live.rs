@@ -187,8 +187,9 @@ impl SttEngine for DeepgramLiveEngine {
         self.drain().await
     }
 
-    async fn shutdown(self: Box<Self>) {
+    async fn shutdown(self: Box<Self>) -> Vec<Transcript> {
         self.stop.store(true, Ordering::SeqCst);
+        Vec::new()
     }
 }
 

@@ -9,38 +9,6 @@ use crate::storage::knowledge::{
 use rusqlite::Connection;
 use uuid::Uuid;
 
-const TECH: &[&str] = &[
-    "Rust",
-    "Python",
-    "Java",
-    "TypeScript",
-    "JavaScript",
-    "Go",
-    "Kotlin",
-    "Swift",
-    "React",
-    "Node",
-    "AWS",
-    "GCP",
-    "Azure",
-    "Kubernetes",
-    "Docker",
-    "Postgres",
-    "PostgreSQL",
-    "MySQL",
-    "Redis",
-    "GraphQL",
-    "gRPC",
-    "Kafka",
-    "Spark",
-    "Redshift",
-    "Snowflake",
-    "Terraform",
-    "Linux",
-    "SQL",
-    "ONNX",
-    "PyTorch",
-];
 
 pub fn ingest_document_pack(
     conn: &Connection,
@@ -68,11 +36,9 @@ pub fn ingest_document_pack(
         knowledge::insert(conn, session_id, KIND_STT_GLOSSARY, c, now_ms)?;
     }
 
-    for tech in TECH {
-        if contains_word(text, tech) {
-            knowledge::insert(conn, session_id, KIND_TECH, tech, now_ms)?;
-            knowledge::insert(conn, session_id, KIND_STT_GLOSSARY, tech, now_ms)?;
-        }
+    for tech in crate::stt::vocabulary::extract(None, Some(text)) {
+        knowledge::insert(conn, session_id, KIND_TECH, &tech, now_ms)?;
+        knowledge::insert(conn, session_id, KIND_STT_GLOSSARY, &tech, now_ms)?;
     }
 
     for line in text.lines() {
@@ -100,14 +66,8 @@ pub fn ingest_document_pack(
         }
     }
 
-    for term in capitalized_terms(text).into_iter().take(20) {
-        knowledge::insert(conn, session_id, KIND_STT_GLOSSARY, &term, now_ms)?;
-    }
-    Ok(())
-}
 
-fn contains_word(hay: &str, needle: &str) -> bool {
-    hay.to_lowercase().contains(&needle.to_lowercase())
+    Ok(())
 }
 
 fn clip(s: &str, cap: usize) -> String {
@@ -116,22 +76,6 @@ fn clip(s: &str, cap: usize) -> String {
     } else {
         s.chars().take(cap).collect()
     }
-}
-
-fn capitalized_terms(text: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    for w in text.split(|c: char| !c.is_alphanumeric() && c != '-') {
-        if w.len() < 5 || w.len() > 24 {
-            continue;
-        }
-        let first = w.chars().next().unwrap_or(' ');
-        if first.is_uppercase() && w.chars().any(|c| c.is_lowercase()) {
-            if !out.iter().any(|e: &String| e.eq_ignore_ascii_case(w)) {
-                out.push(w.to_string());
-            }
-        }
-    }
-    out
 }
 
 #[cfg(test)]
