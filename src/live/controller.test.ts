@@ -7,6 +7,23 @@ import { answersOf, isAnswering } from "./machine.ts";
 // Only provide the boundary methods exercised by each controller test.
 const stubBackend = (methods: Partial<LiveBackend>): LiveBackend => methods as LiveBackend;
 
+test("old clear background and large text settings migrate on opening", async () => {
+  const controller = createLiveController(stubBackend({
+    listen() { return () => undefined; },
+    async boot() {
+      return {
+        session: null, turns: [], listening: {},
+        prefs: { zoom_pct: 100, opacity_pct: 0, font_px: 20, language: "en" },
+      };
+    },
+  }));
+  controller.start();
+  await Promise.resolve();
+  assert.equal(controller.ui.get().booted, true);
+  assert.equal(controller.ui.get().prefs.opacity_pct, 20);
+  assert.equal(controller.ui.get().prefs.font_px, 15);
+});
+
 test("pressing Answer again while one is pending or streaming cannot send twice", async () => {
   let sent = 0;
   let finish!: () => void;
@@ -91,4 +108,34 @@ test("Screenshot shows the latest page at once and a capture failure becomes a v
   assert.match(failed.error!, /Screen Recording/);
   assert.equal(controller.ui.get().screenshotBusy, false);
   assert.equal(isAnswering(controller.live.get()), false);
+});
+
+
+test("explicit answer lengths reach the backend and the next play returns to auto", async () => {
+  const sent: Array<string | null> = [];
+  const controller = createLiveController(stubBackend({
+    async answerWindow(length) { sent.push(length); return { ok: true, value: undefined }; },
+  }));
+  await controller.answer("small");
+  await controller.answer("medium");
+  await controller.answer("long");
+  await controller.answer();
+  assert.deepEqual(sent, ["small", "medium", "long", null]);
+  assert.equal(controller.live.get().nextLength, "auto");
+});
+
+test("typed length choice and retry retain the same question and requested length", async () => {
+  const sent: Array<[string, string | null]> = [];
+  const controller = createLiveController(stubBackend({
+    async ask(question, _sessionId, length) {
+      sent.push([question, length]);
+      controller.dispatch({ type: "answer-started", question, atMs: 1 });
+      controller.dispatch({ type: "answer-error", message: "Interrupted", atMs: 2 });
+      return { ok: true, value: undefined };
+    },
+  }));
+  assert.equal(await controller.ask("  Explain Redis  ", "long"), true);
+  const answer = answersOf(controller.live.get()).at(-1)!;
+  await controller.retry(answer);
+  assert.deepEqual(sent, [["Explain Redis", "long"], ["Explain Redis", "long"]]);
 });

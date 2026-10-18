@@ -30,5 +30,5 @@ export function useAutosave<T>(value: T, save: (value: T) => Promise<boolean>, o
   // Leaving the page saves anything still waiting.
   useEffect(() => () => void saver.current?.flush().finally(() => saver.current?.dispose()), []);
 
-  return { state, flush: () => saver.current?.flush() ?? Promise.resolve() };
+  return { state, flush: () => saver.current?.flush() ?? Promise.resolve(true) };
 }

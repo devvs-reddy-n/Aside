@@ -76,10 +76,17 @@ pub fn apply_to_window(window: &WebviewWindow, enabled: bool) {
     // already stays on top unconditionally for its own reason (it floats
     // over a live call regardless of this setting), so it must be left out
     // here — this only changes the main window's normal layering.
-    if window.label() != crate::commands::overlay::OVERLAY_LABEL {
+    if window.label() != crate::commands::overlay::OVERLAY_LABEL && window.label() != "bubble" {
+        // A taskbar-hidden Windows window has no native place to restore it.
+        // The Window menu's minimize still uses our hide/restore shortcut.
+        #[cfg(target_os = "windows")]
+        if let Err(error) = window.set_minimizable(true) {
+            eprintln!("could not update minimize control: {error}");
+        }
         if let Err(error) = window.set_always_on_top(enabled) {
             eprintln!("could not update always-on-top: {error}");
         }
+        #[cfg(target_os = "macos")]
         if let Err(error) = window.set_visible_on_all_workspaces(enabled) {
             eprintln!("could not update all-workspaces visibility: {error}");
         }
@@ -92,7 +99,7 @@ pub fn apply_to_all_windows(app: &AppHandle, enabled: bool) {
         // Overlay is a floating tool and never belongs on the taskbar.
         // The main window follows the hiding flag so Windows has no
         // taskbar button while hiding is on.
-        let skip = enabled || window.label() == "overlay";
+        let skip = enabled || window.label() == "overlay" || window.label() == "bubble";
         if let Err(error) = window.set_skip_taskbar(skip) {
             eprintln!("could not update taskbar hiding: {error}");
         }
@@ -194,7 +201,10 @@ pub async fn capture_without_aside(
         tauri::async_runtime::spawn_blocking(grab),
     )
     .await
-    .map_err(|_| "Screen capture timed out. Check Screen & System Audio Recording access and try again.".to_string())?
+    .map_err(|_| {
+        "Screen capture timed out. Check Screen & System Audio Recording access and try again."
+            .to_string()
+    })?
     .map_err(|e| format!("Screen capture failed: {e}"))?
 }
 

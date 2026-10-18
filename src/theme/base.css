@@ -82,7 +82,7 @@ h3 {
 kbd {
   font: 600 11px/1 var(--font);
   padding: 3px 5px;
-  border-radius: 5px;
+  border-radius: var(--r-s);
   background: rgba(127, 127, 127, 0.2);
 }
 
@@ -112,8 +112,7 @@ kbd {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+    animation: none !important;
     transition-duration: 120ms !important;
     transition-property: opacity, color, background-color, border-color !important;
     scroll-behavior: auto !important;

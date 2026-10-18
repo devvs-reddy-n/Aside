@@ -33,9 +33,9 @@ export interface LiveController {
   /** Boot and start listening. Returns the stop function. */
   start: () => () => void;
   toggleChannel: (channel: ChannelKey) => Promise<void>;
-  answer: () => Promise<void>;
+  answer: (length?: Answer["length"]) => Promise<void>;
   screenshot: () => Promise<void>;
-  ask: (text: string) => Promise<boolean>;
+  ask: (text: string, length?: Answer["length"]) => Promise<boolean>;
   retry: (answer: Answer) => Promise<void>;
   end: () => Promise<void>;
   changePrefs: (patch: Partial<OverlayPrefs>) => void;
@@ -49,8 +49,12 @@ export interface LiveController {
 const DEFAULT_PREFS: OverlayPrefs = { zoom_pct: 100, opacity_pct: 92, font_px: 13, language: "en" };
 
 /** How see-through the live window may get. Text always stays solid; the person chooses the rest. */
-export const MIN_OPACITY = 40;
-const withReadableOpacity = (prefs: OverlayPrefs): OverlayPrefs => ({ ...prefs, opacity_pct: Math.max(MIN_OPACITY, Math.min(100, prefs.opacity_pct)) });
+export const MIN_OPACITY = 20;
+const withReadablePrefs = (prefs: OverlayPrefs): OverlayPrefs => ({
+  ...prefs,
+  opacity_pct: Math.max(MIN_OPACITY, Math.min(100, prefs.opacity_pct)),
+  font_px: Math.max(11, Math.min(15, prefs.font_px)),
+});
 
 export function createLiveController(backend: LiveBackend): LiveController {
   const live = createStore<LiveState>(initialLiveState());
@@ -105,7 +109,7 @@ export function createLiveController(backend: LiveBackend): LiveController {
           const on = boot.listening[channel];
           if (on) dispatch({ type: "channel-started", channel, device: on.device });
         }
-        ui.set({ booted: true, prefs: withReadableOpacity(boot.prefs) });
+        ui.set({ booted: true, prefs: withReadablePrefs(boot.prefs) });
       })();
       return () => {
         stopListening();
@@ -128,9 +132,9 @@ export function createLiveController(backend: LiveBackend): LiveController {
       else dispatch({ type: "channel-failed", channel, message: result.error });
     },
 
-    async answer() {
+    async answer(length = "auto") {
       if (isAnswering(live.get())) return;
-      await requestAnswer("window", "auto", () => backend.answerWindow());
+      await requestAnswer("window", length, () => backend.answerWindow(length === "auto" ? null : length));
     },
 
     async screenshot() {
@@ -140,12 +144,12 @@ export function createLiveController(backend: LiveBackend): LiveController {
       ui.set({ screenshotBusy: false });
     },
 
-    async ask(text) {
+    async ask(text, length = "auto") {
       const question = text.trim();
       if (!question || isAnswering(live.get())) return false;
       const sessionId = live.get().session?.id ?? null;
-      return requestAnswer("typed", "auto", async () => {
-        const result = await backend.ask(question, sessionId);
+      return requestAnswer("typed", length, async () => {
+        const result = await backend.ask(question, sessionId, length === "auto" ? null : length);
         return result.ok ? { ok: true } : { ok: false, error: result.error };
       });
     },
@@ -156,10 +160,10 @@ export function createLiveController(backend: LiveBackend): LiveController {
       const question = retryQuestion(answer) ?? (answer.question.trim() || null);
       if (question) {
         const sessionId = live.get().session?.id ?? null;
-        await requestAnswer(answer.source, answer.length, () => backend.ask(question, sessionId));
+        await requestAnswer(answer.source, answer.length, () => backend.ask(question, sessionId, answer.length === "auto" ? null : answer.length));
         return;
       }
-      return controller.answer();
+      return controller.answer(answer.length);
     },
 
     async end() {
@@ -173,12 +177,12 @@ export function createLiveController(backend: LiveBackend): LiveController {
     },
 
     changePrefs(patch) {
-      const next = withReadableOpacity({ ...ui.get().prefs, ...patch });
+      const next = withReadablePrefs({ ...ui.get().prefs, ...patch });
       ui.set({ prefs: next });
       window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(() => {
         void backend.savePrefs(next).then((saved) => {
-          if (saved) ui.set({ prefs: withReadableOpacity(saved) });
+          if (saved) ui.set({ prefs: withReadablePrefs(saved) });
         });
       }, 300);
     },

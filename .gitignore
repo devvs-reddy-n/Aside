@@ -6,12 +6,16 @@ node_modules/
 dist/
 
 # Rust / Tauri
+src-tauri/target
 src-tauri/target/
+src-tauri/target.noindex/
 src-tauri/gen/schemas
 
 # Generated app bundle (rebuilt via scripts/build-app.sh)
 /Aside.app
 /Aside *.app
+/release-windows/
+/.xwin-cache/
 
 # Third-party reference code (license-restricted, not for redistribution)
 /references/

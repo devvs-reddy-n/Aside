@@ -52,6 +52,7 @@ pub struct SpeechmaticsLiveEngine {
     pending: Vec<u8>,
     declared_sample_rate: u32,
     reported_drops: usize,
+    diagnostics: Option<std::path::PathBuf>,
 }
 
 impl SpeechmaticsLiveEngine {
@@ -69,10 +70,11 @@ impl SpeechmaticsLiveEngine {
         let (state, status) = watch::channel(SpeechConnection::Connecting);
         let (cancel, cancelled) = watch::channel(false);
         let rate = config.sample_rate;
+        let diagnostics = options.diagnostics.clone();
         let task = tauri::async_runtime::spawn(connection_task(api_key, config, audio.clone(), audio_notify.clone(),
             controls, transcript_tx, state, cancelled, options));
         Self { audio, audio_notify, control, transcript_rx, status, cancel, task: Some(task),
-            resampler: StreamingResampler::default(), pending: Vec::new(), declared_sample_rate: rate, reported_drops: 0 }
+            resampler: StreamingResampler::default(), pending: Vec::new(), declared_sample_rate: rate, reported_drops: 0, diagnostics }
     }
     fn drain_ready(&mut self) -> Vec<Transcript> {
         let mut out = Vec::new();
@@ -132,19 +134,28 @@ impl SttEngine for SpeechmaticsLiveEngine {
     }
     async fn shutdown(mut self: Box<Self>) -> Vec<Transcript> {
         self.finish_pending();
-        if matches!(*self.status.borrow(), SpeechConnection::Ready) {
+        let began = Instant::now();
+        let graceful = matches!(*self.status.borrow(), SpeechConnection::Ready);
+        if graceful {
             let _ = self.control.send(Control::End);
         } else { self.cancel.send_replace(true); }
+        let mut timed_out = false;
         if let Some(mut task) = self.task.take() {
             // EndOfStream is sent once queued audio is out (unpaced), then up
             // to 3s for trailing finals; 6s leaves margin for both.
             if tokio::time::timeout(Duration::from_secs(6), &mut task).await.is_err() {
+                timed_out = true;
                 self.cancel.send_replace(true);
                 task.abort();
                 let _ = task.await;
             }
         }
-        self.drain_ready()
+        let trailing = self.drain_ready();
+        diag(self.diagnostics.as_deref(), serde_json::json!({"shutdown": {
+            "graceful": graceful, "timed_out": timed_out, "ms": began.elapsed().as_millis() as u64,
+            "trailing_items": trailing.len(), "trailing_finals": trailing.iter().filter(|t| t.is_final).count(),
+        }}));
+        trailing
     }
 }
 
@@ -298,21 +309,43 @@ async fn cancelled(cancel: &mut watch::Receiver<bool>) {
         if cancel.changed().await.is_err() { return; }
     }
 }
+/// Deliberately no audio, transcript, vocabulary, API key, or URL in
+/// diagnostics: connection states and counts only.
+fn diag(path: Option<&std::path::Path>, entry: serde_json::Value) {
+    let Some(path) = path else { return };
+    use std::io::Write;
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    if std::fs::metadata(path).is_ok_and(|m| m.len() > 64_000) {
+        let _ = std::fs::rename(path, path.with_extension("previous.log"));
+    }
+    let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
+    let mut line = serde_json::json!({"at_ms":at});
+    if let (Some(line), Some(entry)) = (line.as_object_mut(), entry.as_object()) {
+        line.extend(entry.clone());
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{line}");
+    }
+}
 fn publish(state: &watch::Sender<SpeechConnection>, next: SpeechConnection, options: &TransportOptions) {
     if *state.borrow() == next { return; }
-    // Deliberately no audio, transcript, vocabulary, API key, or URL in diagnostics.
-    if let Some(path) = &options.diagnostics {
-        use std::io::Write;
-        if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
-        if std::fs::metadata(path).is_ok_and(|m| m.len() > 64_000) {
-            let _ = std::fs::rename(path, path.with_extension("previous.log"));
-        }
-        let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-            let _ = writeln!(file, "{}", serde_json::json!({"at_ms":at,"connection":&next}));
-        }
-    }
+    diag(options.diagnostics.as_deref(), serde_json::json!({"connection":&next}));
     state.send_replace(next);
+}
+
+/// Message counts for one engine's life, written once when it stops.
+#[derive(Default, Debug, serde::Serialize)]
+struct Stats {
+    connections: u32,
+    packets_sent: u64,
+    partials_in: u32,
+    finals_in: u32,
+    empty_finals_in: u32,
+    end_of_utterance_in: u32,
+    end_of_transcript_in: u32,
+    previews_out: u32,
+    finals_out: u32,
+    finals_dropped_full: u32,
 }
 fn websocket_request(url: &str, session_token: &str) -> Result<tokio_tungstenite::tungstenite::http::Request<()>, String> {
     let uri: Uri = url.parse().map_err(|_| "Invalid Speechmatics address.".to_owned())?;
@@ -352,6 +385,7 @@ async fn connection_task(key: String, config: SpeechmaticsConfig, audio: Arc<Mut
     let mut slow = false;
     let mut last_reason: Option<String> = None;
     let mut dedupe = TurnDedupe::default();
+    let mut stats = Stats::default();
     loop {
         if *cancel.borrow() { break; }
         if attempt >= MAX_RECONNECT_ATTEMPTS {
@@ -369,7 +403,7 @@ async fn connection_task(key: String, config: SpeechmaticsConfig, audio: Arc<Mut
         // No browser restriction, token-mint round trip or JWT in the URL.
         let outcome = tokio::select! {
             _ = cancelled(&mut cancel) => break,
-            result = connect_and_run(&key,&config,&audio,&notify,&mut controls,&transcripts,&state,&options,&mut dedupe) => result,
+            result = connect_and_run(&key,&config,&audio,&notify,&mut controls,&transcripts,&state,&options,&mut dedupe,&mut stats) => result,
         };
         match outcome {
             ConnectOutcome::Stopped => break,
@@ -387,6 +421,7 @@ async fn connection_task(key: String, config: SpeechmaticsConfig, audio: Arc<Mut
             }
         }
     }
+    diag(options.diagnostics.as_deref(), serde_json::json!({"stats": &stats}));
     publish(&state, SpeechConnection::Stopped, &options);
 }
 
@@ -459,13 +494,30 @@ async fn send<S>(sink: &mut S, message: Message) -> Result<(), ()>
 where S: futures_util::Sink<Message> + Unpin {
     tokio::time::timeout(Duration::from_secs(3),sink.send(message)).await.map_err(|_|())?.map_err(|_|())
 }
+fn forward(result: Transcript, transcripts: &mpsc::Sender<Transcript>, stats: &mut Stats) {
+    let is_final = result.is_final;
+    if transcripts.try_send(result).is_err() {
+        if is_final { stats.finals_dropped_full += 1; }
+        return;
+    }
+    if is_final { stats.finals_out += 1; } else { stats.previews_out += 1; }
+}
+
 fn accept_text(text: &str, dedupe: &mut TurnDedupe, sent: &mut SentAudio, audio: &Mutex<AudioBuffer>, rate: u32,
-    transcripts: &mpsc::Sender<Transcript>) -> Result<bool,ConnectOutcome> {
+    transcripts: &mpsc::Sender<Transcript>, stats: &mut Stats) -> Result<bool,ConnectOutcome> {
     let message = match parse_message(text) { Ok(message) => message, Err(_) => return Ok(false) };
+    match &message {
+        SpeechmaticsMessage::AddPartialTranscript { .. } => stats.partials_in += 1,
+        SpeechmaticsMessage::AddTranscript { transcript } if transcript.trim().is_empty() => stats.empty_finals_in += 1,
+        SpeechmaticsMessage::AddTranscript { .. } => stats.finals_in += 1,
+        SpeechmaticsMessage::EndOfUtterance => stats.end_of_utterance_in += 1,
+        _ => {}
+    }
     match &message {
         SpeechmaticsMessage::Error { error_type, reason } => return Err(rejected(error_type,reason)),
         SpeechmaticsMessage::EndOfTranscript => {
-            if let Some(final_text) = apply_message(SpeechmaticsMessage::EndOfUtterance,dedupe) { let _ = transcripts.try_send(final_text); }
+            stats.end_of_transcript_in += 1;
+            if let Some(final_text) = apply_message(SpeechmaticsMessage::EndOfUtterance,dedupe) { forward(final_text, transcripts, stats); }
             return Ok(true);
         }
         SpeechmaticsMessage::AddTranscript { .. } => {
@@ -477,14 +529,14 @@ fn accept_text(text: &str, dedupe: &mut TurnDedupe, sent: &mut SentAudio, audio:
         }
         _ => {}
     }
-    if let Some(result) = apply_message(message,dedupe) { let _ = transcripts.try_send(result); }
+    if let Some(result) = apply_message(message,dedupe) { forward(result, transcripts, stats); }
     Ok(false)
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn connect_and_run(key: &str, config: &SpeechmaticsConfig, audio: &Mutex<AudioBuffer>, notify: &Notify,
     controls: &mut mpsc::UnboundedReceiver<Control>, transcripts: &mpsc::Sender<Transcript>,
-    state: &watch::Sender<SpeechConnection>, options: &TransportOptions, dedupe: &mut TurnDedupe) -> ConnectOutcome {
+    state: &watch::Sender<SpeechConnection>, options: &TransportOptions, dedupe: &mut TurnDedupe, stats: &mut Stats) -> ConnectOutcome {
     let request = match websocket_request(options.endpoint.as_deref().unwrap_or(config.region.url()),key) {
         Ok(request) => request, Err(error) => return ConnectOutcome::Terminal(error),
     };
@@ -503,7 +555,7 @@ async fn connect_and_run(key: &str, config: &SpeechmaticsConfig, audio: &Mutex<A
         return retry("Speechmatics disconnected before recognition could start.",false,false);
     }
     match await_started(&mut socket,options.handshake_timeout).await {
-        Ok(()) => publish(state,SpeechConnection::Ready,options),
+        Ok(()) => { stats.connections += 1; publish(state,SpeechConnection::Ready,options) }
         Err(HandshakeFailure::Terminal(message)) => return ConnectOutcome::Terminal(message),
         Err(HandshakeFailure::Retry {slow,reason}) => return retry(reason,slow,false),
     }
@@ -524,7 +576,7 @@ async fn connect_and_run(key: &str, config: &SpeechmaticsConfig, audio: &Mutex<A
             let _ = tokio::time::timeout(Duration::from_secs(3),async {
                 while let Some(Ok(message)) = stream.next().await {
                     if let Message::Text(text) = message {
-                        if accept_text(&text,dedupe,&mut sent,audio,config.sample_rate,transcripts).unwrap_or(true) { break; }
+                        if accept_text(&text,dedupe,&mut sent,audio,config.sample_rate,transcripts,stats).unwrap_or(true) { break; }
                     }
                 }
             }).await;
@@ -543,6 +595,7 @@ async fn connect_and_run(key: &str, config: &SpeechmaticsConfig, audio: &Mutex<A
                 if send(&mut sink,Message::Binary(packet.bytes.clone().into())).await.is_err() { return retry("Speechmatics connection interrupted while sending audio.",false,stable); }
                 cursor = packet.id;
                 seq_no += 1;
+                stats.packets_sent += 1;
                 sent.sent(&packet);
                 // Catch up at at most 2x realtime, rather than flooding the server
                 // with the entire reconnect backlog in one burst.
@@ -555,7 +608,7 @@ async fn connect_and_run(key: &str, config: &SpeechmaticsConfig, audio: &Mutex<A
             message = stream.next() => {
                 last_received = Instant::now();
                 match message {
-                    Some(Ok(Message::Text(text))) => match accept_text(&text,dedupe,&mut sent,audio,config.sample_rate,transcripts) {
+                    Some(Ok(Message::Text(text))) => match accept_text(&text,dedupe,&mut sent,audio,config.sample_rate,transcripts,stats) {
                         Ok(true) => return ConnectOutcome::Stopped,
                         Err(outcome) => return outcome,
                         Ok(false) => {}
@@ -877,9 +930,8 @@ mod tests {
     fn audio_is_resampled_to_the_declared_rate() {
         // 10ms of 48kHz capture audio (mic.rs's TARGET_RATE) against the
         // 16kHz declared in `audio_format`. `audio_format` is frozen for the
-        // session, so this conversion is not optional — the same bug that
-        // silently ruined every Deepgram transcript lived in exactly this
-        // spot.
+        // session, so this conversion is not optional: declaring one rate and
+        // sending another silently ruins every transcript.
         assert_eq!(
             encode_for_wire(&vec![0.5_f32; 480], 48_000, 16_000).len(),
             320

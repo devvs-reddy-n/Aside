@@ -14,7 +14,7 @@ mod types;
 pub use background::{enqueue_window, init_background_worker};
 pub use parse::{ParsedResponse, StreamParser};
 #[cfg(test)]
-pub(crate) use prompt::{build_prompt, STRICT_RULES};
+pub(crate) use prompt::build_prompt;
 pub use prompt::{AnswerRules, ContextPreview, DefaultContext, LengthOverride, WindowPrompt};
 pub use types::{
     ConversationWindow, PressLog, RawTurn, SessionMemory, Speaker, WindowPreview,
@@ -308,6 +308,7 @@ fn load_default_context_from_store(
     if ctx.instructions.is_none() {
         ctx.instructions = crate::storage::instructions::get(&conn, sid).ok().flatten();
     }
+    ctx.target_role = session_target_role(&conn, sid);
     // Prefer the documents the owner actually attached to this session
     // (`commands::documents::attach_document_to_session` / a direct
     // in-session upload) over the oldest-row-wins library scan — this is
@@ -332,6 +333,23 @@ fn load_default_context_from_store(
         }
     }
     ctx
+}
+
+/// The role from the copilot this call was started with (its snapshot is
+/// frozen at call start, so later copilot edits don't shift a live call).
+fn session_target_role(conn: &rusqlite::Connection, sid: Uuid) -> Option<String> {
+    let snapshot: Option<String> = conn
+        .query_row(
+            "SELECT copilot_snapshot_json FROM sessions WHERE id = ?1",
+            [sid.to_string()],
+            |row| row.get(0),
+        )
+        .ok()
+        .flatten();
+    snapshot
+        .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+        .and_then(|value| value.get("target_role")?.as_str().map(str::trim).map(str::to_string))
+        .filter(|role| !role.is_empty())
 }
 
 /// Records one Command+Enter press's diagnostics after its answer finishes

@@ -51,6 +51,24 @@ mod tests {
     use crate::domain::Session;
     use uuid::Uuid;
 
+    #[test]
+    fn a_fresh_install_starts_without_documents_copilots_or_calls() {
+        let path = std::env::temp_dir().join(format!("aside-fresh-{}.sqlite3", Uuid::new_v4()));
+        {
+            let db = Db::open(&path).expect("open fresh app database");
+            let conn = db.0.lock().unwrap();
+            for table in ["documents", "copilots", "sessions"] {
+                let count: i64 = conn.query_row(
+                    &format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0),
+                ).expect("read fresh library and call counts");
+                assert_eq!(count, 0, "a fresh install must not ship entries in {table}");
+            }
+        }
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite3-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite3-shm"));
+    }
+
     /// Proves the real `Db::open` path (a file on disk, not `:memory:`) does
     /// what "survives an app restart" actually means: data written by one
     /// `Db` instance is still there after that instance is dropped (closing

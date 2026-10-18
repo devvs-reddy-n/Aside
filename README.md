@@ -63,6 +63,32 @@ npm install
   ```
   This leaves a ready-to-use `Aside.app` in the project's root folder.
 
+## Windows copy, built from a Mac
+
+The Windows setup is at `release-windows/Aside-Setup.exe` after a build. Copy it to a Windows computer and run it. It targets 64-bit Windows 10 version 2004 or newer and Windows 11. The installer is unsigned, so Windows may show an unknown-publisher warning. It installs Aside for your user and includes the required Microsoft components; installing the C++ runtime may ask for administrator approval. WebView2 setup and cloud answers need an internet connection.
+
+Windows uses **Ctrl+Enter** for Answer, **Ctrl+Shift+Enter** for Screenshot, and **Ctrl+Shift+Comma/Period** for answer history. Allow desktop microphone access in Windows Settings if prompted by Aside's recovery help. Speaker capture follows the selected Windows output device. With Stealth on, the ordinary minimize button is disabled because Aside has no taskbar button to return to; Window → Minimize hides Aside and **Ctrl+H** brings it back.
+
+On this Mac, the build tools are installed. To build again:
+
+```bash
+npm run build:windows
+```
+
+For another Mac, first install the tools:
+
+```bash
+brew install llvm lld nsis
+cargo install --locked cargo-xwin
+rustup target add x86_64-pc-windows-msvc
+npm ci
+npm run build:windows
+```
+
+On Windows, install [Tauri's Windows prerequisites](https://v2.tauri.app/start/prerequisites/#windows), Node.js and Rust, then run `npm ci` and `npm run build:windows`.
+
+**PARTIAL:** the installer builds on macOS, and Windows interface labels are checked in browser previews. Installation, real Windows audio, screen capture, screen-share hiding and global shortcuts have not run in Windows yet. UTM is installed for that next check; it still needs a Windows guest. A browser preview cannot prove Windows recording works.
+
 ## What's finished and what's still in progress
 
 This is an actively evolving personal project, not a polished 1.0 release. [`status.md`](status.md) keeps an honest, feature-by-feature checklist of what's actually been built and verified versus what's still a work in progress, and [`CURRENT.md`](CURRENT.md) has the current day-to-day snapshot of what's being worked on.

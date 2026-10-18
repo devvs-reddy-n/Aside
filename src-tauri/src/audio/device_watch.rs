@@ -47,16 +47,10 @@
 //!
 //! ## Windows
 //!
-//! Not implemented. WASAPI has its own default-device-change notification
-//! (`IMMNotificationClient::OnDefaultDeviceChanged`), a genuinely different
-//! API from CoreAudio's property-listener mechanism — matching this
-//! project's existing, honestly-stated Windows gap for audio (`status.md`
-//! 3.9). `DeviceChangeWatcher::start` on any non-macOS platform always
-//! returns `Err` and never calls `on_changed`; a caller that treats that as
-//! "just don't arm auto-follow here" (which `commands/audio.rs` does) gets
-//! exactly the pre-existing behavior back — a pinned device keeps working
-//! exactly as it does today, and an unpinned device just keeps using
-//! whatever it resolved to at capture start.
+//! A small stoppable worker checks CPAL's current default device identity
+//! every 500ms. This follows the same WASAPI default endpoint as capture,
+//! without a separate COM callback lifetime. Only actual identity changes
+//! notify the existing restart/debounce logic; pinned devices are untouched.
 
 /// Which OS-level default property a [`DeviceChangeWatcher`] is watching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,7 +72,9 @@ pub enum DefaultDeviceKind {
 pub struct DeviceChangeWatcher {
     #[cfg(target_os = "macos")]
     _inner: macos::PropertyWatcher,
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    _inner: polling::PollingWatcher,
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     _unused: (),
 }
 
@@ -98,19 +94,83 @@ impl DeviceChangeWatcher {
         })
     }
 
-    /// Always fails on non-macOS platforms — see this module's doc comment.
+    #[cfg(target_os = "windows")]
+    pub fn start(
+        kind: DefaultDeviceKind,
+        on_changed: impl FnMut() + Send + 'static,
+    ) -> Result<Self, String> {
+        Ok(Self {
+            _inner: polling::PollingWatcher::start(
+                move || match kind {
+                    DefaultDeviceKind::Input => super::device_util::default_input_device_id(),
+                    DefaultDeviceKind::Output => super::device_util::default_output_device_id(),
+                },
+                on_changed,
+                std::time::Duration::from_millis(500),
+            )?,
+        })
+    }
+
+    /// Always fails on platforms without a default-device watcher.
     /// `on_changed` is accepted (rather than the method not existing at all)
     /// so `commands/audio.rs` compiles identically on every platform and
     /// only has to branch on the `Result`, not on `#[cfg]`.
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     pub fn start(
         _kind: DefaultDeviceKind,
         _on_changed: impl FnMut() + Send + 'static,
     ) -> Result<Self, String> {
-        Err(
-            "device auto-follow (watching the OS default audio device) is only implemented on macOS"
-                .to_string(),
-        )
+        Err("device auto-follow is only implemented on macOS and Windows".to_string())
+    }
+}
+
+#[cfg(any(target_os = "windows", test))]
+mod polling {
+    use std::{sync::mpsc, thread, time::Duration};
+
+    pub(super) struct PollingWatcher {
+        shutdown: Option<mpsc::Sender<()>>,
+        worker: Option<thread::JoinHandle<()>>,
+    }
+
+    impl PollingWatcher {
+        pub(super) fn start(
+            mut read: impl FnMut() -> Option<String> + Send + 'static,
+            mut on_changed: impl FnMut() + Send + 'static,
+            interval: Duration,
+        ) -> Result<Self, String> {
+            let (shutdown, stop) = mpsc::channel();
+            let worker = thread::Builder::new()
+                .name("audio-default-watch".into())
+                .spawn(move || {
+                    let mut previous = read();
+                    while matches!(
+                        stop.recv_timeout(interval),
+                        Err(mpsc::RecvTimeoutError::Timeout)
+                    ) {
+                        let current = read();
+                        if current != previous {
+                            previous = current;
+                            on_changed();
+                        }
+                    }
+                })
+                .map_err(|error| format!("Could not watch the audio device: {error}"))?;
+            Ok(Self {
+                shutdown: Some(shutdown),
+                worker: Some(worker),
+            })
+        }
+    }
+
+    impl Drop for PollingWatcher {
+        fn drop(&mut self) {
+            // Stop immediately; no callbacks survive the watcher lifetime.
+            self.shutdown.take();
+            if let Some(worker) = self.worker.take() {
+                let _ = worker.join();
+            }
+        }
     }
 }
 
@@ -297,6 +357,47 @@ mod macos {
 mod tests {
     use super::*;
 
+    #[test]
+    fn polling_notifies_only_on_device_changes_and_stops_on_drop() {
+        use std::{
+            sync::{mpsc, Arc, Mutex},
+            time::Duration,
+        };
+        let device = Arc::new(Mutex::new(Some("speaker-a".to_string())));
+        let read_device = device.clone();
+        let (reads, read_rx) = mpsc::channel();
+        let (changed, change_rx) = mpsc::channel();
+        let watcher = polling::PollingWatcher::start(
+            move || {
+                let value = read_device.lock().unwrap().clone();
+                let _ = reads.send(());
+                value
+            },
+            move || {
+                let _ = changed.send(());
+            },
+            Duration::from_millis(5),
+        )
+        .unwrap();
+        read_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        read_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        assert!(
+            change_rx.try_recv().is_err(),
+            "unchanged default must not restart audio"
+        );
+        *device.lock().unwrap() = Some("speaker-b".into());
+        change_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        *device.lock().unwrap() = None;
+        change_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        *device.lock().unwrap() = Some("speaker-c".into());
+        change_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        drop(watcher);
+        assert!(matches!(
+            change_rx.try_recv(),
+            Err(mpsc::TryRecvError::Disconnected)
+        ));
+    }
+
     /// Not FFI, but pins the enum's two variants exist and are distinct —
     /// cheap insurance against a future edit accidentally collapsing them,
     /// since almost nothing else in this module is pure enough to unit
@@ -313,7 +414,7 @@ mod tests {
     /// must never call `on_changed` — `commands/audio.rs` relies on exactly
     /// this contract to know it's safe to just log and move on rather than
     /// treat a failed `start` as fatal to capture itself.
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     #[test]
     fn on_non_macos_start_fails_cleanly_instead_of_watching_anything() {
         let called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));

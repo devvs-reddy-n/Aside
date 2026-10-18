@@ -1,7 +1,7 @@
 //! App-wide hide, quit, and relaunch.
 //!
-//! The title-bar buttons live in `window_buttons`: red quits at once,
-//! yellow minimizes (or hides Aside when screen-share hiding is on).
+//! The title-bar buttons live in `window_buttons`: close asks first,
+//! minimize keeps a movable bubble on screen.
 //! The Aside menu's Quit item asks first, then quits.
 //! Changing screen-share hiding relaunches so Dock and menu-bar policy
 //! apply from a fresh process.
@@ -45,6 +45,8 @@ pub fn exit_needs_confirmation(code: Option<i32>, already_confirmed: bool) -> bo
 /// Bring the workspace back (so the confirm dialog can be seen) and tell
 /// the frontend to ask. Idempotent if the dialog is already open.
 pub fn request_quit(app: &AppHandle) {
+    crate::window_buttons::restore(app);
+    crate::window_buttons::restore_bubble(app.clone());
     if let Some(main) = app.get_webview_window("main") {
         let _ = main.show();
         let _ = main.unminimize();
@@ -71,17 +73,20 @@ pub fn handle_menu(app: &AppHandle, id: &str) {
         return;
     }
     if id == "aside-hide" {
-        crate::stealth::toggle_on_screen(app);
+        crate::window_buttons::toggle_visibility(app.clone());
         return;
     }
-    let window = app.webview_windows().into_values()
+    let window = app
+        .webview_windows()
+        .into_values()
         .find(|window| window.is_focused().unwrap_or(false))
         .or_else(|| app.get_webview_window("main"));
     if let Some(window) = window {
         match id {
-            "aside-minimize" if window.label() == "main" => crate::window_buttons::minimize(app, &window),
-            "aside-minimize" => { let _ = window.minimize(); }
-            "aside-close" => { let _ = window.close(); }
+            "aside-minimize" => crate::window_buttons::minimize(app, &window),
+            "aside-close" => {
+                let _ = window.close();
+            }
             _ => {}
         }
     }
@@ -100,12 +105,12 @@ pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         ..Default::default()
     };
 
-    let quit = MenuItem::with_id(app, QUIT_MENU_ID, "Quit Aside", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, QUIT_MENU_ID, "Quit Aside", true, Some("CmdOrCtrl+Q"))?;
 
     let minimize = MenuItem::with_id(app, "aside-minimize", "Minimize", true, None::<&str>)?;
     let close = MenuItem::with_id(app, "aside-close", "Close Window", true, None::<&str>)?;
     #[cfg(target_os = "macos")]
-    let hide = MenuItem::with_id(app, "aside-hide", "Hide Aside", true, None::<&str>)?;
+    let hide = MenuItem::with_id(app, "aside-hide", "Hide Aside", true, Some("CmdOrCtrl+H"))?;
 
     let window_menu = Submenu::with_id_and_items(
         app,

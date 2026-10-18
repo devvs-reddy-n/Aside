@@ -3,15 +3,14 @@ import { Icon } from "../../kit/Icon";
 import { useController, useLiveUi } from "../context";
 import { MIN_OPACITY } from "../controller";
 
-/** Text sizes for the question and answer, in the saved font_px units (the backend allows 12 to 20). */
+/** Text sizes for the question and answer, in the saved font_px units (the backend allows 11 to 15). */
 const SIZES: Array<[number, string]> = [
+  [11, "Extra small"],
   [13, "Small"],
   [15, "Medium"],
-  [17, "Large"],
-  [20, "Extra large"],
 ];
 
-/** The saved size closest to one of the four choices, so an older in-between value still shows a selection. */
+/** The saved size closest to one of the three choices, so an older in-between value still shows a selection. */
 function nearestSize(px: number): number {
   return SIZES.reduce((best, [size]) => (Math.abs(size - px) < Math.abs(best - px) ? size : best), SIZES[0][0]);
 }
@@ -49,7 +48,7 @@ export function Menu({ onClose, anchor }: { onClose: () => void; anchor: React.R
   return (
     <div ref={menu} className="lv-menu" role="dialog" aria-label="Window options" tabIndex={-1}>
       <label className="lv-menu__row">
-        <span>Background</span>
+        <span>Opacity</span>
         <input
           type="range"
           min={MIN_OPACITY}

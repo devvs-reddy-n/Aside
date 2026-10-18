@@ -4,6 +4,10 @@
 
 ## Current result
 
+- Models (2026-10-17): only GPT-5.6 Luna/Terra/Sol and the latest Claude models; screenshots use the call's model; speech is Speechmatics or Parakeet only (Deepgram removed). Background notes still need an OpenAI key. No real Claude call tested yet.
+
+- Answer prompt (2026-10-17): your Strict rules and copilot Guidance now lead every answer, including screenshots; your actual words beat any AI suggestion; full resume, job description and target role are sent. Tests and builds pass; a real answer with the new prompt has not been checked yet.
+
 - Speechmatics (2026-10-17): mic/speaker only show as listening once Speechmatics confirms the session; a new session waits for the old one to close (no overlapping sessions); dropped connections resend only unheard audio; the last sentence on stop is kept; "no free slot" retries slowly; wrong key fails once clearly. Verified with 11 fake-server tests and a real-service test using generated speech (all technical terms right, first words ~0.5s, full sentence ~2.2s after speaking stops). Standard model and current delays kept — Enhanced was no better. Connection states (never key/audio/words) log to `speechmatics-connection.log` in the app log folder. Real mic, AirPods, long calls and real network drops not yet tested.
 
 - Live session redesigned with Apple Design principles: a subdued grey window edge, solid grey controls, separate capsule mic/speaker buttons, filled question surface and clear answer area. No resting borders on audio, question actions, lengths or alert buttons. Main app remains light.
@@ -14,7 +18,7 @@
 
 ## Next action
 
-Quit and reopen Aside.app (the open copy predates the rebuild), then do one real call with Speechmatics: confirm both lanes transcribe, and if anything is rejected, check `speechmatics-connection.log` for the exact reason. Resolve intermittent native capture startup and verify a repeatable cold-start preflight on the owner's chosen microphone/output. UI work is complete; existing real-call/cloud-answer/transcript and Windows runtime checks remain.
+Try a practice call and a screenshot answer to judge the new prompt against your Guidance. Quit and reopen Aside.app (the open copy predates the rebuild), then do one real call with Speechmatics: confirm both lanes transcribe, and if anything is rejected, check `speechmatics-connection.log` for the exact reason. Resolve intermittent native capture startup and verify a repeatable cold-start preflight on the owner's chosen microphone/output. UI work is complete; existing real-call/cloud-answer/transcript and Windows runtime checks remain.
 
 ## Rollback
 

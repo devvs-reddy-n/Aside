@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Aside",
+        "url": "index.html",
+        "width": 1000,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
+        "maxWidth": 1600,
+        "maxHeight": 1040,
+        "visible": false,
+        "transparent": false,
+        "backgroundColor": "#ffffff",
+        "decorations": true,
+        "contentProtected": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "maximizable": false,
+        "fullscreen": false,
+        "theme": "Light"
+      }
+    ]
+  },
+  "bundle": {
+    "targets": ["nsis"],
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "installerHooks": "windows/hooks.nsh"
+      }
+    }
+  }
+}

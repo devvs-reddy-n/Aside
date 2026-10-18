@@ -24,15 +24,18 @@ use crate::storage::{settings, Db};
 use crate::window_memory::background::Compressor;
 
 use super::{
-    build_provider, AnswerSink, HttpClient, LlmProvider, LlmProviderKind, SERVICE_TIER_SETTING_KEY,
+    build_provider, openai, AnswerSink, HttpClient, LlmProvider, LlmProviderKind,
+    SERVICE_TIER_SETTING_KEY,
 };
 
 const SUMMARIZE_SYSTEM_PROMPT: &str = "You silently take notes on a live spoken conversation. You will be \
 given the raw transcript of one short window of that conversation, with lines labeled \"Other:\" (the \
 other participant) and \"Me:\" (the user). Write exactly 1 or 2 plain prose sentences describing only what \
-was actually said in this window - no more, no less. Do not answer any question in it, do not add \
-opinions, do not invent anything that is not present in the transcript. Output only the 1-2 sentences, \
-nothing else - no preamble, no labels, no quotation marks.";
+was actually said in this window - no more, no less. Say who said what: what Other asked or shared, and what \
+the user said about themselves (write it as \"I said...\"). Keep every technology, tool, company, project \
+name, and number exactly as spoken, because later answers must stay consistent with what the user actually \
+said. Do not answer any question in it, do not add opinions, do not invent anything that is not present in \
+the transcript. Output only the 1-2 sentences, nothing else - no preamble, no labels, no quotation marks.";
 
 /// The one intentional difference between the live rolling note and the
 /// history-screen summary: this describes the whole completed transcript in
@@ -52,34 +55,17 @@ pub struct SessionSummary {
     pub highlights: Vec<String>,
 }
 
-/// Builds the provider for one background call. **Deliberately pinned to
-/// OpenAI (2026-08-29, owner's explicit instruction), not "whichever
-/// provider is currently primary."** The owner picks the *main* answer
-/// model freely from [`openai::MODEL_PRESETS`], but the cheap background
-/// summarizer always uses OpenAI's own saved key
-/// (`LlmProviderKind::OpenAi.api_key_setting()`) and OpenAI's cheapest
-/// verified fast model (`LlmProviderKind::OpenAi.default_background_model()`,
-/// currently [`openai::BACKGROUND_MODEL`] — picked over the other verified
-/// mini id, `gpt-5-mini`, because `openai::reasoning_effort_for` sends
-/// `gpt-5.4-mini` `"none"` reasoning effort and `gpt-5-mini` `"low"`, i.e.
-/// `gpt-5.4-mini` is the actually-faster one of the two, not just the
-/// same-cost alternative). This only matters in practice once a second
-/// provider is ever re-enabled (today `LlmProviderKind::ENABLED` is OpenAI
-/// alone, so this was already true by coincidence) — pinning it here makes
-/// that guarantee explicit instead of accidental, so it survives if
-/// Anthropic/Gemini/Groq come back. No fallback chain — a single attempt
-/// that, on failure, is simply logged and skipped by
-/// `window_memory::background::run_job`, never surfaced to the visible
-/// answer.
-fn build_background_provider(app: &AppHandle) -> Result<Box<dyn LlmProvider>, String> {
+/// The background note-taker always uses OpenAI's `gpt-5.4-mini`
+/// ([`openai::BACKGROUND_MODEL`]) with the saved OpenAI key, whichever model
+/// answers the call, Claude included. No fallback chain: a failed note is
+/// logged and skipped by `window_memory::background::run_job`, never shown.
+pub(super) fn build_background_provider(app: &AppHandle) -> Result<Box<dyn LlmProvider>, String> {
     let provider = LlmProviderKind::OpenAi;
     let db = app.state::<Db>();
     let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
     let api_key = settings::get(&conn, provider.api_key_setting())?
-        .ok_or_else(|| format!("no API key saved for {provider:?}"))?;
-    let model = settings::get(&conn, provider.background_model_setting())?
-        .filter(|m| !m.trim().is_empty())
-        .unwrap_or_else(|| provider.default_background_model().to_string());
+        .ok_or_else(|| "background notes need an OpenAI key".to_string())?;
+    let model = openai::BACKGROUND_MODEL.to_string();
     let tier = settings::get(&conn, SERVICE_TIER_SETTING_KEY)?;
     drop(conn);
     let client = app.state::<HttpClient>().0.clone();
@@ -107,7 +93,7 @@ impl AnswerSink for CollectingSink {
     }
 }
 
-async fn run_one_shot(
+pub(super) async fn run_one_shot(
     provider: &dyn LlmProvider,
     system: &str,
     user: &str,
@@ -189,16 +175,9 @@ mod tests {
     }
 
     #[test]
-    fn every_provider_has_a_distinct_background_model_setting_key_and_a_cheaper_default() {
-        let mut seen = std::collections::HashSet::new();
-        for kind in LlmProviderKind::ALL {
-            assert!(
-                seen.insert(kind.background_model_setting()),
-                "duplicate background_model_setting for {kind:?}"
-            );
-            assert_ne!(kind.background_model_setting(), kind.model_setting());
-            assert_ne!(kind.background_model_setting(), kind.api_key_setting());
-        }
+    fn background_notes_use_gpt_5_4_mini_which_is_not_an_answer_choice() {
+        assert_eq!(openai::BACKGROUND_MODEL, "gpt-5.4-mini");
+        assert!(!LlmProviderKind::OpenAi.supports_model(openai::BACKGROUND_MODEL));
     }
 
     #[test]

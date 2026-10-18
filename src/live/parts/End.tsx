@@ -1,48 +1,23 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../../kit/Icon";
+import { Button } from "../../kit/Button";
+import { Dialog } from "../../kit/Dialog";
+import { onEvent } from "../../bridge/events";
 import { useController, useLiveUi } from "../context";
 
-const CANCEL_MS = 4000;
-
-/** One click schedules the end; the red countdown is the chance to cancel (click again or Escape). */
+/** Ending is an explicit choice; cancelling leaves listening running. */
 export function End() {
   const controller = useController();
   const ending = useLiveUi((state) => state.ending);
-  const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (!pending) return;
-    const timer = window.setTimeout(() => {
-      setPending(false);
-      void controller.end();
-    }, CANCEL_MS);
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        setPending(false);
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("keydown", onKey, true);
-    };
-  }, [pending, controller]);
-
-  const label = ending ? "Ending…" : pending ? "Cancel" : "End";
-  return (
-    <button
-      type="button"
-      className="lv-end"
-      data-armed={pending || undefined}
-      disabled={ending}
-      onClick={() => setPending((value) => !value)}
-      aria-label={pending ? "Cancel ending session" : "End session"}
-      title={pending ? "Ending in four seconds. Click or press Escape to cancel." : "End session after a four-second cancel window"}
-    >
-      {pending ? <i className="lv-end__fill" aria-hidden="true" /> : null}
-      <Icon name={pending ? "x" : "stop"} size={13} />
-      <span>{label}</span>
+  const [asking, setAsking] = useState(false);
+  useEffect(() => onEvent("end-requested", () => setAsking(true)), []);
+  return <>
+    <button type="button" className="lv-end" disabled={ending} onClick={() => setAsking(true)} aria-label="End session" title="End session">
+      <Icon name="stop" size={13} /><span>{ending ? "Ending…" : "End"}</span>
     </button>
-  );
+    <Dialog open={asking} onClose={() => setAsking(false)} title="End this call?" size="sm"
+      footer={<><Button variant="ghost" onClick={() => setAsking(false)}>Keep going</Button><Button className="btn--end-quit" variant="danger" busy={ending} onClick={() => { setAsking(false); void controller.end(); }}>End call</Button></>}>
+      <p>Listening stops. Saved conversations and answers stay in History.</p>
+    </Dialog>
+  </>;
 }

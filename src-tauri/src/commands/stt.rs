@@ -6,8 +6,6 @@ use uuid::Uuid;
 use crate::audio::channel::Channel;
 use crate::pipeline::{self, TranscriptionRouting};
 use crate::storage::{settings, Db};
-use crate::stt::deepgram::DeepgramConfig;
-use crate::stt::deepgram_live::DeepgramLiveEngine;
 use crate::stt::parakeet_cache;
 use crate::stt::parakeet_local::ParakeetLocalEngine;
 use crate::stt::speechmatics::SpeechmaticsConfig;
@@ -16,14 +14,10 @@ use crate::stt::{EngineKind, SttEngine};
 
 pub(crate) const ENGINE_SETTING_KEY: &str = "stt_engine";
 
-/// Engines currently offered for selection — `EngineKind::ENABLED`, not
-/// `ALL` (Deepgram is dormant as of 2026-08-24, see `EngineKind::ENABLED`'s
-/// doc comment). Deliberately not a hand-copied list here: it's the enum's
-/// own `ENABLED` constant, so a variant added or re-enabled there can't
-/// silently be left off this dropdown.
+/// The engines offered for selection: Parakeet (local) and Speechmatics.
 #[tauri::command]
 pub fn list_stt_engines() -> Vec<EngineKind> {
-    EngineKind::ENABLED.to_vec()
+    EngineKind::ALL.to_vec()
 }
 
 /// The currently selected engine, or `None` if the user hasn't picked one
@@ -35,26 +29,8 @@ pub fn get_stt_engine(db: State<Db>) -> Result<Option<EngineKind>, String> {
     Ok(stored.and_then(|s| EngineKind::from_setting_value(&s)))
 }
 
-/// Pure guard, split out from the `State`-taking command below so it's
-/// directly unit-testable without standing up a real `tauri::State` (which
-/// has no public test-friendly constructor). Rejects a dormant engine even
-/// if something other than this app's own dropdown tries to set it — e.g.
-/// a stale frontend build still offering Deepgram, or a hand-crafted
-/// `invoke` call. The dropdown hiding it (`list_stt_engines`) and this
-/// check are two independent layers on purpose: hiding it from a list is a
-/// UI nicety, not an enforcement boundary.
-fn reject_if_dormant(engine: EngineKind) -> Result<(), String> {
-    if !engine.is_enabled() {
-        return Err(format!(
-            "{engine:?} is currently dormant and cannot be selected"
-        ));
-    }
-    Ok(())
-}
-
 #[tauri::command]
 pub fn set_stt_engine(db: State<Db>, engine: EngineKind) -> Result<(), String> {
-    reject_if_dormant(engine)?;
     persist_stt_engine(&db, engine)
 }
 
@@ -162,12 +138,6 @@ async fn build_engine(
     engine: EngineKind,
 ) -> Result<Box<dyn SttEngine>, String> {
     match engine {
-        EngineKind::Deepgram => {
-            let key = get_api_key(db, engine)?;
-            let mut config = DeepgramConfig::default();
-            config.keyterms = session_glossary(app, db);
-            Ok(Box::new(DeepgramLiveEngine::start(key, config)))
-        }
         EngineKind::Speechmatics => {
             let key = get_api_key(db, engine)?;
             let mut config = SpeechmaticsConfig::for_notebook();
@@ -325,7 +295,7 @@ mod tests {
     #[test]
     fn get_api_key_reports_a_readable_error_when_nothing_is_saved_yet() {
         let db = Db::open_in_memory();
-        let err = get_api_key(&db, EngineKind::Deepgram).unwrap_err();
+        let err = get_api_key(&db, EngineKind::Speechmatics).unwrap_err();
         assert!(err.contains("no API key saved"));
     }
 
@@ -336,43 +306,25 @@ mod tests {
             let conn = db.0.lock().unwrap();
             settings::set(
                 &conn,
-                EngineKind::Deepgram.api_key_setting().unwrap(),
-                "dg_real",
+                EngineKind::Speechmatics.api_key_setting().unwrap(),
+                "sm_real",
             )
             .unwrap();
         }
-        assert_eq!(get_api_key(&db, EngineKind::Deepgram).unwrap(), "dg_real");
+        assert_eq!(get_api_key(&db, EngineKind::Speechmatics).unwrap(), "sm_real");
     }
 
     #[test]
-    fn list_stt_engines_omits_dormant_deepgram() {
-        let listed = list_stt_engines();
-        assert!(
-            !listed.contains(&EngineKind::Deepgram),
-            "Deepgram must not appear in the selectable list"
-        );
-        assert!(listed.contains(&EngineKind::ParakeetLocal));
-        assert!(listed.contains(&EngineKind::Speechmatics));
+    fn only_parakeet_and_speechmatics_are_offered() {
+        assert_eq!(list_stt_engines(), vec![EngineKind::ParakeetLocal, EngineKind::Speechmatics]);
     }
 
     #[test]
-    fn reject_if_dormant_blocks_deepgram_but_not_the_enabled_engines() {
-        let err = reject_if_dormant(EngineKind::Deepgram).unwrap_err();
-        assert!(err.contains("dormant"));
-        assert!(reject_if_dormant(EngineKind::ParakeetLocal).is_ok());
-        assert!(reject_if_dormant(EngineKind::Speechmatics).is_ok());
-    }
-
-    #[test]
-    fn persist_stt_engine_can_store_a_dormant_engine_directly() {
-        // `persist_stt_engine` itself has no dormant/enabled opinion — that
-        // check lives only in `reject_if_dormant`, called by `set_stt_engine`
-        // before this helper. Confirms the helper stays a pure store, in
-        // case any future caller needs to bypass the guard deliberately.
+    fn persist_stt_engine_stores_the_setting_value() {
         let db = Db::open_in_memory();
-        persist_stt_engine(&db, EngineKind::Deepgram).unwrap();
+        persist_stt_engine(&db, EngineKind::Speechmatics).unwrap();
         let conn = db.0.lock().unwrap();
         let stored = settings::get(&conn, ENGINE_SETTING_KEY).unwrap();
-        assert_eq!(stored.as_deref(), Some("deepgram"));
+        assert_eq!(stored.as_deref(), Some("speechmatics"));
     }
 }

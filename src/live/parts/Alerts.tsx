@@ -1,3 +1,4 @@
+import { audioPermissionHelp, systemSettingsLabel, desktopPlatform } from "../../core/platform";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "../../kit/Icon";
 import { useController, useLive, useLiveUi } from "../context";
@@ -80,13 +81,13 @@ export function Alerts() {
         title="Your microphone isn't working"
         fix={{ label: "Try again", run: () => void controller.toggleChannel("mic") }}
         detail={mic.message ?? "Can't open the microphone."}
-        more={<button type="button" className="lv-chip" onClick={() => void controller.backend.openPrivacySettings("microphone")}>Open System Settings</button>}
+        more={<button type="button" className="lv-chip" onClick={() => void controller.backend.openPrivacySettings("microphone")}>{systemSettingsLabel}</button>}
       />
     );
   }
 
   if (system.status === "error") {
-    const permission = looksLikePermissionProblem(system.message);
+    const permission = desktopPlatform !== "windows" && looksLikePermissionProblem(system.message);
     const checkAgain = async () => {
       await controller.toggleChannel("system");
     };
@@ -97,10 +98,10 @@ export function Alerts() {
         icon="alert"
         title="System audio unavailable"
         fix={permission ? { label: "Open Settings", run: openSettings } : { label: "Check again", run: () => void checkAgain() }}
-        detail={<>{permission ? "Allow Aside under Screen & System Audio Recording, then check again." : (system.message ?? "The system audio stream stopped.")} On AirPods? Use the built-in mic.</>}
+        detail={<>{permission ? audioPermissionHelp("system") : (system.message ?? audioPermissionHelp("system"))} On AirPods? Use the built-in mic.</>}
         more={permission
           ? <button type="button" className="lv-chip" onClick={() => void checkAgain()}>Check again</button>
-          : <button type="button" className="lv-chip" onClick={openSettings}>Open System Settings</button>}
+          : <button type="button" className="lv-chip" onClick={openSettings}>{systemSettingsLabel}</button>}
       />
     );
   }

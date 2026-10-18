@@ -1,3 +1,4 @@
+import { audioPermissionHelp, desktopPlatform } from "../core/platform.ts";
 import type { CopilotSummary, EngineKind, LlmProviderKind } from "../bridge/types";
 import type { PageId } from "./router";
 import { engineName, engineNeedsKey, modelLabel } from "./labels.ts";
@@ -68,7 +69,7 @@ export function checksFor(system: SystemSnapshot, copilot: CopilotSummary | null
       id: "permissions",
       status: "info",
       title: "Microphone and system audio",
-      detail: "macOS asks the first time. Aside can't check ahead of time. If you have said no before, allow it in System Settings → Privacy & Security.",
+      detail: desktopPlatform === "windows" ? audioPermissionHelp("mic") + " Speaker capture follows your selected output device." : "macOS asks the first time. Aside can't check ahead of time. If you have said no before, allow it in System Settings → Privacy & Security.",
     },
   );
   return checks;

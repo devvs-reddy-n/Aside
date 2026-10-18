@@ -1,6 +1,6 @@
 //! Rolling "what is this person currently saying" buffer.
 //!
-//! Local Parakeet and Deepgram restate the whole open utterance on every
+//! Local Parakeet restates the whole open utterance on every
 //! partial. Speechmatics sends finalized prefixes as deltas and only the
 //! unfinalized tail as a partial. This buffer hides that difference so the
 //! question detector always sees one live string.
@@ -43,7 +43,7 @@ impl ChannelBuffer {
         if is_final {
             let live = self.live();
             if is_restatement(&live, text) {
-                // Parakeet/Deepgram: the final restates the whole open utterance.
+                // Parakeet: the final restates the whole open utterance.
                 self.committed = vec![text.to_string()];
             } else {
                 // Speechmatics: a finalized prefix or tail — append.

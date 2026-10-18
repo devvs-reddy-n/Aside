@@ -75,12 +75,9 @@ export interface VadStatus {
 
 // --- Speech-to-text engines (`commands/stt.rs`, `stt/mod.rs`) ---
 
-/** Mirrors `stt::EngineKind`, `#[serde(rename_all = "snake_case")]`. Only
- *  `ParakeetLocal` and `Speechmatics` are ever offered by
- *  `list_stt_engines` — Deepgram is a real, working engine kept dormant on
- *  purpose (owner decision, 2026-08-24); do not add it to any picker built
- *  from this type. */
-export type EngineKind = "parakeet_local" | "deepgram" | "speechmatics";
+/** Mirrors `stt::EngineKind`, `#[serde(rename_all = "snake_case")]`: the
+ *  two supported engines. */
+export type EngineKind = "parakeet_local" | "speechmatics";
 
 /** Event payload for `mic-transcript` / `system-transcript`. Rust:
  *  `pipeline::TranscriptEvent`. */
@@ -97,9 +94,9 @@ export interface LiveTranscriptTurn {
 
 // --- LLM / answers (`commands/llm.rs`, `llm/mod.rs`) ---
 
-/** Mirrors `llm::LlmProviderKind`, `#[serde(rename_all = "snake_case")]`.
- *  Only `open_ai` is ever offered by `list_llm_providers` today. */
-export type LlmProviderKind = "open_ai" | "anthropic" | "gemini" | "groq";
+/** Mirrors `llm::LlmProviderKind`, `#[serde(rename_all = "snake_case")]`:
+ *  OpenAI (GPT-5.6) and Anthropic (Claude). */
+export type LlmProviderKind = "open_ai" | "anthropic";
 
 export interface AnswerStartedEvent {
   question: string;
@@ -154,6 +151,9 @@ export interface Session {
 
 // --- Reusable Copilots ---
 
+/** Current interview setups plus the retired screen marker for reading older records. */
+export type CopilotKind = "interview" | "screen";
+
 export interface Copilot {
   id: string;
   name: string;
@@ -164,6 +164,7 @@ export interface Copilot {
   save_transcript: boolean;
   llm_provider: LlmProviderKind;
   llm_model: string;
+  kind: CopilotKind;
   created_at_ms: number;
   updated_at_ms: number;
 }
@@ -182,6 +183,7 @@ export interface CopilotInput {
   save_transcript: boolean;
   llm_provider: LlmProviderKind;
   llm_model: string;
+  kind: CopilotKind;
   resume_id: string | null;
   document_ids: string[];
 }
@@ -410,10 +412,8 @@ export interface AnswerRules {
 
 // --- Live overlay (`commands/overlay.rs`) ---------------------------------
 
-/** Mirrors `commands::overlay::OverlayPrefs` — the More menu's Zoom/
- *  Opacity/Font-size steppers (spec §9 rows 3-5), persisted locally, not
- *  per session. `opacity_pct` can never come back below 82 — enforced on
- *  the Rust side (`clamp_prefs`), not just by the stepper's own min/max. */
+/** Saved live window settings, shared with Rust. Background opacity accepts
+ *  20–100%; question, answer and controls remain solid. */
 export interface OverlayPrefs {
   zoom_pct: number;
   opacity_pct: number;

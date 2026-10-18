@@ -342,21 +342,17 @@ pub fn start(
         // `stream` drops here, which stops capture.
     });
 
-    match ready_rx.recv() {
-        Ok(Ok(info)) => Ok(MicCaptureHandle {
-            stop_flag,
-            thread: Some(thread),
-            info,
-        }),
-        Ok(Err(e)) => {
-            let _ = thread.join();
-            Err(e)
-        }
-        Err(_) => {
-            let _ = thread.join();
-            Err("capture thread exited before it could start".into())
-        }
-    }
+    let info = super::device_util::wait_for_capture_start(
+        &ready_rx,
+        &stop_flag,
+        std::time::Duration::from_secs(8),
+        "Microphone",
+    )?;
+    Ok(MicCaptureHandle {
+        stop_flag,
+        thread: Some(thread),
+        info,
+    })
 }
 
 #[cfg(test)]

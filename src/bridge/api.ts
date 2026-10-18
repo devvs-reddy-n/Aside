@@ -46,6 +46,7 @@ const audioCommands = (channel: ChannelId) =>
     : { start: "start_system_audio_capture", stop: "stop_system_audio_capture", list: "list_output_devices", get: "get_system_device", set: "set_system_device", info: "get_system_capture_info" };
 
 export const audio = {
+  playTestSound: (device: string | null) => invoke<void>("play_system_audio_test", { device }),
   devices: (channel: ChannelId) => invoke<AudioDeviceInfo[]>(audioCommands(channel).list),
   pinnedDevice: (channel: ChannelId) => invoke<string | null>(audioCommands(channel).get),
   pinDevice: (channel: ChannelId, device: string | null) => invoke<void>(audioCommands(channel).set, { device }),
@@ -64,7 +65,7 @@ export const live = {
   windowPreview: () => invoke<WindowPreview>("get_window_preview"),
   answerWindow: (length: AnswerLength | null) => invoke<void>("trigger_window_answer", { length }),
   answerScreenshot: () => invoke<void>("trigger_screenshot_answer"),
-  ask: (question: string, sessionId: string | null) => invoke<void>("trigger_answer", { question, sessionId }),
+  ask: (question: string, sessionId: string | null, length: AnswerLength | null = null) => invoke<void>("trigger_answer", { question, sessionId, length }),
   end: (sessionId: string | null) => invoke<void>("end_live_session", { sessionId }),
 };
 
@@ -90,11 +91,15 @@ export const stealth = {
 };
 
 export const copilots = {
+  summarize: (copilotId: string | null, kind: "job_description" | "guidance", text: string) =>
+    invoke<string[]>("summarize_setup_text", { copilotId, kind, text }),
   list: () => invoke<CopilotSummary[]>("list_copilots"),
   sources: (copilotId: string) => invoke<StoredDocument[]>("get_copilot_documents", { copilotId }),
   create: (input: CopilotInput) => invoke<Copilot>("create_copilot", { input }),
   update: (copilotId: string, input: CopilotInput) => invoke<Copilot>("update_copilot", { copilotId, input }),
   remove: (copilotId: string) => invoke<boolean>("delete_copilot", { copilotId }),
+  startQuickCall: (resumeId: string): Promise<Result<StartedCopilotCall>> =>
+    invoke<StartedCopilotCall>("start_resume_quick_call", { resumeId }),
   startCall: (copilotId: string): Promise<Result<StartedCopilotCall>> =>
     invoke<StartedCopilotCall>("start_copilot_call", { copilotId }),
 };
@@ -120,6 +125,7 @@ export const history = {
   summarize: (sessionId: string) => invoke<SessionSummary>("summarize_past_session", { sessionId }),
   search: (query: string) => invoke<TranscriptSearchResult[]>("search_transcripts", { query }),
   remove: (sessionId: string) => invoke<boolean>("delete_session", { sessionId }),
+  removeAll: (sessionIds: string[]) => invoke<number>("delete_history_sessions", { sessionIds }),
 };
 
 export const speech = {

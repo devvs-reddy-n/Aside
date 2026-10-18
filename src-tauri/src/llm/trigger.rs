@@ -10,7 +10,7 @@
 //! **Why not just check for a trailing `?`.** Aside's local Parakeet engine
 //! (the default, no-API-key STT engine — see `stt/parakeet_local.rs`'s
 //! module doc: "No punctuation/capitalization from this model") never
-//! produces a `?` at all. Deepgram (`smart_format=true`) and Speechmatics do
+//! produces a `?` at all. Speechmatics does
 //! add punctuation. A trigger that only checked for `?` would silently never
 //! fire for anyone using the default engine — so this also matches on a
 //! sentence *starting* with a common interrogative opener, which survives

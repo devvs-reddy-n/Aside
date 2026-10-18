@@ -1,6 +1,7 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { MotionConfig } from "motion/react";
 import { TooltipProvider } from "./kit/Tooltip";
+import { StealthProvider } from "./kit/Stealth";
 import ReactDOM from "react-dom/client";
 // Styles first: colours, fonts and building blocks must load before any screen's own styles.
 import "./theme/index.css";
@@ -12,10 +13,17 @@ import { tauriBackend } from "./live/backend";
 import { LiveApp } from "./live/LiveApp";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
+import { MinimizedBubble, WindowKeys } from "./kit/WindowControls";
 import { applyTheme } from "./theme/theme";
 import "./theme/spatial.css";
+import "./theme/stealth.css";
 
-applyTheme();
+const liveWindow = isTauriRuntime()
+  ? getCurrentWindow().label === "overlay"
+  : import.meta.env.DEV && new URLSearchParams(window.location.search).get("demo") === "live";
+applyTheme(liveWindow);
+// Native live windows fill their bounds; browser previews keep a small margin.
+if (isTauriRuntime()) document.documentElement.dataset.nativeWindow = "";
 
 // Development-only: a pretend call so the live window can be checked in a plain browser tab.
 const DemoLive = import.meta.env.DEV ? lazy(() => import("./live/demo")) : null;
@@ -28,6 +36,10 @@ const DemoLive = import.meta.env.DEV ? lazy(() => import("./live/demo")) : null;
 function pickRoot() {
   if (isTauriRuntime()) {
     try {
+      if (getCurrentWindow().label === "bubble") {
+        document.documentElement.classList.add("bubble-window");
+        return <MinimizedBubble />;
+      }
       if (getCurrentWindow().label === "overlay") {
         return <LiveApp controller={createLiveController(tauriBackend)} />;
       }
@@ -35,6 +47,10 @@ function pickRoot() {
       // If the window label can't be read, fall through to the workspace.
     }
     return <HomeApp />;
+  }
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get("demo") === "bubble") {
+    document.documentElement.classList.add("bubble-window");
+    return <MinimizedBubble />;
   }
   if (DemoLive && new URLSearchParams(window.location.search).get("demo") === "live") {
     return (
@@ -50,7 +66,7 @@ function pickRoot() {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <MotionConfig reducedMotion="user" transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
-      <TooltipProvider>{pickRoot()}</TooltipProvider>
+      <TooltipProvider><WindowKeys /><StealthProvider>{pickRoot()}</StealthProvider></TooltipProvider>
     </MotionConfig>
   </StrictMode>,
 );

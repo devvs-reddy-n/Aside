@@ -1,6 +1,6 @@
 [package]
 name = "aside"
-version = "0.1.0"
+version = "0.1.5"
 description = "Aside — a personal, transparent meeting/interview AI copilot"
 authors = ["Devendra"]
 edition = "2021"

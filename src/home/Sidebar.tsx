@@ -5,19 +5,21 @@ import { formatRelative } from "../core/format";
 import { useStore } from "../core/store";
 import { monogram, tintHue } from "../core/text";
 import { IconButton } from "../kit/Button";
+import { BrandMark } from "../kit/BrandMark";
 import { Icon, type IconName } from "../kit/Icon";
 import { SPRING } from "../kit/motion";
 import { Tip } from "../kit/Tooltip";
 import { copilotsStore, loadCopilots } from "./data";
-import { hrefFor, navigate, useRoute, type PageId } from "./router";
+import { hrefFor, useRoute, type PageId } from "./router";
 import { StatusPill } from "./StatusPill";
 
-const KEY = "aside-sidebar-v1";
+const KEY = "aside-sidebar-v2";
 const MIN = 220;
 const MAX = 300;
-const DEFAULT = 240;
+const DEFAULT = 224;
 
-const PLACES: Array<{ page: PageId; label: string; icon: IconName }> = [
+const PLACES: Array<{ page: PageId; param?: string; label: string; icon: IconName }> = [
+  { page: "copilots", param: "new", label: "New Copilot", icon: "plus" },
   { page: "library", label: "Library", icon: "library" },
   { page: "history", label: "History", icon: "history" },
   { page: "settings", label: "Settings", icon: "gear" },
@@ -50,14 +52,14 @@ export function Monogram({ name, size = 24 }: { name: string; size?: number }) {
 }
 
 /** The selection highlight glides between sidebar rows. */
-function Highlight() {
-  return <motion.span layoutId="sb-selection" className="sb-item__bg" transition={SPRING} />;
+function Highlight({ group = "copilot" }: { group?: "navigation" | "copilot" }) {
+  return <motion.span layoutId={`sb-selection-${group}`} className="sb-item__bg" transition={SPRING} />;
 }
 
 function SidebarLink({ href, current, rail, tip, children }: { href: string; current: boolean; rail: boolean; tip: string; children: ReactNode }) {
   const link = (
     <a className="sb-item" href={href} aria-current={current ? "page" : undefined} aria-label={rail ? tip : undefined}>
-      {current ? <Highlight /> : null}
+      {current ? <Highlight group="navigation" /> : null}
       {children}
     </a>
   );
@@ -95,10 +97,10 @@ export function Sidebar() {
 
   const copilots = useMemo(() => {
     const term = layout.collapsed ? "" : query.trim().toLowerCase();
-    return items.filter((copilot) => !hiddenIds.includes(copilot.id) && (!term || `${copilot.company ?? ""} ${copilot.name} ${copilot.target_role ?? ""}`.toLowerCase().includes(term)));
+    return items.filter((copilot) => copilot.kind !== "screen" && !hiddenIds.includes(copilot.id) && (!term || `${copilot.company ?? ""} ${copilot.name} ${copilot.target_role ?? ""}`.toLowerCase().includes(term)));
   }, [items, hiddenIds, query, layout.collapsed]);
-  const total = items.length - hiddenIds.length;
-  const selectedCopilot = route.page === "copilots" ? route.param ?? copilots[0]?.id ?? null : null;
+  const total = items.filter((copilot) => copilot.kind !== "screen" && !hiddenIds.includes(copilot.id)).length;
+  const selectedCopilot = route.page === "copilots" && route.param !== "new" ? route.param ?? copilots[0]?.id ?? null : null;
   const rail = layout.collapsed;
 
   function startResize(event: React.PointerEvent) {
@@ -127,7 +129,7 @@ export function Sidebar() {
     <nav className="sb" data-rail={rail || undefined} style={{ width: rail ? 64 : layout.width }} aria-label="Aside">
       <div className="sb__top" data-tauri-drag-region>
         <a className="sb__brand" href={hrefFor("copilots")} aria-label="Aside home">
-          <span className="sb__logo" aria-hidden="true"><Icon name="mark" size={16} /></span>
+          <span className="sb__logo" aria-hidden="true"><BrandMark /></span>
           {rail ? null : <span className="sb__name">Aside</span>}
         </a>
         <IconButton
@@ -143,11 +145,19 @@ export function Sidebar() {
       </div>
 
       <LayoutGroup id="sidebar">
+        <ul className="sb__list sb__places">
+          {PLACES.map((place) => (
+            <li key={`${place.page}/${place.param ?? ""}`}>
+              <SidebarLink href={hrefFor(place.page, place.param)} current={route.page === place.page && (!place.param || route.param === place.param)} rail={rail} tip={place.label}>
+                <Icon name={place.icon} size={18} />{rail ? null : <span className="sb-item__label">{place.label}</span>}
+              </SidebarLink>
+            </li>
+          ))}
+        </ul>
         <div className="sb__group">
           {rail ? null : (
             <div className="sb__head">
-              <span>Copilots</span>
-              <IconButton icon="plus" label="New copilot" size="sm" onClick={() => navigate("copilots", "new")} />
+              <span>Your copilots</span>
             </div>
           )}
           {!rail && total > 6 ? (
@@ -162,13 +172,6 @@ export function Sidebar() {
                 <CopilotRow copilot={copilot} current={selectedCopilot === copilot.id} rail={rail} />
               </li>
             ))}
-            {rail ? (
-              <li>
-                <Tip label="New copilot" side="right">
-                  <button type="button" className="sb-item" aria-label="New copilot" onClick={() => navigate("copilots", "new")}><Icon name="plus" size={16} /></button>
-                </Tip>
-              </li>
-            ) : null}
             {!rail && total > 0 && copilots.length === 0 ? (
               <li className="sb__empty" role="status">No matching copilots. <button type="button" onClick={() => setQuery("")}>Clear filter</button></li>
             ) : null}
@@ -178,16 +181,6 @@ export function Sidebar() {
 
         <div className="sb__spacer" />
 
-        <ul className="sb__list sb__places">
-          {PLACES.map((place) => (
-            <li key={place.page}>
-              <SidebarLink href={hrefFor(place.page)} current={route.page === place.page} rail={rail} tip={place.label}>
-                <Icon name={place.icon} size={16} />
-                {rail ? null : <span className="sb-item__label">{place.label}</span>}
-              </SidebarLink>
-            </li>
-          ))}
-        </ul>
       </LayoutGroup>
 
       <div className="sb__foot">

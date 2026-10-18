@@ -1139,7 +1139,7 @@ mod tests {
 
         let ctx = context_from_rows(list_for_context(&conn, session_id).unwrap());
         let preview = ctx.preview();
-        let real_system = format!("{}\n\n{}", crate::window_memory::STRICT_RULES, ctx.render());
+        let real_system = ctx.system_prefix();
         assert_eq!(preview.system_char_count, real_system.len());
         assert!(
             preview.system_char_count > 0,

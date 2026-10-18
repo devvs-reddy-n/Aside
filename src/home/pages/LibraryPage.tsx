@@ -10,7 +10,7 @@ import { Button, IconButton } from "../../kit/Button";
 import { Dialog } from "../../kit/Dialog";
 import { Field, Segmented, TextInput } from "../../kit/Form";
 import { Icon } from "../../kit/Icon";
-import { Menu } from "../../kit/Menu";
+import { Menu, type MenuItem } from "../../kit/Menu";
 import { FAST, SPRING } from "../../kit/motion";
 import { TextEditor } from "../../kit/TextEditor";
 import { toast } from "../../kit/toast";
@@ -19,6 +19,7 @@ import { copilotsStore, ingestPaths, libraryStore, loadLibrary, pasteDocument, p
 import { useFileDrop } from "../fileDrop";
 import { navigate } from "../router";
 import { DocumentViewer } from "./DocumentViewer";
+import { StartSheet } from "./StartSheet";
 
 type Filter = "all" | "resumes" | "documents";
 type View = "list" | "grid";
@@ -57,7 +58,11 @@ function useUsage(): Map<string, number> {
 }
 
 
-function FileItem({ doc, uses, view, onOpen, onDelete }: { doc: StoredDocument; uses: number; view: View; onOpen: () => void; onDelete: () => void }) {
+function FileItem({ doc, uses, view, onOpen, onDelete, onQuickCall }: { doc: StoredDocument; uses: number; view: View; onOpen: () => void; onDelete: () => void; onQuickCall: () => void }) {
+  const items: Array<MenuItem | "separator"> = [{ label: "Open", icon: "eye", onSelect: onOpen }];
+  if (doc.doc_type === "resume") items.push({ label: "Start quick call", icon: "phone", onSelect: onQuickCall });
+  items.push("separator", { label: "Delete", icon: "trash", danger: true, onSelect: onDelete });
+
   return (
     <motion.li
       layout
@@ -73,35 +78,34 @@ function FileItem({ doc, uses, view, onOpen, onDelete }: { doc: StoredDocument; 
         <span className="lib-item__text">
           <b title={doc.file_name}>{displayFileName(doc.file_name)}</b>
           <MetaChips items={[
-            { icon: doc.doc_type === "resume" ? "file" : "note", label: doc.doc_type === "resume" ? "Resume" : "Document" },
+            { label: doc.doc_type === "resume" ? "Resume" : "Document" },
             { name: "Size", label: formatBytes(doc.byte_size) },
-            { icon: "clock", name: "Added", label: formatDate(doc.created_at_ms) },
+            { name: "Added", label: formatDate(doc.created_at_ms) },
             { icon: "users", label: uses > 0 ? `Used by ${plural(uses, "copilot")}` : "Not used yet" },
           ]} />
         </span>
       </button>
-      <div className="lib-item__menu">
-        <Menu
-          trigger={<IconButton icon="more" label={`More for ${displayFileName(doc.file_name)}`} size="sm" />}
-          items={[
-            { label: "Open", icon: "eye", onSelect: onOpen },
-            "separator",
-            { label: "Delete", icon: "trash", danger: true, onSelect: onDelete },
-          ]}
-        />
+      <div className="lib-item__actions">
+        <div className="lib-item__menu">
+          <Menu
+            trigger={<IconButton icon="more" label={`More for ${displayFileName(doc.file_name)}`} size="sm" />}
+            items={items}
+          />
+        </div>
       </div>
     </motion.li>
   );
 }
 
 export function LibraryPage({ filter: param }: { filter: string | null }) {
-  const filter: Filter = param === "resumes" || param === "documents" ? param : "all";
+  const filter: Filter = param === "all" || param === "documents" ? param : "resumes";
   const { docs, loaded, error, hiddenIds } = useStore(libraryStore, (state) => state);
   const usage = useUsage();
   const [view, setView] = useState<View>(readView);
   const [query, setQuery] = useState("");
   const [viewing, setViewing] = useState<StoredDocument | null>(null);
   const [pasting, setPasting] = useState(false);
+  const [quickResume, setQuickResume] = useState<StoredDocument | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -173,6 +177,10 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
           <h1>Library</h1>
           {loaded ? <p className="pg-sub tabular">{plural(counts.all, "file")}</p> : null}
         </div>
+        <div className="pg-head__actions">
+          <Button variant="secondary" icon="note" onClick={() => setPasting(true)}>Paste text</Button>
+          <Button variant="primary" icon="upload" busy={busy} onClick={pick}>Add files</Button>
+        </div>
       </header>
 
       {error ? <Callout tone="bad" title="Couldn't load your library">{error}</Callout> : null}
@@ -186,25 +194,20 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
           Resumes and notes your copilots can draw on. PDF or Word, or drop them anywhere on this page.
         </EmptyState>
       ) : (
-        <section className="pg-card" aria-label="Files">
-          <div className="lib-tools pg-card__head">
+        <section className="lib-collection" aria-label="Files">
+          <div className="lib-tools" role="group" aria-label="File filters and search">
             <Segmented<Filter>
               label="Show"
               size="sm"
               value={filter}
-              onChange={(next) => navigate("library", next === "all" ? undefined : next)}
+              onChange={(next) => navigate("library", next === "resumes" ? undefined : next)}
               options={[
+                { value: "resumes", label: <>Resume <span className="seg__count">{counts.resumes}</span></> },
+                { value: "documents", label: <>Other <span className="seg__count">{counts.documents}</span></> },
                 { value: "all", label: <>All <span className="seg__count">{counts.all}</span></> },
-                { value: "resumes", label: <>Resumes <span className="seg__count">{counts.resumes}</span></> },
-                { value: "documents", label: <>Documents <span className="seg__count">{counts.documents}</span></> },
               ]}
             />
-            {counts.all > 6 ? (
-              <label className="hm-search lib-search">
-                <Icon name="search" size={15} />
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" aria-label="Search files" />
-              </label>
-            ) : <span className="grow" />}
+
             <Segmented<View>
               label="Layout"
               size="sm"
@@ -215,11 +218,16 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
                 { value: "grid", label: <Icon name="grid" size={15} />, title: "Grid" },
               ]}
             />
+            <label className="hm-search lib-search">
+                <Icon name="search" size={15} />
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search files" aria-label="Search files" onKeyDown={(event) => { if (event.key === "Escape") setQuery(""); }} />
+                {query ? <IconButton icon="x" label="Clear file search" size="sm" onClick={() => setQuery("")} /> : null}
+              </label>
           </div>
-          <ul className="lib-list" data-view={view}>
+          <ul className="lib-list" data-view={view} aria-label="Documents">
             <AnimatePresence initial={false}>
               {shown.map((doc) => (
-                <FileItem key={doc.id} doc={doc} uses={usage.get(doc.id) ?? 0} view={view} onOpen={() => setViewing(doc)} onDelete={() => remove(doc)} />
+                <FileItem key={doc.id} doc={doc} uses={usage.get(doc.id) ?? 0} view={view} onOpen={() => setViewing(doc)} onDelete={() => remove(doc)} onQuickCall={() => setQuickResume(doc)} />
               ))}
             </AnimatePresence>
             {loaded && shown.length === 0 ? (
@@ -229,14 +237,6 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
         </section>
       )}
 
-      {/* Like Start session on a copilot: the page's actions float at the bottom right. */}
-      {counts.all > 0 ? (
-        <div className="pg-float">
-          <Button variant="secondary" icon="note" onClick={() => setPasting(true)}>Paste text</Button>
-          <Button variant="primary" icon="upload" busy={busy} onClick={pick}>Add files</Button>
-        </div>
-      ) : null}
-
       <AnimatePresence>
         {over ? (
           <motion.div className="hm-drop" aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: FAST }}>
@@ -245,6 +245,7 @@ export function LibraryPage({ filter: param }: { filter: string | null }) {
           </motion.div>
         ) : null}
       </AnimatePresence>
+      {quickResume ? <StartSheet resume={quickResume} onClose={() => setQuickResume(null)} /> : null}
       {viewing ? <DocumentViewer doc={viewing} onClose={() => setViewing(null)} /> : null}
       {pasting ? (
         <PasteDialog

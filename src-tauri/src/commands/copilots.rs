@@ -34,6 +34,8 @@ pub struct CopilotInput {
     pub llm_provider: LlmProviderKind,
     pub llm_model: String,
     #[serde(default)]
+    pub kind: copilots::CopilotKind,
+    #[serde(default)]
     pub resume_id: Option<Uuid>,
     #[serde(default)]
     pub document_ids: Vec<Uuid>,
@@ -50,20 +52,38 @@ fn resolve_model(
     conn: &rusqlite::Connection,
     copilot: &copilots::Copilot,
 ) -> Result<(LlmProviderKind, String), String> {
-    if copilot.llm_model != DEFAULT_MODEL_CHOICE {
+    // A model no longer offered (an older generation) follows the default.
+    if copilot.llm_model != DEFAULT_MODEL_CHOICE && copilot.llm_provider.supports_model(&copilot.llm_model) {
         return Ok((copilot.llm_provider, copilot.llm_model.clone()));
     }
+    resolve_default_model(conn)
+}
+
+fn resolve_default_model(conn: &rusqlite::Connection) -> Result<(LlmProviderKind, String), String> {
     let provider = settings::get(conn, PROVIDER_SETTING_KEY)?
         .and_then(|value| LlmProviderKind::from_setting_value(&value))
         .unwrap_or(LlmProviderKind::OpenAi);
     let model = settings::get(conn, provider.model_setting())?
-        .filter(|model| !model.trim().is_empty())
-        .or_else(|| provider.model_presets().first().map(|model| model.to_string()))
+        .filter(|model| provider.supports_model(model))
+        .or_else(|| {
+            provider
+                .model_presets()
+                .first()
+                .map(|model| model.to_string())
+        })
         .ok_or_else(|| "Choose a default AI model in Settings first.".to_string())?;
     Ok((provider, model))
 }
 
+fn ensure_supported_kind(kind: copilots::CopilotKind) -> Result<(), String> {
+    if kind == copilots::CopilotKind::Screen {
+        return Err("This older call setup is no longer supported. Create a new Copilot.".into());
+    }
+    Ok(())
+}
+
 fn validate(input: &CopilotInput) -> Result<(), String> {
+    ensure_supported_kind(input.kind)?;
     if input.name.trim().is_empty() {
         return Err("Give this Copilot a name first.".into());
     }
@@ -73,8 +93,9 @@ fn validate(input: &CopilotInput) -> Result<(), String> {
     if input.llm_model.trim().is_empty() {
         return Err("Choose an AI model for this Copilot.".into());
     }
-    if !input.llm_provider.is_enabled() {
-        return Err("That AI provider is not available in this build. Choose a configured provider in Settings.".into());
+    let model = input.llm_model.trim();
+    if model != DEFAULT_MODEL_CHOICE && !input.llm_provider.supports_model(model) {
+        return Err("Choose one of the listed AI models for this Copilot.".into());
     }
     Ok(())
 }
@@ -90,6 +111,7 @@ fn build(id: Uuid, created_at_ms: u64, input: CopilotInput) -> copilots::Copilot
         save_transcript: input.save_transcript,
         llm_provider: input.llm_provider,
         llm_model: input.llm_model.trim().to_owned(),
+        kind: input.kind,
         created_at_ms,
         updated_at_ms: now_ms(),
     }
@@ -180,10 +202,9 @@ pub fn start_copilot_call(
     let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
     let copilot = copilots::get(&conn, copilot_id)?
         .ok_or_else(|| "That Copilot no longer exists.".to_string())?;
+    ensure_supported_kind(copilot.kind)?;
     let (llm_provider, llm_model) = resolve_model(&conn, &copilot)?;
-    if !llm_provider.is_enabled() {
-        return Err("This Copilot's AI provider is unavailable. Choose another model in its setup or configure it in Settings.".into());
-    }
+    let instructions = copilot.instructions.clone();
     if settings::get(&conn, llm_provider.api_key_setting())?.is_none() {
         return Err("This Copilot's AI provider needs an API key. Add it in Settings, then start the call again.".into());
     }
@@ -212,12 +233,13 @@ pub fn start_copilot_call(
         .collect();
     let snapshot = serde_json::json!({
         "copilot_name": copilot.name, "company": copilot.company, "target_role": copilot.target_role,
-        "job_description": copilot.job_description, "instructions": copilot.instructions,
+        "job_description": copilot.job_description, "instructions": instructions,
+        "kind": copilot.kind,
         "save_transcript": copilot.save_transcript,
         "llm_provider": llm_provider, "llm_model": llm_model, "source_names": source_names,
     });
     sessions::set_copilot_snapshot(&conn, session.id, copilot_id, &snapshot.to_string())?;
-    if let Some(instructions) = copilot.instructions.as_deref() {
+    if let Some(instructions) = instructions.as_deref() {
         crate::storage::instructions::upsert(&conn, session.id, instructions, now_ms())?;
     }
     for document_id in source_ids {
@@ -242,7 +264,84 @@ pub fn start_copilot_call(
             session_type: session.session_type,
             company: session.company.clone(),
             job_description: session.job_description.clone(),
-            instructions: copilot.instructions,
+            instructions,
+            save_transcript: session.save_transcript,
+        },
+    );
+    crate::window_memory::warm_defaults(&app);
+    Ok(StartedCopilotCall { session })
+}
+
+/// Persist the selected resume and today's global model as one unit. A failed
+/// attachment cannot leave a half-created call in History.
+fn create_resume_quick_call(
+    conn: &rusqlite::Connection,
+    resume_id: Uuid,
+) -> Result<(Session, documents::StoredDocument), String> {
+    let resume = documents::get(conn, resume_id)?.ok_or_else(|| {
+        "That resume is no longer in your Library. Choose another resume.".to_string()
+    })?;
+    if resume.doc_type != "resume" {
+        return Err("Choose a resume to start a quick call.".into());
+    }
+    if resume.raw_text.trim().is_empty() {
+        return Err("This resume has no readable text. Replace it in Library first.".into());
+    }
+    let (provider, model) = resolve_default_model(conn)?;
+    if settings::get(conn, provider.api_key_setting())?
+        .filter(|key| !key.trim().is_empty())
+        .is_none()
+    {
+        return Err("Add an API key for your default model in Settings first.".into());
+    }
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    let mut session = Session::new("Quick recruiter call", now_ms());
+    session.session_type = SessionType::Interview;
+    session.status = SessionStatus::Active;
+    session.save_transcript = true;
+    sessions::create(&tx, &session)?;
+    let snapshot = serde_json::json!({
+        "launch_source": "resume_quick_call", "copilot_name": "Quick recruiter call",
+        "company": null, "target_role": null, "job_description": null,
+        "instructions": null, "kind": "interview", "save_transcript": true,
+        "llm_provider": provider, "llm_model": model, "source_names": [&resume.file_name],
+    });
+    sessions::set_call_snapshot(&tx, session.id, None, &snapshot.to_string())?;
+    documents::attach_to_session(&tx, session.id, resume.id, "resume", now_ms())?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok((session, resume))
+}
+
+/// Library shortcut: the chosen resume is enough. The default model and
+/// global answer rules apply; no saved setup or job description is needed.
+#[tauri::command]
+pub fn start_resume_quick_call(
+    app: AppHandle,
+    db: State<Db>,
+    resume_id: Uuid,
+) -> Result<StartedCopilotCall, String> {
+    if active_session::get(&app).is_some() {
+        return Err("A call is already running. End it before starting another.".into());
+    }
+    let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
+    let (session, resume) = create_resume_quick_call(&conn, resume_id)?;
+    let _ = crate::facts::pack::ingest_document_pack(
+        &conn,
+        session.id,
+        &resume.raw_text,
+        None,
+        now_ms(),
+    );
+    let _ = crate::rag::indexer::index_document(&app, session.id, resume.id, &resume.raw_text);
+    drop(conn);
+    active_session::set(
+        &app,
+        ActiveSessionInfo {
+            id: Some(session.id),
+            session_type: session.session_type,
+            company: None,
+            job_description: None,
+            instructions: None,
             save_transcript: session.save_transcript,
         },
     );
@@ -264,6 +363,7 @@ mod tests {
             save_transcript: true,
             llm_provider: LlmProviderKind::OpenAi,
             llm_model: "".into(),
+            kind: copilots::CopilotKind::Interview,
             resume_id: None,
             document_ids: vec![],
         };
@@ -281,9 +381,24 @@ mod tests {
             save_transcript: true,
             llm_provider: LlmProviderKind::OpenAi,
             llm_model: model.into(),
+            kind: copilots::CopilotKind::Interview,
             created_at_ms: 0,
             updated_at_ms: 0,
         }
+    }
+
+    #[test]
+    fn retired_setup_stays_readable_but_cannot_start() {
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        let mut old = copilot_with_model(DEFAULT_MODEL_CHOICE);
+        old.kind = copilots::CopilotKind::Screen;
+        old.instructions = Some("Saved context".into());
+        copilots::create(&conn, &old).unwrap();
+        let restored = copilots::get(&conn, old.id).unwrap().unwrap();
+        assert_eq!(restored.instructions.as_deref(), Some("Saved context"));
+        assert!(ensure_supported_kind(restored.kind).is_err());
+        assert!(ensure_supported_kind(copilot_with_model(DEFAULT_MODEL_CHOICE).kind).is_ok());
     }
 
     #[test]
@@ -293,10 +408,99 @@ mod tests {
         let first = resolve_model(&conn, &copilot_with_model(DEFAULT_MODEL_CHOICE)).unwrap();
         assert_eq!(first.0, LlmProviderKind::OpenAi);
         assert_eq!(first.1, LlmProviderKind::OpenAi.model_presets()[0]);
-        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-5.6-terra").unwrap();
+        settings::set(
+            &conn,
+            LlmProviderKind::OpenAi.model_setting(),
+            "gpt-5.6-terra",
+        )
+        .unwrap();
         let chosen = resolve_model(&conn, &copilot_with_model(DEFAULT_MODEL_CHOICE)).unwrap();
         assert_eq!(chosen.1, "gpt-5.6-terra");
         let own = resolve_model(&conn, &copilot_with_model("gpt-5.6-luna")).unwrap();
         assert_eq!(own.1, "gpt-5.6-luna");
+    }
+    #[test]
+    fn quick_call_uses_only_the_chosen_resume_and_freezes_the_global_model() {
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        let resume =
+            documents::insert_document(&conn, None, "resume", "Chosen.pdf", "Chosen experience", 1)
+                .unwrap();
+        documents::insert_document(
+            &conn,
+            None,
+            "resume",
+            "Other.pdf",
+            "Unrelated experience",
+            2,
+        )
+        .unwrap();
+        settings::set(&conn, LlmProviderKind::OpenAi.api_key_setting(), "test-key").unwrap();
+        settings::set(
+            &conn,
+            LlmProviderKind::OpenAi.model_setting(),
+            "gpt-5.6-terra",
+        )
+        .unwrap();
+        let (call, _) = create_resume_quick_call(&conn, resume).unwrap();
+        assert!(call.job_description.is_none());
+        assert!(call.company.is_none());
+        let attached = documents::list_attached_for_session(&conn, call.id).unwrap();
+        assert_eq!(attached.len(), 1);
+        assert_eq!(attached[0].id, resume);
+        assert!(copilots::list(&conn).unwrap().is_empty());
+        settings::set(
+            &conn,
+            LlmProviderKind::OpenAi.model_setting(),
+            "gpt-5.6-luna",
+        )
+        .unwrap();
+        assert_eq!(
+            sessions::copilot_model_for_call(&conn, call.id)
+                .unwrap()
+                .unwrap()
+                .1,
+            "gpt-5.6-terra"
+        );
+        let (next, _) = create_resume_quick_call(&conn, resume).unwrap();
+        assert_eq!(
+            sessions::copilot_model_for_call(&conn, next.id)
+                .unwrap()
+                .unwrap()
+                .1,
+            "gpt-5.6-luna"
+        );
+    }
+
+    #[test]
+    fn quick_call_rejects_missing_non_resume_empty_and_unconfigured_sources() {
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        assert!(create_resume_quick_call(&conn, Uuid::new_v4()).is_err());
+        let note = documents::insert_document(&conn, None, "other", "Notes", "Notes", 1).unwrap();
+        assert!(create_resume_quick_call(&conn, note).is_err());
+        let empty = documents::insert_document(&conn, None, "resume", "Empty", " ", 1).unwrap();
+        assert!(create_resume_quick_call(&conn, empty).is_err());
+        let resume =
+            documents::insert_document(&conn, None, "resume", "Resume", "Experience", 1).unwrap();
+        assert!(create_resume_quick_call(&conn, resume).is_err());
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+    #[test]
+    fn quick_call_rolls_back_if_its_resume_cannot_be_attached() {
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        let resume =
+            documents::insert_document(&conn, None, "resume", "Resume", "Experience", 1).unwrap();
+        settings::set(&conn, LlmProviderKind::OpenAi.api_key_setting(), "test-key").unwrap();
+        conn.execute_batch("CREATE TEMP TRIGGER reject_attachment BEFORE INSERT ON session_documents BEGIN SELECT RAISE(ABORT, 'test attachment failure'); END;").unwrap();
+        assert!(create_resume_quick_call(&conn, resume).is_err());
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
     }
 }

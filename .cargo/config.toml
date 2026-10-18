@@ -1,0 +1,3 @@
+# macOS excludes .noindex folders from Spotlight. Keep generated executables here.
+[build]
+target-dir = "src-tauri/target.noindex"

@@ -1,7 +1,7 @@
 //! Drops known silence-hallucination phrases from **local** STT output.
 //!
-//! Cloud engines (Deepgram smart_format, Speechmatics enhanced) already
-//! suppress silence-garbage; this list must not run on their transcripts.
+//! Speechmatics already suppresses silence-garbage; this list must not run
+//! on its transcripts.
 //! Local speech models sometimes invent text from silence or background
 //! noise rather than reporting nothing — both reference apps hit this
 //! independently and both fixed it the same way: an exact-match phrase list,

@@ -27,6 +27,9 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<TranscriptSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     void loadHistory();
@@ -67,6 +70,25 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
   const listed = showShort || term ? matching : matching.filter((session) => !isShort(session) || session.id === activeId);
   const groups = useMemo(() => groupByDay(listed), [listed]);
   const selected = selectedId ? visible.find((session) => session.id === selectedId) ?? null : null;
+  const deletable = visible.filter((session) => session.id !== activeId && session.status !== "active");
+
+  async function removeAll() {
+    if (!deleteIds || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await api.history.removeAll(deleteIds);
+    setDeleting(false);
+    if (!result.ok) {
+      setDeleteError("Couldn't delete your history. Nothing was removed. Please try again.");
+      return;
+    }
+    setDeleteIds(null);
+    setQuery("");
+    setHits([]);
+    navigate("history");
+    await loadHistory();
+    toast(`Deleted ${plural(result.value, "call")}`, { tone: "info" });
+  }
 
   function remove(session: PastSessionSummary) {
     if (selectedId === session.id) navigate("history");
@@ -93,14 +115,19 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
           <h1>History</h1>
           {visible.length > 0 ? <p className="pg-sub tabular">{plural(visible.length, "call")}</p> : null}
         </div>
+        {deletable.length > 0 ? <Button variant="ghost" className="hist-delete-all" icon="trash" onClick={() => {
+          setDeleteError(null);
+          setDeleteIds(deletable.map((session) => session.id));
+        }}>Delete all</Button> : null}
       </header>
 
       {error ? <Callout tone="bad" title="Couldn't load your history">{error}</Callout> : null}
 
-      {visible.length > 6 ? (
+      {visible.length > 0 ? (
         <label className="hm-search">
           <Icon name="search" size={15} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search calls and what was said" aria-label="Search history" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search calls and what was said" aria-label="Search history" onKeyDown={(event) => { if (event.key === "Escape") setQuery(""); }} />
+          {query ? <IconButton icon="x" label="Clear history search" size="sm" onClick={() => setQuery("")} /> : null}
           {searching ? <Spinner size={14} /> : null}
         </label>
       ) : null}
@@ -151,6 +178,14 @@ export function HistoryPage({ selectedId }: { selectedId: string | null }) {
       )}
 
       {selected ? <SessionSheet session={selected} onClose={() => navigate("history")} /> : null}
+      <Dialog open={deleteIds !== null} onClose={() => { if (!deleting) setDeleteIds(null); }}
+        title="Delete all history?" size="sm" hideClose={deleting}
+        footer={<><Button variant="ghost" disabled={deleting} onClick={() => setDeleteIds(null)}>Cancel</Button>
+          <Button variant="danger" className="btn--end-quit" busy={deleting} onClick={() => void removeAll()}>Delete all</Button></>}>
+        <p>This permanently deletes {plural(deleteIds?.length ?? 0, "saved call")} and their transcripts and answers. This cannot be undone.</p>
+        <p>Your Library files, copilots and any running call stay in place.</p>
+        {deleteError ? <Callout tone="bad" title="History wasn't deleted">{deleteError}</Callout> : null}
+      </Dialog>
     </div>
   );
 }
@@ -171,10 +206,10 @@ function CallRow({ session, live, onDelete }: { session: PastSessionSummary; liv
         <motion.span layoutId={`call-mono-${session.id}`} transition={SPRING} className="hist-row__mono"><Monogram name={name} size={34} /></motion.span>
         <span className="hist-row__text">
           <b>{name}</b>
+          {role ? <span className="hist-row__role">{role}</span> : null}
           <MetaChips items={[
-            { icon: "briefcase", name: "Role", label: role },
-            { icon: "clock", name: "Time", label: formatTime(session.started_at_ms) },
-            { icon: "timer", name: "Duration", label: live ? null : formatDuration(session.duration_ms) },
+            { name: "Time", label: formatTime(session.started_at_ms) },
+            { name: "Duration", label: live ? null : formatDuration(session.duration_ms) },
             { icon: "chat", label: !live && session.segment_count > 0 ? "Transcript" : null },
           ]} />
         </span>
@@ -252,7 +287,7 @@ function SessionSheet({ session, onClose }: { session: PastSessionSummary; onClo
       subtitle={<MetaChips items={[
         { icon: "briefcase", name: "Role", label: session.company && session.title !== session.company ? session.title : null },
         { icon: "clock", name: "Date", label: `${formatDate(session.started_at_ms)}, ${formatTime(session.started_at_ms)}` },
-        { icon: "timer", name: "Duration", label: formatDuration(session.duration_ms) },
+        { name: "Duration", label: formatDuration(session.duration_ms) },
       ]} />}
       footer={
         <>

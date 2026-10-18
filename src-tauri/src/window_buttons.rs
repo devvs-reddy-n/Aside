@@ -1,19 +1,9 @@
-//! The workspace window's red and yellow buttons (2026-10-04).
+//! Confirmed close and movable bubble minimization.
 //!
 //! Aside never goes full screen, so the green button is hidden.
 //!
-//! Red quits Aside at once, with no question (see `quit_now`).
-//!
-//! Yellow depends on screen-share hiding:
-//! - **Hiding on:** Aside has no Dock icon, and a minimized window would
-//!   still appear in the Dock where a shared screen can see it. So yellow
-//!   hides every Aside window instead, and Command+H brings them back. That
-//!   key is only claimed while Aside is hidden this way, then released.
-//! - **Hiding off:** yellow minimizes to the Dock like any other app.
-//!
-//! macOS has no "minimize is about to happen" hook to cancel, so the yellow
-//! button's click is pointed at a tiny Objective-C object of our own instead
-//! of the window's built-in minimize.
+//! Closing asks first; minimizing keeps a visible movable bubble.
+//! Command/Ctrl+H alone hides Aside and can restore it.
 
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
@@ -21,43 +11,112 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 /// Brings Aside back after the yellow button hid it.
 pub const RESTORE_ACCELERATOR: &str = "CmdOrCtrl+H";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MinimizeChoice {
-    /// Hide every window and wait for Command+H.
-    HideApp,
-    /// The ordinary Dock minimize.
-    Minimize,
-}
+#[derive(Default)]
+pub struct BubbleState(std::sync::Mutex<Vec<String>>);
 
-/// Pure: what the yellow button does for this screen-share setting.
-pub fn minimize_choice(screen_share_hidden: bool) -> MinimizeChoice {
-    if screen_share_hidden {
-        MinimizeChoice::HideApp
-    } else {
-        MinimizeChoice::Minimize
-    }
-}
-
-/// The red button: quit now. Marks the quit as already decided so the
-/// exit path does not stop to ask, and capture is still torn down there.
-pub fn quit_now(app: &AppHandle) {
-    app.state::<crate::lifecycle::QuitDecision>().allow();
-    app.exit(0);
-}
-
-/// The yellow button, and the Window menu's Minimize.
+/// Minimize keeps an on-screen handle and leaves call state untouched.
 pub fn minimize(app: &AppHandle, window: &WebviewWindow) {
-    match minimize_choice(crate::stealth::is_enabled_for_app(app)) {
-        MinimizeChoice::Minimize => {
-            let _ = window.minimize();
+    let bubble = match app.get_webview_window("bubble") {
+        Some(bubble) => bubble,
+        None => {
+            let mut builder = tauri::WebviewWindowBuilder::new(
+                app,
+                "bubble",
+                tauri::WebviewUrl::App("index.html".into()),
+            )
+            .title("Aside bubble")
+            .inner_size(48.0, 48.0)
+            .decorations(false)
+            .transparent(true)
+            .resizable(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .shadow(false)
+            .visible(false);
+            if let Ok(position) = window.outer_position() {
+                builder = builder.position(
+                    position.x as f64 / window.scale_factor().unwrap_or(1.0),
+                    position.y as f64 / window.scale_factor().unwrap_or(1.0),
+                );
+            }
+            match builder.build() {
+                Ok(bubble) => {
+                    let owner = app.clone();
+                    bubble.on_window_event(move |event| {
+                        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                            api.prevent_close();
+                            crate::lifecycle::request_quit(&owner);
+                        }
+                    });
+                    bubble
+                }
+                Err(error) => {
+                    eprintln!("could not create Aside bubble: {error}");
+                    return;
+                }
+            }
         }
-        MinimizeChoice::HideApp => hide_app(app),
+    };
+    crate::stealth::apply_to_window(&bubble, crate::stealth::is_enabled_for_app(app));
+    if bubble.show().is_err() {
+        return;
+    }
+    let labels: Vec<String> = app
+        .webview_windows()
+        .into_values()
+        .filter(|w| {
+            w.label() != "bubble"
+                && (w.is_visible().unwrap_or(false) || w.is_minimized().unwrap_or(false))
+        })
+        .map(|w| {
+            let _ = w.unminimize();
+            let _ = w.hide();
+            w.label().to_string()
+        })
+        .collect();
+    remember_minimized(
+        &mut app
+            .state::<BubbleState>()
+            .0
+            .lock()
+            .unwrap_or_else(|p| p.into_inner()),
+        labels,
+    );
+}
+
+/// Repeated native resize notifications must not erase the restore target.
+fn remember_minimized(current: &mut Vec<String>, next: Vec<String>) {
+    if !next.is_empty() {
+        *current = next;
     }
 }
 
-fn hide_app(app: &AppHandle) {
-    if crate::stealth::hide_on_screen(app) {
-        set_restore_key(app, true);
+#[tauri::command]
+pub fn restore_bubble(app: AppHandle) {
+    let labels = std::mem::take(
+        &mut *app
+            .state::<BubbleState>()
+            .0
+            .lock()
+            .unwrap_or_else(|p| p.into_inner()),
+    );
+    for label in labels {
+        if let Some(window) = app.get_webview_window(&label) {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+    if let Some(bubble) = app.get_webview_window("bubble") {
+        let _ = bubble.hide();
+    }
+}
+
+#[tauri::command]
+pub fn toggle_visibility(app: AppHandle) {
+    if crate::stealth::hide_on_screen(&app) {
+        set_restore_key(&app, true);
+    } else {
+        restore(&app);
     }
 }
 
@@ -74,7 +133,10 @@ pub fn is_restore(pressed: &Shortcut) -> bool {
 pub fn restore(app: &AppHandle) {
     crate::stealth::show_on_screen(app);
     if let Some(main) = app.get_webview_window("main") {
-        let _ = main.set_focus();
+        if main.is_visible().unwrap_or(false) {
+            let _ = main.unminimize();
+            let _ = main.set_focus();
+        }
     }
     set_restore_key(app, false);
 }
@@ -101,7 +163,10 @@ fn set_restore_key(app: &AppHandle, claim: bool) {
             Ok(())
         };
         if let Err(error) = result {
-            eprintln!("Command+H could not be {}: {error}", if claim { "claimed" } else { "released" });
+            eprintln!(
+                "Command+H could not be {}: {error}",
+                if claim { "claimed" } else { "released" }
+            );
         }
     });
 }
@@ -175,7 +240,8 @@ mod mac {
         if let Some(yellow) = ns_window.standardWindowButton(NSWindowButton::MiniaturizeButton) {
             // A button only holds its target weakly, so keep one target
             // alive for the life of the app.
-            let target: Retained<MinimizeTarget> = unsafe { msg_send![MinimizeTarget::class(), new] };
+            let target: Retained<MinimizeTarget> =
+                unsafe { msg_send![MinimizeTarget::class(), new] };
             let target: &'static MinimizeTarget = Box::leak(Box::new(target));
             // SAFETY: the target lives forever and answers this selector.
             unsafe {
@@ -191,13 +257,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn with_screen_share_hiding_on_yellow_hides_the_app() {
-        assert_eq!(minimize_choice(true), MinimizeChoice::HideApp);
-    }
-
-    #[test]
-    fn with_screen_share_hiding_off_yellow_is_a_normal_minimize() {
-        assert_eq!(minimize_choice(false), MinimizeChoice::Minimize);
+    fn repeated_minimize_keeps_the_windows_to_restore() {
+        let mut windows = vec!["main".to_string(), "overlay".to_string()];
+        remember_minimized(&mut windows, vec![]);
+        assert_eq!(windows, vec!["main", "overlay"]);
     }
 
     #[test]

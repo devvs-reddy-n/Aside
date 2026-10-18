@@ -696,3 +696,29 @@ Owner requested Resume and Supporting documents become one aligned section. Use 
 - Kept Standard, 4.0s max delay, 1.5s end-of-utterance. Same synthetic technical phrase on the real service: Enhanced gave identical text with slower readiness; 2.0s delay did not change when the sentence lands (~2.2s, driven by the 1.5s pause rule). Custom vocabulary is essential: without it "RAG"→"Rag", "Kiro"→"Cairo".
 - Safe diagnostics: connection state transitions only, to the app log folder, rotated at 64 KB. Never key, audio, transcript, vocabulary or URL.
 - Removed dead token-in-URL helpers and ForceEndOfUtterance flush. Named comparison repos remain absent; the available Assistant reference is local-whisper only (no cloud transcription), so only its general readiness/state patterns informed this; no source copied.
+
+
+### 2026-10-17 — owner's rules and guidance lead every answer
+
+- Owner: no auto-answer and no new features; improve answer quality. The owner's Strict rules (Settings override) and copilot Guidance (response style) must govern every answer; resume, job description and supporting documents supply facts; what the owner actually said beats any AI suggestion.
+- Every answer path (Command+Enter, typed, screenshot) now sends one stable prefix: a short fixed core (instruction vs evidence, spoken words are the truth, no invented facts, answer all open questions in order, transcription noise, plain output), then MY STRICT RULES, then MY GUIDANCE, then MY BACKGROUND (target role, company, job description, resume, documents). A closing line after the transcript repeats "follow MY STRICT RULES and MY GUIDANCE".
+- Previously the Guidance was filed as "[Notes]" beside the documents, built-in rules contradicted it (no exaggerated fillers, avoid lists, code separate from explanation), and the screenshot path used its own fixed prompt with the Guidance buried in the user message. The screenshot path now uses the same prefix; its code layout is only a default when the owner's rules/guidance say nothing. The Q:/A: first lines stay because the heading splitter needs them.
+- The core holds no style, so it cannot fight the owner's guidance; the owner's rules cannot override its truth rules. Built-in STRICT_RULES rewritten as 10 short style defaults (used only without an override; the owner's saved 5,230-character rules contain none of the old conflicting lines).
+- The AI still never sees its own past answers (owner confirmed this is wanted). The per-window summary now records who said what, the owner's statements as "I said...", and exact names and numbers.
+- Resume/JD cap raised from 6,000 to 30,000 characters each, other documents to 20,000 each / 40,000 total, prompt budget from 48,000 to 160,000 characters; prefix is prompt-cached. Copilot target role (from the session's frozen copilot snapshot) is now included.
+- Natively/OpenCluely folders are absent; ideas drawn from the research report (rules after transcript, grounding, layered memory). No source copied. The `screen_guidance` setting in the database is not read by any code (left over).
+
+
+### 2026-10-17 — screenshots solve coding screens; typed answers unsplit
+
+- Owner: a screenshot showing a coding question must be answered with the solution automatically, without saying "write code". The screen prompt now states that a visible coding or system-design problem always gets the complete solution, presented per the owner's rules and guidance; the interviewer's last line is passed as context only, so small talk before the press cannot hijack it.
+- Typed questions no longer pass through the Q:/A: splitter: it held the first 300 characters back and dropped text before any "A:" inside an answer. The typed text is already the question. Screenshots keep the splitter for their Q: heading.
+- Core wording now names the actual section ("NEW RAW CONVERSATION WINDOW"). Blueprint of every step, prompt and parameter written to reports/Aside answer blueprint.md (prompts extracted from source).
+
+
+### 2026-10-17 — latest models only; Claude added; Deepgram removed
+
+- Owner: only the latest models. Answer models are GPT-5.6 Luna/Terra/Sol and Claude Opus 5.5/Sonnet 5.5/Haiku 5.5/Fable 5.1 — a closed list (`set_llm_model` and Copilot saves reject anything else; a stored older model falls back to the default). Gemini and Groq providers are deleted. Background notes stay on `gpt-5.4-mini` with the OpenAI key (owner: keep as now), so an OpenAI key is needed even on Claude calls; Settings shows both keys.
+- Screenshots use the call's own provider and model (a Copilot's model or the Settings default), replacing the fixed GPT-5.6 Terra; no cross-provider retry for images.
+- Claude via raw HTTP (no official Rust SDK): streaming Messages API, `anthropic-version: 2023-06-01`, system prefix as a cached block (`cache_control: ephemeral`), `max_tokens` 16,000 ceiling, `output_config.effort: low`; thinking off where allowed (Sonnet `between_tools`, Haiku `disabled`), omitted on Opus 5.5/Fable 5.1 (which reject thinking-off). Server-side refusal fallback `fallbacks: "default"` + `server-side-fallback-2026-07-01` on Opus/Sonnet/Fable (Haiku has none). Default Claude model Opus 5.5 (Anthropic's recommended default). Connection dot now really checks Anthropic keys (GET /v1/models/{model}).
+- Speech: Deepgram engine deleted; only Speechmatics and Parakeet remain. Migration v11 deletes settings (and saved keys) for Deepgram/Gemini/Groq and the unused background-model overrides, clears stored older model choices, and moves Copilots on removed models to Default. The v1 transcript `origin` CHECK still lists the retired engine so older saved transcripts stay valid; nothing writes it.

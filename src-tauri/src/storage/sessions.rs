@@ -129,10 +129,20 @@ pub fn set_copilot_snapshot(
     copilot_id: Uuid,
     snapshot_json: &str,
 ) -> Result<(), String> {
+    set_call_snapshot(conn, id, Some(copilot_id), snapshot_json)
+}
+
+/// A quick call has the same fixed model record, without creating a Copilot.
+pub fn set_call_snapshot(
+    conn: &Connection,
+    id: Uuid,
+    copilot_id: Option<Uuid>,
+    snapshot_json: &str,
+) -> Result<(), String> {
     conn.execute(
         "UPDATE sessions SET copilot_id=?1, copilot_snapshot_json=?2, updated_at_ms=?3 WHERE id=?4",
         params![
-            copilot_id.to_string(),
+            copilot_id.map(|id| id.to_string()),
             snapshot_json,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -214,10 +224,182 @@ pub fn delete(conn: &Connection, id: Uuid) -> Result<bool, String> {
     Ok(affected > 0)
 }
 
+/// Delete only the confirmed snapshot, atomically. Active calls always survive.
+pub fn delete_many_inactive(conn: &mut Connection, ids: &[Uuid]) -> Result<usize, String> {
+    let transaction = conn
+        .transaction()
+        .map_err(|e| format!("couldn't start history deletion: {e}"))?;
+    let mut deleted = 0;
+    for id in ids {
+        // FTS is a separate search table, so foreign-key cascades don't clear it.
+        transaction.execute(
+            "DELETE FROM chunks_fts WHERE session_id = ?1 AND EXISTS (SELECT 1 FROM sessions WHERE id = ?1 AND status != 'active')",
+            params![id.to_string()],
+        ).map_err(|e| format!("couldn't clear call search data: {e}"))?;
+        // Older uploads can belong directly to a call. Keep those Library files.
+        transaction.execute(
+            "UPDATE documents SET session_id = NULL WHERE session_id = ?1 AND EXISTS (SELECT 1 FROM sessions WHERE id = ?1 AND status != 'active')",
+            params![id.to_string()],
+        ).map_err(|e| format!("couldn't preserve Library files: {e}"))?;
+        deleted += transaction
+            .execute(
+                "DELETE FROM sessions WHERE id = ?1 AND status != 'active'",
+                params![id.to_string()],
+            )
+            .map_err(|e| format!("couldn't delete history: {e}"))?;
+    }
+    transaction
+        .commit()
+        .map_err(|e| format!("couldn't finish history deletion: {e}"))?;
+    Ok(deleted)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::storage::Db;
+
+    #[test]
+    fn bulk_history_delete_preserves_active_calls_library_and_unconfirmed_sessions() {
+        use crate::storage::{chunks, documents, transcripts};
+        let db = Db::open_in_memory();
+        let mut conn = db.0.lock().unwrap();
+        let finished = Session::new("Finished", 1_000);
+        let active = Session::new("Running", 1_000);
+        let later = Session::new("Not confirmed", 1_000);
+        for session in [&finished, &active, &later] {
+            create(&conn, session).unwrap();
+        }
+        end(&conn, finished.id, 2_000).unwrap();
+        conn.execute(
+            "UPDATE sessions SET status = 'active' WHERE id = ?1",
+            params![active.id.to_string()],
+        )
+        .unwrap();
+        transcripts::insert_segment(
+            &conn,
+            finished.id,
+            "mic",
+            "local_parakeet",
+            "hello",
+            0,
+            100,
+            None,
+            true,
+            100,
+        )
+        .unwrap();
+        let library =
+            documents::insert_document(&conn, None, "resume", "resume.txt", "Library file", 1_000)
+                .unwrap();
+        let older_upload = documents::insert_document(
+            &conn,
+            Some(finished.id),
+            "resume",
+            "older.txt",
+            "Older upload",
+            1_000,
+        )
+        .unwrap();
+        chunks::insert_chunk(
+            &conn,
+            finished.id,
+            None,
+            "transcript",
+            "private words",
+            None,
+            None,
+            1_000,
+        )
+        .unwrap();
+        chunks::insert_chunk(
+            &conn,
+            active.id,
+            None,
+            "transcript",
+            "running words",
+            None,
+            None,
+            1_000,
+        )
+        .unwrap();
+        assert_eq!(
+            delete_many_inactive(&mut conn, &[finished.id, active.id, finished.id]).unwrap(),
+            1
+        );
+        assert!(get(&conn, finished.id).unwrap().is_none());
+        assert!(get(&conn, active.id).unwrap().is_some());
+        assert!(get(&conn, later.id).unwrap().is_some());
+        assert!(transcripts::list_for_session(&conn, finished.id)
+            .unwrap()
+            .is_empty());
+        assert!(documents::get(&conn, library).unwrap().is_some());
+        let preserved = documents::get(&conn, older_upload).unwrap().unwrap();
+        assert!(preserved.session_id.is_none());
+        let indexed: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM chunks_fts WHERE session_id = ?1",
+                params![finished.id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(indexed, 0);
+        let active_indexed: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM chunks_fts WHERE session_id = ?1",
+                params![active.id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(active_indexed, 1);
+    }
+
+    #[test]
+    fn bulk_history_delete_rolls_back_all_rows_on_failure() {
+        use crate::storage::{chunks, documents};
+        let db = Db::open_in_memory();
+        let mut conn = db.0.lock().unwrap();
+        let first = Session::new("First", 1_000);
+        let second = Session::new("Blocked", 1_000);
+        create(&conn, &first).unwrap();
+        create(&conn, &second).unwrap();
+        let upload = documents::insert_document(
+            &conn,
+            Some(first.id),
+            "resume",
+            "resume.txt",
+            "Saved file",
+            1_000,
+        )
+        .unwrap();
+        chunks::insert_chunk(
+            &conn,
+            first.id,
+            None,
+            "transcript",
+            "keep on rollback",
+            None,
+            None,
+            1_000,
+        )
+        .unwrap();
+        conn.execute_batch("CREATE TRIGGER block_history_delete BEFORE DELETE ON sessions WHEN OLD.title = 'Blocked' BEGIN SELECT RAISE(ABORT, 'test failure'); END;").unwrap();
+        assert!(delete_many_inactive(&mut conn, &[first.id, second.id]).is_err());
+        assert!(get(&conn, first.id).unwrap().is_some());
+        assert!(get(&conn, second.id).unwrap().is_some());
+        assert_eq!(
+            documents::get(&conn, upload).unwrap().unwrap().session_id,
+            Some(first.id)
+        );
+        let indexed: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM chunks_fts WHERE session_id = ?1",
+                params![first.id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(indexed, 1);
+    }
 
     #[test]
     fn create_then_get_round_trips() {

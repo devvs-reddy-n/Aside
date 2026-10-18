@@ -1,3 +1,4 @@
+import { desktopPlatform, screenCaptureHelp } from "../core/platform.ts";
 /** Turns a raw backend failure into plain words plus, where useful, what to do about it. */
 export interface FriendlyError {
   title: string;
@@ -10,7 +11,7 @@ export interface FriendlyError {
 export function describeAnswerError(raw: string): FriendlyError {
   const message = raw.toLowerCase();
   if (/screen.*(permission|recording|access)|privacy.*screen|can.t see your screen/.test(message)) {
-    return { title: "Screen access is needed", hint: "Enable Aside in System Settings → Privacy & Security → Screen & System Audio Recording, then reopen Aside.", settings: false, screenPermission: true };
+    return { title: "Screen access is needed", hint: screenCaptureHelp(), settings: false, screenPermission: desktopPlatform !== "windows" };
   }
   if (/api key|unauthori[sz]ed|401|403|invalid.*key|incorrect.*key|no key/.test(message)) {
     return { title: "The AI key isn't working", hint: "Check the key in Aside → Settings → AI model.", settings: true };

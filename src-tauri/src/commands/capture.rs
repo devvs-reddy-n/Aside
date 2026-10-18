@@ -25,7 +25,7 @@ pub struct CaptureStatus {
     pub system_transcribing: bool,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_capture_status(
     routing: State<TranscriptionRouting>,
     audio_state: State<AudioState>,

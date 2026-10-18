@@ -4,7 +4,7 @@
 //! the SSE spec: newline-terminated `field: value` lines, a blank line
 //! ends one event, `data:` may repeat (joined by `\n`), lines starting
 //! with `:` are comments to be ignored. This is the one piece of that
-//! framing shared by every provider — `openai.rs`/`groq.rs` only care
+//! framing shared by both providers — `openai.rs` only cares
 //! about `data:`, `anthropic.rs` also needs the `event:` name to tell
 //! `content_block_delta` apart from `message_start`/`message_stop`.
 //!
@@ -18,8 +18,8 @@
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SseEvent {
     /// The `event:` field, if the block had one. `None` means the
-    /// provider's default/unnamed event (OpenAI, Groq, and Gemini never
-    /// name their events; Anthropic always does).
+    /// provider's default/unnamed event (OpenAI never names its events;
+    /// Anthropic always does).
     pub event: Option<String>,
     /// Every `data:` line's value for this block, joined with `\n` per the
     /// SSE spec (almost always a single line in practice for these APIs).
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn the_done_sentinel_round_trips_as_plain_data() {
-        // OpenAI/Groq send a literal "data: [DONE]\n\n" — the decoder's job
+        // OpenAI sends a literal "data: [DONE]\n\n" — the decoder's job
         // is just framing; recognizing [DONE] is each provider's own
         // extract_delta's job, not this module's.
         let mut dec = SseDecoder::new();

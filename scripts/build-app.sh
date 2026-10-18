@@ -16,21 +16,25 @@ cd "$(dirname "$0")/.."
 
 # Cursor (and some CI) inject CARGO_TARGET_DIR. If we honor it, `tauri build`
 # writes the bundle into that cache, then this script copies a *stale*
-# `src-tauri/target/release/bundle/macos/Aside.app` and signs it as if it
+# `src-tauri/target.noindex/release/bundle/macos/Aside.app` and signs it as if it
 # were new. Measured 2026-08-24: after the EOU cutover, the root app still
 # contained `parakeet-tdt-0.6b-v2` for exactly this reason.
 unset CARGO_TARGET_DIR
 
 npm run tauri build -- --bundles app
 
-BUNDLE="src-tauri/target/release/bundle/macos/Aside.app"
+BUNDLE="src-tauri/target.noindex/release/bundle/macos/Aside.app"
 if [ ! -d "$BUNDLE" ]; then
   echo "FAIL  expected bundle not found at $BUNDLE" >&2
   exit 1
 fi
 
-rm -rf "./Aside.app"
-cp -R "$BUNDLE" "./Aside.app"
+# Keep the root directory's identity stable across rebuilds. Replacing the
+# whole .app gives Spotlight a new file identity for the same app each time.
+# Synchronize only this generated bundle; --delete removes obsolete bundle
+# resources, never the application's separate saved-data directory.
+mkdir -p "./Aside.app"
+rsync -a --delete "$BUNDLE/" "./Aside.app/"
 
 # Spotlight and Raycast treat every Aside.app they can see as a separate
 # launchable copy. After we have the project-root app, drop the Tauri
@@ -40,11 +44,11 @@ cp -R "$BUNDLE" "./Aside.app"
 # disposable build products too. Also drop leftover installer images from
 # older dmg-bundle runs.
 rm -rf "$BUNDLE"
-rm -f src-tauri/target/release/bundle/macos/*.dmg
-rm -f src-tauri/target/debug/aside
-rm -f src-tauri/target/release/aside
-mkdir -p src-tauri/target
-touch src-tauri/target/.metadata_never_index
+rm -f src-tauri/target.noindex/release/bundle/macos/*.dmg
+rm -f src-tauri/target.noindex/debug/aside
+rm -f src-tauri/target.noindex/release/aside
+mkdir -p src-tauri/target.noindex
+touch src-tauri/target.noindex/.metadata_never_index
 
 # --- Code signing -----------------------------------------------------------
 #
@@ -145,5 +149,10 @@ if [ "$SIGN_IDENTITY" = "-" ]; then
   echo "      re-run with ASIDE_SIGN_IDENTITY=\"<certificate name>\"."
   echo
 fi
+
+# Refresh only Aside's registration and metadata, preserving other apps and permissions.
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+"$LSREGISTER" -f "$PWD/Aside.app"
+mdimport "$PWD/Aside.app" || true
 
 echo "DONE  ./Aside.app refreshed from $BUNDLE (signed as $ACTUAL_ID)"

@@ -3,14 +3,13 @@ import {
   ArrowDown, ArrowRight, ArrowUp, AudioLines, Bot, Briefcase, Building2, CalendarDays, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   CircleAlert, CircleCheck, Clock, Code, Command, Copy, CopyPlus, Download, Ellipsis, ExternalLink, Eye, File, FileText, Files, Folder,
   History, Info, Keyboard, LayoutGrid, LibraryBig, Lightbulb, Link, List, LoaderCircle, Maximize2, MessageCircleQuestion, MessageSquare, Mic, Minus, Monitor, Moon,
-  PanelLeft, Pause, Pencil, Play, Plus, RefreshCw, ScrollText, Search, Settings, Shield, Sparkles, Square, Sun, Timer, TriangleAlert, Trash2,
+  PanelLeft, Pause, Pencil, Phone, Play, Plus, RefreshCw, ScrollText, Search, Settings, Shield, Sparkles, Square, Sun, Timer, TriangleAlert, Trash2,
   Undo2, Upload, Users, Volume2, WifiOff, X, Zap, type LucideIcon,
 } from "lucide-react";
 
 /**
  * Aside's icons: Lucide line icons at 1.5 stroke, one icon per idea. Screens
  * ask for an icon by a short name, so swapping a glyph never touches them.
- * Only Aside's own mark is drawn here.
  */
 const ICONS = {
   spark: Zap,
@@ -30,6 +29,7 @@ const ICONS = {
   speaker: Volume2,
   camera: Camera,
   chat: MessageSquare,
+  phone: Phone,
   send: ArrowUp,
   more: Ellipsis,
   x: X,
@@ -83,7 +83,7 @@ const ICONS = {
   calendar: CalendarDays,
 } satisfies Record<string, LucideIcon>;
 
-export type IconName = keyof typeof ICONS | "mark";
+export type IconName = keyof typeof ICONS;
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name" | "ref"> {
   name: IconName;
@@ -91,13 +91,6 @@ export interface IconProps extends Omit<SVGProps<SVGSVGElement>, "name" | "ref">
 }
 
 export function Icon({ name, size = 16, ...rest }: IconProps) {
-  if (name === "mark") {
-    return (
-      <svg className="icon" width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" {...rest}>
-        <path d="M2 12.6 11.9 2 11.9 13.8 8.9 8.3" />
-      </svg>
-    );
-  }
   const Glyph = ICONS[name];
   return <Glyph className="icon" size={size} strokeWidth={1.5} aria-hidden="true" focusable="false" {...rest} />;
 }

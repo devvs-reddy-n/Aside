@@ -114,6 +114,23 @@ impl FallbackLlmProvider {
         self.providers.first().and_then(|p| p.model_name())
     }
 
+    /// Screenshot answers use the call's own provider and model only (the
+    /// first in the chain). No cross-provider retry: a picture is large, and
+    /// a silent switch to another model would surprise more than help.
+    pub async fn stream_vision(
+        &self,
+        system: &str,
+        user_text: &str,
+        jpeg_base64: &str,
+        sink: &mut dyn AnswerSink,
+    ) -> Result<(), String> {
+        let provider = self
+            .providers
+            .first()
+            .ok_or_else(|| "No AI key saved yet — open Settings and add one.".to_string())?;
+        provider.stream_vision(system, user_text, jpeg_base64, sink).await
+    }
+
     #[allow(dead_code)] // test/inspection API — see `order`'s doc comment above
     pub fn failure_count(&self, kind: LlmProviderKind) -> u32 {
         self.chain
@@ -189,35 +206,31 @@ mod tests {
 
     #[test]
     fn a_freshly_built_chain_has_no_failures_recorded() {
-        let chain = FallbackChain::new(vec![LlmProviderKind::OpenAi, LlmProviderKind::Groq]);
+        let chain = FallbackChain::new(vec![LlmProviderKind::OpenAi, LlmProviderKind::Anthropic]);
         assert_eq!(chain.failure_count(LlmProviderKind::OpenAi), 0);
-        assert_eq!(chain.failure_count(LlmProviderKind::Groq), 0);
+        assert_eq!(chain.failure_count(LlmProviderKind::Anthropic), 0);
     }
 
     #[test]
     fn recording_a_failure_increments_only_that_providers_counter() {
-        let mut chain = FallbackChain::new(vec![LlmProviderKind::OpenAi, LlmProviderKind::Groq]);
+        let mut chain = FallbackChain::new(vec![LlmProviderKind::OpenAi, LlmProviderKind::Anthropic]);
         chain.record_failure(LlmProviderKind::OpenAi);
         assert_eq!(chain.failure_count(LlmProviderKind::OpenAi), 1);
-        assert_eq!(chain.failure_count(LlmProviderKind::Groq), 0);
+        assert_eq!(chain.failure_count(LlmProviderKind::Anthropic), 0);
     }
 
     #[test]
     fn repeated_failures_accumulate() {
-        let mut chain = FallbackChain::new(vec![LlmProviderKind::Gemini]);
+        let mut chain = FallbackChain::new(vec![LlmProviderKind::Anthropic]);
         for _ in 0..5 {
-            chain.record_failure(LlmProviderKind::Gemini);
+            chain.record_failure(LlmProviderKind::Anthropic);
         }
-        assert_eq!(chain.failure_count(LlmProviderKind::Gemini), 5);
+        assert_eq!(chain.failure_count(LlmProviderKind::Anthropic), 5);
     }
 
     #[test]
     fn order_is_preserved_exactly_as_constructed() {
-        let order = vec![
-            LlmProviderKind::Anthropic,
-            LlmProviderKind::OpenAi,
-            LlmProviderKind::Groq,
-        ];
+        let order = vec![LlmProviderKind::Anthropic, LlmProviderKind::OpenAi];
         let chain = FallbackChain::new(order.clone());
         assert_eq!(chain.order(), order.as_slice());
     }
@@ -225,8 +238,8 @@ mod tests {
     #[test]
     fn a_provider_never_tried_reports_zero_failures_not_an_error() {
         let chain = FallbackChain::new(vec![LlmProviderKind::OpenAi]);
-        // Groq isn't even in the order, but querying its count must not panic.
-        assert_eq!(chain.failure_count(LlmProviderKind::Groq), 0);
+        // Anthropic isn't even in the order, but querying its count must not panic.
+        assert_eq!(chain.failure_count(LlmProviderKind::Anthropic), 0);
     }
 
     // --- FallbackLlmProvider: fake providers + an in-memory sink, so the
@@ -234,9 +247,8 @@ mod tests {
     // success, fall back to canned when everything fails) is exercised
     // without any real network call or running Tauri app — exactly the
     // decoupling `AnswerSink` exists for (see `mod.rs`'s doc comment on the
-    // trait). Real per-provider HTTP/SSE behavior is tested in
-    // openai.rs/anthropic.rs/gemini.rs/groq.rs; a real API key path is
-    // untested end-to-end, same honest gap as Deepgram/Speechmatics.
+    // trait). Real per-provider request/stream parsing is tested in
+    // openai.rs and anthropic.rs.
 
     struct FakeProvider {
         kind: LlmProviderKind,
@@ -304,7 +316,7 @@ mod tests {
                 outcome: Ok("hello from openai"),
             },
             FakeProvider {
-                kind: LlmProviderKind::Groq,
+                kind: LlmProviderKind::Anthropic,
                 outcome: Ok("should never be reached"),
             },
         ]);
@@ -383,7 +395,7 @@ mod tests {
                 outcome: Err("network error"),
             },
             FakeProvider {
-                kind: LlmProviderKind::Gemini,
+                kind: LlmProviderKind::Anthropic,
                 outcome: Err("rate limited"),
             },
         ]);
@@ -402,7 +414,7 @@ mod tests {
             "both provider failures should be reported"
         );
         assert_eq!(chain.failure_count(LlmProviderKind::OpenAi), 1);
-        assert_eq!(chain.failure_count(LlmProviderKind::Gemini), 1);
+        assert_eq!(chain.failure_count(LlmProviderKind::Anthropic), 1);
     }
 
     #[tokio::test]
@@ -422,27 +434,22 @@ mod tests {
     async fn providers_are_tried_strictly_in_the_configured_order() {
         let chain = chain_of(vec![
             FakeProvider {
-                kind: LlmProviderKind::Groq,
-                outcome: Err("groq down"),
+                kind: LlmProviderKind::Anthropic,
+                outcome: Err("anthropic down"),
             },
             FakeProvider {
                 kind: LlmProviderKind::OpenAi,
-                outcome: Err("openai down"),
-            },
-            FakeProvider {
-                kind: LlmProviderKind::Anthropic,
-                outcome: Ok("anthropic answered"),
+                outcome: Ok("openai answered"),
             },
         ]);
         let mut sink = CollectingSink::default();
         chain.stream_answer("what's up", None, &mut sink).await;
 
-        assert_eq!(sink.deltas, vec!["anthropic answered"]);
-        // Order of the two failure messages proves Groq was tried before
-        // OpenAi, matching the constructed order exactly.
-        assert!(sink.errors[0].contains("Groq"));
-        assert!(sink.errors[1].contains("OpenAi"));
-        assert_eq!(chain.failure_count(LlmProviderKind::Anthropic), 0);
+        assert_eq!(sink.deltas, vec!["openai answered"]);
+        // Claude first because the call chose Claude, matching the
+        // constructed order exactly.
+        assert!(sink.errors[0].contains("Anthropic"));
+        assert_eq!(chain.failure_count(LlmProviderKind::OpenAi), 0);
     }
 
     #[tokio::test]

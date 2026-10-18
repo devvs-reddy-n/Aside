@@ -15,7 +15,7 @@ export function isTauriRuntime(): boolean {
 /** Plain-English message every layer can show when it detects a browser
  *  preview instead of the real app. */
 export const NOT_TAURI_MESSAGE =
-  "This screen needs the real Aside app to work. You are looking at a plain web preview right now, which cannot reach your microphone, your speakers, or your saved files. Open Aside.app instead.";
+  "This screen needs the real Aside app to work. You are looking at a plain web preview right now, which cannot reach your microphone, your speakers, or your saved files. Open Aside on your computer instead.";
 
 /**
  * Development-only preview mode: `npm run dev` in a normal browser tab with

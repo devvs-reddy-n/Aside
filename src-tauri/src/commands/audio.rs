@@ -29,11 +29,30 @@ fn warn_if_open_loudspeaker(app: &AppHandle, output_id: Option<&str>, output_nam
     }
 }
 
+/// Plays locally before a call, through the output the check is listening to.
+#[tauri::command]
+pub async fn play_system_audio_test(app: AppHandle, device: Option<String>) -> Result<(), String> {
+    if crate::active_session::get(&app).is_some() {
+        return Err("A call is running. Test audio before starting your next call.".into());
+    }
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let worker_cancelled = cancelled.clone();
+    let worker = tauri::async_runtime::spawn_blocking(move || crate::audio::test_sound::play(device.as_deref(), worker_cancelled));
+    match tokio::time::timeout(std::time::Duration::from_secs(3), worker).await {
+        Ok(result) => result.map_err(|_| "Couldn't finish the test sound. Try again.".to_string())?,
+        Err(_) => {
+            cancelled.store(true, Ordering::SeqCst);
+            Err("Your output device did not respond to the test sound. Check the device and try again.".into())
+        }
+    }
+}
+
 /// Holds the running mic capture, if any. `None` means not capturing.
 #[derive(Default)]
 pub struct AudioState(pub Mutex<Option<MicCaptureHandle>>);
 
-#[tauri::command]
+// CoreAudio can wait for permissions/device replies. Keep those waits off the UI thread.
+#[tauri::command(async)]
 pub fn start_mic_capture(
     app: AppHandle,
     state: State<AudioState>,
@@ -106,7 +125,7 @@ fn start_mic_capture_body(
     Ok(info)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn stop_mic_capture(
     app: AppHandle,
     state: State<AudioState>,
@@ -129,7 +148,7 @@ pub fn stop_mic_capture(
 #[derive(Default)]
 pub struct SystemAudioState(pub Mutex<Option<SystemCaptureHandle>>);
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn start_system_audio_capture(
     app: AppHandle,
     state: State<SystemAudioState>,
@@ -197,7 +216,7 @@ pub(crate) fn is_system_capturing(state: &SystemAudioState) -> bool {
 /// when that ear is idle. The Audio Inspector uses this on mount so a
 /// remount does not have to call start (which is idempotent, but a query
 /// is the honest read).
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_mic_capture_info(state: State<AudioState>) -> Result<Option<CaptureInfo>, String> {
     let guard = state
         .0
@@ -206,7 +225,7 @@ pub fn get_mic_capture_info(state: State<AudioState>) -> Result<Option<CaptureIn
     Ok(guard.as_ref().map(|h| h.info.clone()))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_system_capture_info(
     state: State<SystemAudioState>,
 ) -> Result<Option<CaptureInfo>, String> {
@@ -217,7 +236,7 @@ pub fn get_system_capture_info(
     Ok(guard.as_ref().map(|h| h.info.clone()))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn stop_system_audio_capture(
     app: AppHandle,
     state: State<SystemAudioState>,
@@ -232,14 +251,14 @@ pub fn stop_system_audio_capture(
 
 /// Lists the output devices that could be captured, so the UI can offer a
 /// choice when the default is not the one carrying the call.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_output_devices() -> Result<Vec<OutputDevice>, String> {
     system::list_output_devices()
 }
 
 /// Lists the input devices that could serve as the microphone, so the UI can
 /// offer a choice instead of always following the OS default.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_input_devices() -> Result<Vec<InputDevice>, String> {
     mic::list_input_devices()
 }

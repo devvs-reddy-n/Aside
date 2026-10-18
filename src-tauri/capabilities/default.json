@@ -4,7 +4,8 @@
   "description": "Capability for the main (Create/Connect) and overlay (Live overlay) windows",
   "windows": [
     "main",
-    "overlay"
+    "overlay",
+    "bubble"
   ],
   "permissions": [
     "core:default",
@@ -17,6 +18,12 @@
       "allow": [
         {
           "url": "x-apple.systempreferences:*"
+        },
+        {
+          "url": "ms-settings:privacy-microphone"
+        },
+        {
+          "url": "ms-settings:sound"
         }
       ]
     },

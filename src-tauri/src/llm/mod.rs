@@ -28,27 +28,18 @@
 //!   speech on a silence timer and lets the LLM's own system prompt decide
 //!   relevance — rejected here because Aside would then pay for (and stream
 //!   a UI update for) an LLM call on every utterance, question or not.
-//! - **Provider-level fallback, not model-level.** OpenCluely's fallback is
-//!   actually a *model-name* list within one provider (Gemini
-//!   `gemini-3.1-flash-lite` -> `gemini-2.5-flash-lite` -> `gemini-3.5-flash`,
-//!   `src/core/config.js`), terminating in hardcoded per-skill canned
-//!   strings — the real shape `status.md` credits as "OpenCluely's best
-//!   idea" is that terminal canned message, generalized here to an ordered
-//!   *provider* list per `status.md` 6.4's actual scope. Natively built a
-//!   much richer `ProviderRouter`/`CircuitBreaker` (capability ranking, a
-//!   real circuit breaker) but its own code says outright it is **not wired
-//!   into production** (`electron/llm/ProviderRouter.ts`'s header comment) —
-//!   evidence that the simpler `fallback::FallbackChain` here (a fixed
-//!   order plus a failure counter) is the proportionate choice, not a
-//!   corner cut.
+//! - **Provider-level fallback.** The selected provider (OpenAI or
+//!   Anthropic) is tried first, then the other one if it has a saved key,
+//!   then the canned stand-in reply — a fixed order plus a failure counter
+//!   (`fallback::FallbackChain`).
 //!
 //! ## Module shape
 //!
 //! - [`LlmProvider`] — the trait, mirroring `stt::SttEngine`'s "plain trait,
-//!   async methods" shape. `openai.rs`/`anthropic.rs`/`gemini.rs`/`groq.rs`
-//!   implement it over plain `reqwest` + hand-rolled SSE parsing
-//!   (`sse.rs`) — no SDK crates, matching `stt/deepgram_live.rs`'s
-//!   "plain HTTP, explicit auth-failure detection" convention.
+//!   async methods" shape. `openai.rs` (GPT-5.6 Sol/Terra/Luna) and
+//!   `anthropic.rs` (latest Claude models) implement it over plain `reqwest`
+//!   + hand-rolled SSE parsing (`sse.rs`); Rust has no official SDK for
+//!   either.
 //! - [`fallback::FallbackLlmProvider`] — tries providers in order, falling
 //!   back to [`canned_fallback`] if every one fails.
 //! - [`trigger`] — the pure "does this look like a question" + cooldown /
@@ -60,10 +51,9 @@
 
 pub mod anthropic;
 pub mod background;
+pub mod setup_summary;
 pub mod canned_fallback;
 pub mod fallback;
-pub mod gemini;
-pub mod groq;
 pub mod openai;
 pub mod prompt;
 pub mod question_split;
@@ -120,106 +110,40 @@ const RETRIEVAL_THRESHOLD: f32 = 0.1;
 pub enum LlmProviderKind {
     OpenAi,
     Anthropic,
-    Gemini,
-    Groq,
 }
 
 impl LlmProviderKind {
-    #[cfg(test)]
-    pub const ALL: [LlmProviderKind; 4] = [
-        LlmProviderKind::OpenAi,
-        LlmProviderKind::Anthropic,
-        LlmProviderKind::Gemini,
-        LlmProviderKind::Groq,
-    ];
-
-    /// Providers currently offered for selection and actually usable in the
-    /// answer pipeline — narrowed from `ALL` at the owner's request
-    /// (2026-08-24): only OpenAI/GPT is active while Anthropic/Gemini/Groq
-    /// are dormant. **Dormant, not removed** — all four providers, their
-    /// request-building, SSE parsing, and settings plumbing stay real and
-    /// tested; this list (and `build_provider_chain`'s use of it below) are
-    /// the only things that changed. Flip this back to `ALL` to re-enable
-    /// every provider as a selectable/fallback option again.
-    pub const ENABLED: [LlmProviderKind; 1] = [LlmProviderKind::OpenAi];
-
-    /// Whether this provider is currently selectable/usable — checked by
-    /// `commands::llm::list_llm_providers` (dropdown), `set_llm_provider`
-    /// (so it can't be set some other way), and `build_provider_chain` (so
-    /// a dormant provider is never tried as a silent fallback even if a key
-    /// happens to already be saved for it from before it went dormant).
-    pub fn is_enabled(self) -> bool {
-        Self::ENABLED.contains(&self)
-    }
+    /// The two providers Aside supports, in the order Settings lists them.
+    pub const ALL: [LlmProviderKind; 2] = [LlmProviderKind::OpenAi, LlmProviderKind::Anthropic];
 
     /// The `storage::settings` key this provider's API key is saved under.
-    /// Unlike `stt::EngineKind`, every variant here needs a key — there is
-    /// no local/offline LLM provider in this phase's scope.
     pub fn api_key_setting(self) -> &'static str {
         match self {
             LlmProviderKind::OpenAi => "llm_api_key_openai",
             LlmProviderKind::Anthropic => "llm_api_key_anthropic",
-            LlmProviderKind::Gemini => "llm_api_key_gemini",
-            LlmProviderKind::Groq => "llm_api_key_groq",
         }
     }
 
-    /// The `storage::settings` key holding which *model* this provider
-    /// should use (2026-08-25 — the owner couldn't change the model at all
-    /// before this; it was a compile-time constant). Mirrors
-    /// `api_key_setting`'s shape exactly. Absent means "use the provider's
-    /// built-in default".
+    /// The `storage::settings` key holding this provider's default model.
+    /// Absent means "the provider's first preset".
     pub fn model_setting(self) -> &'static str {
         match self {
             LlmProviderKind::OpenAi => "llm_model_openai",
             LlmProviderKind::Anthropic => "llm_model_anthropic",
-            LlmProviderKind::Gemini => "llm_model_gemini",
-            LlmProviderKind::Groq => "llm_model_groq",
         }
     }
 
-    /// The `storage::settings` key holding which model the cheap,
-    /// asynchronous background memory-compression pipeline
-    /// (`llm::background`, `window_memory::background`) should use for this
-    /// provider — mirrors [`Self::model_setting`]'s shape exactly, but for
-    /// the *background* call, never the main answer. Absent means "use
-    /// [`Self::default_background_model`]". Not yet exposed through any
-    /// `commands::llm` command or Settings UI — currently only settable by
-    /// writing this key directly, e.g. from a future
-    /// `set_llm_background_model` command mirroring `set_llm_model`.
-    pub fn background_model_setting(self) -> &'static str {
-        match self {
-            LlmProviderKind::OpenAi => "llm_background_model_openai",
-            LlmProviderKind::Anthropic => "llm_background_model_anthropic",
-            LlmProviderKind::Gemini => "llm_background_model_gemini",
-            LlmProviderKind::Groq => "llm_background_model_groq",
-        }
-    }
-
-    /// The verified, already-listed `-mini`-class preset each provider's
-    /// background call defaults to absent an override — see each provider
-    /// file's own `BACKGROUND_MODEL` constant.
-    pub fn default_background_model(self) -> &'static str {
-        match self {
-            LlmProviderKind::OpenAi => openai::BACKGROUND_MODEL,
-            LlmProviderKind::Anthropic => anthropic::BACKGROUND_MODEL,
-            LlmProviderKind::Gemini => gemini::BACKGROUND_MODEL,
-            LlmProviderKind::Groq => groq::BACKGROUND_MODEL,
-        }
-    }
-
-    /// The models offered as ready-made choices for this provider. **Not a
-    /// closed list** — `commands::llm::set_llm_model` accepts any valid-
-    /// looking name, so a model released after this was written is typed in
-    /// rather than waiting for a code change. Each provider's list lives
-    /// next to its own `DEFAULT_MODEL` constant, one line to update.
+    /// The only models offered and accepted for this provider: the latest
+    /// generation, nothing older.
     pub fn model_presets(self) -> &'static [&'static str] {
         match self {
             LlmProviderKind::OpenAi => openai::MODEL_PRESETS,
             LlmProviderKind::Anthropic => anthropic::MODEL_PRESETS,
-            LlmProviderKind::Gemini => gemini::MODEL_PRESETS,
-            LlmProviderKind::Groq => groq::MODEL_PRESETS,
         }
+    }
+
+    pub fn supports_model(self, model: &str) -> bool {
+        self.model_presets().contains(&model.trim())
     }
 
     /// The stable string stored in the `settings` table for the selected
@@ -229,8 +153,6 @@ impl LlmProviderKind {
         match self {
             LlmProviderKind::OpenAi => "openai",
             LlmProviderKind::Anthropic => "anthropic",
-            LlmProviderKind::Gemini => "gemini",
-            LlmProviderKind::Groq => "groq",
         }
     }
 
@@ -238,8 +160,6 @@ impl LlmProviderKind {
         match s {
             "openai" => Some(LlmProviderKind::OpenAi),
             "anthropic" => Some(LlmProviderKind::Anthropic),
-            "gemini" => Some(LlmProviderKind::Gemini),
-            "groq" => Some(LlmProviderKind::Groq),
             _ => None,
         }
     }
@@ -410,6 +330,20 @@ pub trait LlmProvider: Send + Sync {
         context: Option<&str>,
         sink: &mut dyn AnswerSink,
     ) -> Result<(), String>;
+
+    /// Streams an answer about a picture of the screen, with this provider's
+    /// own model: `system` is the full system prompt, `user_text` the text
+    /// that accompanies the JPEG.
+    async fn stream_vision(
+        &self,
+        system: &str,
+        user_text: &str,
+        jpeg_base64: &str,
+        sink: &mut dyn AnswerSink,
+    ) -> Result<(), String> {
+        let _ = (system, user_text, jpeg_base64, sink);
+        Err(format!("{:?} cannot read screenshots", self.kind()))
+    }
 }
 
 // --- Events (mirrors pipeline.rs's exact `AppHandle::emit` pattern) ---
@@ -760,9 +694,10 @@ fn load_settings_snapshot(conn: &Connection) -> Result<CachedLlmSettings, String
     let primary = settings::get(conn, PROVIDER_SETTING_KEY)?
         .and_then(|s| LlmProviderKind::from_setting_value(&s));
     let mut keys = Vec::new();
-    for kind in LlmProviderKind::ENABLED {
+    for kind in LlmProviderKind::ALL {
         if let Some(key) = settings::get(conn, kind.api_key_setting())? {
-            let model = settings::get(conn, kind.model_setting())?;
+            let model = settings::get(conn, kind.model_setting())?
+                .filter(|model| kind.supports_model(model));
             keys.push((kind, key, model));
         }
     }
@@ -782,11 +717,9 @@ fn build_provider_chain_from_snapshot(
 ) -> FallbackLlmProvider {
     let mut order: Vec<LlmProviderKind> = Vec::new();
     if let Some(p) = snapshot.primary {
-        if p.is_enabled() {
-            order.push(p);
-        }
+        order.push(p);
     }
-    for kind in LlmProviderKind::ENABLED {
+    for kind in LlmProviderKind::ALL {
         if Some(kind) != snapshot.primary {
             order.push(kind);
         }
@@ -859,8 +792,6 @@ fn build_provider(
         LlmProviderKind::Anthropic => {
             Box::new(anthropic::AnthropicProvider::new(client, api_key, model))
         }
-        LlmProviderKind::Gemini => Box::new(gemini::GeminiProvider::new(client, api_key, model)),
-        LlmProviderKind::Groq => Box::new(groq::GroqProvider::new(client, api_key, model)),
     }
 }
 
@@ -1018,11 +949,16 @@ fn build_context_string(
 /// question would. `session_id` is `None` for `PanelWindow.tsx`'s existing
 /// ephemeral usage (see `pipeline.rs`'s doc comment) — retrieval is simply
 /// skipped in that case, same as Phase 7's indexing already does.
-pub async fn respond_to_question(app: AppHandle, session_id: Option<Uuid>, question: String) {
+pub async fn respond_to_question(
+    app: AppHandle,
+    session_id: Option<Uuid>,
+    question: String,
+    length: Option<crate::window_memory::LengthOverride>,
+) {
     let Some(claim) = try_begin_user_answer(&app) else {
         return;
     };
-    answer_with_claim(app, session_id, question, claim).await;
+    answer_with_claim(app, session_id, question, claim, length).await;
 }
 
 /// Command+Enter conversation window: one request, no RAG, answer streamed
@@ -1066,6 +1002,7 @@ async fn answer_with_claim(
     session_id: Option<Uuid>,
     question: String,
     claim: AnswerClaim,
+    length: Option<crate::window_memory::LengthOverride>,
 ) {
     let generation = claim.generation;
     let mut marks = timing::AnswerMarks::start();
@@ -1096,7 +1033,12 @@ async fn answer_with_claim(
         start_ms: 0,
         end_ms: 0,
     };
-    let prompt = crate::window_memory::build_request(&app, session_id, &synthetic_window);
+    let prompt = crate::window_memory::build_request_with_length(
+        &app,
+        session_id,
+        &synthetic_window,
+        length,
+    );
     let context = Some(prompt::encode_messages(&prompt.system, &prompt.user));
     marks.context_built_at = Some(std::time::Instant::now());
     marks.body_ready_at = Some(std::time::Instant::now());
@@ -1107,10 +1049,12 @@ async fn answer_with_claim(
         Ok(chain) => {
             marks.provider = chain.order().first().map(|k| format!("{k:?}"));
             marks.model = chain.active_model();
+            // No Q:/A: splitting: the typed text already is the question,
+            // and the answer rules ask for plain text. Splitting held the
+            // first 300 characters back and cut any answer containing "A:".
             let mut real_sink = AppHandleSink::new(&app, &question);
             let mut gated = GatedSink::new(&mut real_sink, &app, generation);
-            let mut timed = TimingSink::new(&mut gated, &mut marks);
-            let mut sink = SplittingSink::new(&mut timed);
+            let mut sink = TimingSink::new(&mut gated, &mut marks);
             chain
                 .stream_with_gate(&question, context.as_deref(), &mut sink, Some(&runtime))
                 .await;
@@ -1118,8 +1062,7 @@ async fn answer_with_claim(
         Err(e) => {
             let mut real_sink = AppHandleSink::new(&app, &question);
             let mut gated = GatedSink::new(&mut real_sink, &app, generation);
-            let mut timed = TimingSink::new(&mut gated, &mut marks);
-            let mut sink = SplittingSink::new(&mut timed);
+            let mut sink = TimingSink::new(&mut gated, &mut marks);
             sink.on_error(&e);
             sink.on_delta(canned_fallback::message());
             sink.on_done(true);
@@ -1232,18 +1175,12 @@ fn copy_answer_marks_into_conversation(app: &AppHandle, marks: &timing::AnswerMa
     }
 }
 
-/// Same one context mechanism every other answer path now uses — default
-/// context plus the growing per-window summary, via `window_memory::
-/// build_request` — not the separate "recent exchanges" system this used to
-/// read from. `question` (the last thing the other person said, if
-/// anything) is wrapped as a single synthetic "Other" turn so a screenshot
-/// answer still reads as continuing the live conversation, not answering
-/// cold.
-async fn build_full_context(
-    app: &AppHandle,
-    session_id: Option<Uuid>,
-    question: &str,
-) -> Option<String> {
+/// Same one context mechanism every other answer path uses, via
+/// `window_memory::build_request`: the stable prefix (core, the owner's
+/// strict rules and guidance, background) becomes the screenshot's system
+/// message, and the conversation summary plus `question` (the last thing the
+/// other person said, if anything, as a synthetic "Other" turn) its context.
+fn build_vision_parts(app: &AppHandle, session_id: Option<Uuid>, question: &str) -> (String, String) {
     let turns = if question.trim().is_empty() {
         Vec::new()
     } else {
@@ -1259,7 +1196,7 @@ async fn build_full_context(
         end_ms: 0,
     };
     let prompt = crate::window_memory::build_request(app, session_id, &window);
-    Some(format!("{}\n\n{}", prompt.system, prompt.user))
+    (vision_prompt::vision_system_prompt(&prompt.system), prompt.user)
 }
 
 /// Answers about a picture of the screen (⌘⇧↩). Streams through the exact
@@ -1286,64 +1223,46 @@ pub async fn respond_to_screenshot(
 
     emit_answer_started_if_live(&app, generation, label.clone());
 
-    // Vision stays OpenAI-only, matching `LlmProviderKind::ENABLED` — see
-    // `openai.rs`'s own doc comment on why a multi-provider vision fallback
-    // would be dead code today (every other provider is dormant, not just
-    // unused for screenshots specifically).
-    //
-    // The model is always `openai::VISION_MODEL` ("GPT Terra"), never the
-    // session/Copilot's configured text-answer model — an explicit owner
-    // instruction, and also the fix for a real reported bug: whichever
-    // model a session had configured was not guaranteed to support vision
-    // at all, so a screenshot could silently fail purely because of what
-    // model happened to be selected for ordinary answers.
-    let api_key = {
-        let db = app.state::<Db>();
-        let conn = db.0.lock().unwrap_or_else(|p| p.into_inner());
-        settings::get(&conn, LlmProviderKind::OpenAi.api_key_setting())
-            .ok()
-            .flatten()
+    // Same model as the call (a Copilot's own model, or the Settings
+    // default): GPT-5.6 and current Claude models all read images.
+    let chain = match build_provider_chain_for_app(&app) {
+        Ok(chain) if !chain.providers_is_empty() => Ok(chain),
+        Ok(_) => Err("No AI key saved yet — open Settings and add one.".to_string()),
+        Err(e) => Err(e),
     };
 
     let mut real_sink = AppHandleSink::new(&app, &label);
     let mut gated = GatedSink::new(&mut real_sink, &app, generation);
     let mut sink = SplittingSink::new(&mut gated);
 
-    let Some(api_key) = api_key else {
-        sink.on_error("No AI key saved yet — open Settings and add one.");
-        sink.on_delta(canned_fallback::message());
-        sink.on_done(true);
-        marks.done_at = Some(std::time::Instant::now());
-        if generation_is_live(&app, generation) {
-            let summary = timing::summarize(&marks);
-            eprintln!("{}", timing::log_line(&summary));
-            let _ = app.emit(timing::EVENT_ANSWER_TIMING, summary);
+    let chain = match chain {
+        Ok(chain) => chain,
+        Err(e) => {
+            sink.on_error(&e);
+            sink.on_delta(canned_fallback::message());
+            sink.on_done(true);
+            marks.done_at = Some(std::time::Instant::now());
+            if generation_is_live(&app, generation) {
+                let summary = timing::summarize(&marks);
+                eprintln!("{}", timing::log_line(&summary));
+                let _ = app.emit(timing::EVENT_ANSWER_TIMING, summary);
+            }
+            return;
         }
-        return;
     };
 
-    let context = build_full_context(&app, session_id, spoken.as_deref().unwrap_or("")).await;
+    let (system, user_context) = build_vision_parts(&app, session_id, spoken.as_deref().unwrap_or(""));
+    let user_text = vision_prompt::vision_user_prompt(Some(&user_context), spoken.as_deref());
     marks.context_built_at = Some(std::time::Instant::now());
-    marks.context_chars = context.as_deref().map(str::len).unwrap_or(0);
-    marks.provider = Some("openai".to_string());
-    marks.model = Some(openai::VISION_MODEL.to_string());
-    let client = { app.state::<HttpClient>().0.clone() };
+    marks.context_chars = system.len() + user_text.len();
+    marks.provider = chain.order().first().map(|k| format!("{k:?}"));
+    marks.model = chain.active_model();
 
     marks.request_sent_at = Some(std::time::Instant::now());
     {
         let mut timed = TimingSink::new(&mut sink, &mut marks);
         timed.on_attempt_start();
-        match openai::stream_vision_answer(
-            &client,
-            &api_key,
-            openai::VISION_MODEL,
-            &jpeg_base64,
-            context.as_deref(),
-            spoken.as_deref(),
-            &mut timed,
-        )
-        .await
-        {
+        match chain.stream_vision(&system, &user_text, &jpeg_base64, &mut timed).await {
             Ok(()) => timed.on_done(false),
             Err(e) => {
                 timed.on_error(&e);
@@ -1706,61 +1625,45 @@ mod tests {
 
     #[test]
     fn build_provider_chain_puts_the_primary_provider_first() {
-        // Both primary and secondary must be enabled providers for this to
-        // exercise real ordering rather than the dormancy filter — today
-        // that's only OpenAi, so this test is honest that it can't currently
-        // prove multi-provider ordering; `an_enabled_primary_with_a_saved_key_is_used`
-        // below covers the single-enabled-provider case for real.
         let db = Db::open_in_memory();
         let conn = db.0.lock().unwrap();
-        settings::set(&conn, PROVIDER_SETTING_KEY, "openai").unwrap();
+        settings::set(&conn, PROVIDER_SETTING_KEY, "anthropic").unwrap();
         settings::set(&conn, LlmProviderKind::OpenAi.api_key_setting(), "ok_1").unwrap();
+        settings::set(&conn, LlmProviderKind::Anthropic.api_key_setting(), "ak_1").unwrap();
         let chain = build_provider_chain(&conn, &reqwest::Client::new()).unwrap();
-        assert_eq!(chain.order(), &[LlmProviderKind::OpenAi]);
+        assert_eq!(chain.order(), &[LlmProviderKind::Anthropic, LlmProviderKind::OpenAi]);
+        assert_eq!(chain.active_model().as_deref(), Some(anthropic::DEFAULT_MODEL));
     }
 
     #[test]
     fn build_provider_chain_skips_providers_with_no_saved_key() {
         let db = Db::open_in_memory();
         let conn = db.0.lock().unwrap();
+        settings::set(&conn, PROVIDER_SETTING_KEY, "anthropic").unwrap();
         settings::set(&conn, LlmProviderKind::OpenAi.api_key_setting(), "ok_1").unwrap();
         let chain = build_provider_chain(&conn, &reqwest::Client::new()).unwrap();
         assert_eq!(chain.order(), &[LlmProviderKind::OpenAi]);
     }
 
     #[test]
-    fn build_provider_chain_never_uses_a_dormant_provider_even_with_a_saved_key_and_set_as_primary()
-    {
-        // Regression for the 2026-08-24 "keep only GPT" request: a key
-        // saved for Anthropic/Gemini/Groq *before* they went dormant (or a
-        // stale `llm_provider` setting still pointing at one of them) must
-        // not resurrect them as a silent fallback.
+    fn a_saved_model_from_an_older_generation_is_ignored() {
         let db = Db::open_in_memory();
         let conn = db.0.lock().unwrap();
-        settings::set(&conn, PROVIDER_SETTING_KEY, "groq").unwrap();
-        settings::set(&conn, LlmProviderKind::Groq.api_key_setting(), "gk_1").unwrap();
-        settings::set(&conn, LlmProviderKind::Anthropic.api_key_setting(), "ak_1").unwrap();
-        settings::set(&conn, LlmProviderKind::Gemini.api_key_setting(), "gem_1").unwrap();
+        settings::set(&conn, PROVIDER_SETTING_KEY, "openai").unwrap();
+        settings::set(&conn, LlmProviderKind::OpenAi.api_key_setting(), "ok_1").unwrap();
+        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-5.5").unwrap();
         let chain = build_provider_chain(&conn, &reqwest::Client::new()).unwrap();
-        assert!(
-            chain.order().is_empty(),
-            "no dormant provider should ever be tried, even with a saved key"
-        );
-        assert!(chain.providers_is_empty());
+        assert_eq!(chain.active_model().as_deref(), Some(openai::DEFAULT_MODEL));
+        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-5.6-sol").unwrap();
+        let chain = build_provider_chain(&conn, &reqwest::Client::new()).unwrap();
+        assert_eq!(chain.active_model().as_deref(), Some("gpt-5.6-sol"));
     }
 
     #[test]
-    fn only_openai_is_enabled_today() {
-        assert_eq!(LlmProviderKind::ENABLED, [LlmProviderKind::OpenAi]);
-        for kind in [
-            LlmProviderKind::Anthropic,
-            LlmProviderKind::Gemini,
-            LlmProviderKind::Groq,
-        ] {
-            assert!(
-                !kind.is_enabled(),
-                "{kind:?} must be dormant per the 2026-08-24 owner request"
-            );
+    fn removed_providers_are_unknown_settings() {
+        assert_eq!(LlmProviderKind::ALL, [LlmProviderKind::OpenAi, LlmProviderKind::Anthropic]);
+        for removed in ["gemini", "groq"] {
+            assert_eq!(LlmProviderKind::from_setting_value(removed), None);
         }
     }
 

@@ -10,7 +10,7 @@ pub const KIND_JD_LINE: &str = "jd_line";
 pub const KIND_COMPANY_TERM: &str = "company_term";
 pub const KIND_STT_GLOSSARY: &str = "stt_glossary";
 
-/// Speechmatics `additional_vocab` / Deepgram `keyterm=` union. A bounded list keeps
+/// Speechmatics `additional_vocab` union. A bounded list keeps
 /// the extra-vocab payload small on the live socket.
 pub const GLOSSARY_CAP: usize = crate::stt::vocabulary::CAP;
 
@@ -58,7 +58,7 @@ pub fn list_kind(conn: &Connection, session_id: Uuid, kind: &str) -> Result<Vec<
         .map_err(|e| format!("failed to read knowledge pack row: {e}"))
 }
 
-/// Speechmatics additional_vocab / Deepgram keyterm union, capped.
+/// Speechmatics additional_vocab union, capped.
 pub fn glossary(conn: &Connection, session_id: Uuid, cap: usize) -> Result<Vec<String>, String> {
     let mut stmt = conn
         .prepare(

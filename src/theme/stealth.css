@@ -1,0 +1,9 @@
+.stealth-status { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: var(--text-2); font-size: 12px; line-height: 18px; white-space: nowrap; }
+.stealth-status > .icon { flex: none; }
+.stealth-status b { font-weight: 650; }
+.stealth-status > span { color: var(--text-2); }
+.stealth-status[data-compact] { display: inline-grid; flex: none; place-items: center; width: 24px; height: 24px; }
+.hm-top__end { gap: 14px; }
+@media (max-width: 380px) {
+  .lv-bar:has(.stealth-status) { gap: 5px; }
+}

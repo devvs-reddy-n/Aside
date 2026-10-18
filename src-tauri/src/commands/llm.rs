@@ -7,14 +7,10 @@ use uuid::Uuid;
 use crate::llm::{self, LlmProviderKind};
 use crate::storage::{settings, Db};
 
-/// Providers currently offered for selection — `LlmProviderKind::ENABLED`,
-/// not `ALL` (only OpenAI/GPT is active as of 2026-08-24, see
-/// `LlmProviderKind::ENABLED`'s doc comment). Deliberately not a
-/// hand-copied list: it's the enum's own `ENABLED` constant, so re-enabling
-/// a provider there can't silently be left off this dropdown.
+/// The providers offered: OpenAI (GPT-5.6) and Anthropic (Claude).
 #[tauri::command]
 pub fn list_llm_providers() -> Vec<LlmProviderKind> {
-    LlmProviderKind::ENABLED.to_vec()
+    LlmProviderKind::ALL.to_vec()
 }
 
 /// The currently selected *primary* provider, or `None` if the user hasn't
@@ -26,26 +22,12 @@ pub fn get_llm_provider(db: State<Db>) -> Result<Option<LlmProviderKind>, String
     Ok(stored.and_then(|s| LlmProviderKind::from_setting_value(&s)))
 }
 
-/// Pure guard, split out for the same reason `commands::stt::reject_if_dormant`
-/// is: directly unit-testable without a real `tauri::State`. Rejects a
-/// dormant provider even if something other than this app's own dropdown
-/// tries to set it.
-fn reject_if_dormant(provider: LlmProviderKind) -> Result<(), String> {
-    if !provider.is_enabled() {
-        return Err(format!(
-            "{provider:?} is currently dormant and cannot be selected"
-        ));
-    }
-    Ok(())
-}
-
 #[tauri::command]
 pub fn set_llm_provider(
     app: AppHandle,
     db: State<Db>,
     provider: LlmProviderKind,
 ) -> Result<(), String> {
-    reject_if_dormant(provider)?;
     let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
     settings::set(
         &conn,
@@ -75,17 +57,10 @@ pub fn set_llm_api_key(
     Ok(())
 }
 
-// --- Model selection (2026-08-25) ---
-//
-// Before this, the model was a compile-time `pub const` in each provider
-// file with no setting, no command, and no UI — the owner could not change
-// it at all. These three commands mirror the provider/API-key commands
-// above exactly in shape.
+// --- Model selection ---
 
-/// The ready-made choices for `provider`. **Not a closed list** —
-/// [`set_llm_model`] accepts any valid-looking name, so a model released
-/// after this was written can be typed in without waiting for a code
-/// change. See `openai::MODEL_PRESETS` for the full reasoning.
+/// The models offered for `provider`: a closed list of the latest
+/// generation (see each provider's `MODEL_PRESETS`).
 #[tauri::command]
 pub fn list_llm_models(provider: LlmProviderKind) -> Vec<String> {
     provider
@@ -103,31 +78,18 @@ pub fn get_llm_model(db: State<Db>, provider: LlmProviderKind) -> Result<Option<
     settings::get(&conn, provider.model_setting())
 }
 
-/// Pure guard, split out for the same reason [`reject_if_dormant`] is.
-///
-/// Not a security boundary — the value is serde-serialized into a JSON body,
-/// not interpolated into a URL or a shell command. It exists so a paste
-/// accident (a whole curl command, a key, a newline-laden blob) fails here
-/// with a readable message instead of becoming an opaque provider-side 400
-/// mid-interview.
-fn validate_model_name(raw: &str) -> Result<String, String> {
+/// Only the listed latest models are accepted, so an old or mistyped name
+/// can't become an opaque provider-side 400 mid-interview.
+fn validate_model(provider: LlmProviderKind, raw: &str) -> Result<String, String> {
     let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Err("Type a model name first.".to_string());
+    if provider.supports_model(trimmed) {
+        Ok(trimmed.to_string())
+    } else {
+        Err(format!(
+            "Choose one of the listed models: {}.",
+            provider.model_presets().join(", ")
+        ))
     }
-    if trimmed.chars().count() > 100 {
-        return Err("That doesn't look like a model name — it's too long.".to_string());
-    }
-    if !trimmed
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '/' | '-'))
-    {
-        return Err(
-            "A model name can only contain letters, numbers, dots, dashes, slashes and colons."
-                .to_string(),
-        );
-    }
-    Ok(trimmed.to_string())
 }
 
 #[tauri::command]
@@ -137,8 +99,7 @@ pub fn set_llm_model(
     provider: LlmProviderKind,
     model: String,
 ) -> Result<(), String> {
-    reject_if_dormant(provider)?;
-    let validated = validate_model_name(&model)?;
+    let validated = validate_model(provider, &model)?;
     let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
     settings::set(&conn, provider.model_setting(), &validated)?;
     drop(conn);
@@ -191,11 +152,12 @@ pub async fn trigger_answer(
     app: AppHandle,
     question: String,
     session_id: Option<Uuid>,
+    length: Option<crate::window_memory::LengthOverride>,
 ) -> Result<(), String> {
     if question.trim().is_empty() {
         return Err("question cannot be empty".to_string());
     }
-    llm::respond_to_question(app, session_id, question).await;
+    llm::respond_to_question(app, session_id, question, length).await;
     Ok(())
 }
 
@@ -277,54 +239,27 @@ mod tests {
     }
 
     #[test]
-    fn list_llm_providers_offers_only_openai() {
-        assert_eq!(list_llm_providers(), vec![LlmProviderKind::OpenAi]);
+    fn list_llm_providers_offers_openai_and_anthropic() {
+        assert_eq!(list_llm_providers(), vec![LlmProviderKind::OpenAi, LlmProviderKind::Anthropic]);
     }
 
     #[test]
-    fn validate_model_name_accepts_realistic_names() {
-        for name in [
-            "gpt-4o-mini",
-            "o4-mini-2025-04-16",
-            "llama-3.3-70b-versatile",
-            "meta/llama3:8b",
-        ] {
-            assert_eq!(
-                validate_model_name(name).unwrap(),
-                name,
-                "should accept {name}"
-            );
+    fn only_listed_latest_models_are_accepted() {
+        for provider in LlmProviderKind::ALL {
+            for model in provider.model_presets() {
+                assert_eq!(validate_model(provider, &format!("  {model} ")).unwrap(), *model);
+            }
         }
-    }
-
-    #[test]
-    fn validate_model_name_trims_surrounding_whitespace() {
-        assert_eq!(validate_model_name("  gpt-4o  ").unwrap(), "gpt-4o");
-    }
-
-    #[test]
-    fn validate_model_name_rejects_empty_and_whitespace_only() {
-        assert!(validate_model_name("").is_err());
-        assert!(validate_model_name("   ").is_err());
-    }
-
-    #[test]
-    fn validate_model_name_rejects_a_pasted_blob_rather_than_letting_the_provider_400() {
-        // The real accident this guards: pasting a whole curl command, or a
-        // key, into the model box. Failing here with a readable message beats
-        // an opaque provider-side rejection mid-interview.
-        let err =
-            validate_model_name("curl https://api.openai.com -H 'Authorization: Bearer sk-x'")
-                .unwrap_err();
-        assert!(err.contains("model name"), "got {err}");
-        assert!(
-            validate_model_name("gpt-4o\nsomething-else").is_err(),
-            "a newline must be rejected"
-        );
-        assert!(
-            validate_model_name(&"x".repeat(101)).is_err(),
-            "over-length must be rejected"
-        );
+        for (provider, old) in [
+            (LlmProviderKind::OpenAi, "gpt-5.5"),
+            (LlmProviderKind::OpenAi, "gpt-5.4-mini"),
+            (LlmProviderKind::OpenAi, "claude-opus-5-5"),
+            (LlmProviderKind::Anthropic, "claude-sonnet-4-6"),
+            (LlmProviderKind::Anthropic, ""),
+        ] {
+            let err = validate_model(provider, old).unwrap_err();
+            assert!(err.contains("listed models"), "{provider:?} {old}: {err}");
+        }
     }
 
     #[test]
@@ -348,10 +283,10 @@ mod tests {
             settings::get(&conn, LlmProviderKind::OpenAi.model_setting()).unwrap(),
             None
         );
-        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-4o").unwrap();
+        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-5.6-sol").unwrap();
         assert_eq!(
             settings::get(&conn, LlmProviderKind::OpenAi.model_setting()).unwrap(),
-            Some("gpt-4o".to_string())
+            Some("gpt-5.6-sol".to_string())
         );
     }
 
@@ -361,17 +296,15 @@ mod tests {
             assert!(!list_llm_models(kind).is_empty(), "{kind:?} has no presets");
         }
     }
+}
 
-    #[test]
-    fn reject_if_dormant_blocks_every_provider_except_openai() {
-        assert!(reject_if_dormant(LlmProviderKind::OpenAi).is_ok());
-        for kind in [
-            LlmProviderKind::Anthropic,
-            LlmProviderKind::Gemini,
-            LlmProviderKind::Groq,
-        ] {
-            let err = reject_if_dormant(kind).unwrap_err();
-            assert!(err.contains("dormant"));
-        }
-    }
+/// A display-only overview. The original setup text remains the call context.
+#[tauri::command]
+pub async fn summarize_setup_text(
+    app: AppHandle,
+    copilot_id: Option<String>,
+    kind: String,
+    text: String,
+) -> Result<Vec<String>, String> {
+    llm::setup_summary::summarize(&app, copilot_id.as_deref(), &kind, &text).await
 }

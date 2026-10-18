@@ -1,5 +1,5 @@
 //! OpenAI Chat Completions streaming, over plain `reqwest` + hand-rolled
-//! SSE — no `openai` SDK crate, matching `stt/deepgram_live.rs`'s "plain
+//! SSE — no `openai` SDK crate, matching `stt/speechmatics_live.rs`'s "plain
 //! HTTP" convention.
 //!
 //! **Confidence note (per this phase's research step):** the Chat
@@ -7,8 +7,8 @@
 //! `Authorization: Bearer`, `stream: true`, SSE lines of
 //! `data: {"choices":[{"delta":{"content":"..."}}]}` terminated by a literal
 //! `data: [DONE]` — has been stable and documented for a long time and is
-//! used with high confidence. Default model is `gpt-5.6-luna` (fastest
-//! verified GPT-5.6 Chat Completions id). Invalid ids fail HTTP 400.
+//! used with high confidence. Answers use GPT-5.6 Sol, Terra or Luna (Luna
+//! is the default and fastest); background notes use `gpt-5.4-mini`.
 
 use futures_util::StreamExt;
 use serde_json::json;
@@ -18,99 +18,34 @@ use super::timing::TokenUsage;
 use super::{prompt, AnswerSink, LlmProvider, LlmProviderKind};
 
 const ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
-/// Fastest GPT-5.6 Chat Completions id. The stream shape is still
-/// `choices[0].delta.content`. Invalid ids fail with HTTP 400 and surface
-/// as `answer-error` plus the canned stand-in reply.
+/// Fastest GPT-5.6 Chat Completions id, and the first preset.
 pub const DEFAULT_MODEL: &str = "gpt-5.6-luna";
 
-/// Ready-made choices offered in Ask and Settings, for picking the **main**
-/// answer model. Owner's explicit, deliberately short list (2026-08-29) —
-/// Sol, 5.1, plain 5, and 5-mini used to be listed here too but the owner
-/// asked for exactly these five and no more. **Still not a closed list** —
-/// `set_llm_model` accepts any valid-looking name typed into the "or type a
-/// model name" field, so a model released after this was written (or Sol/
-/// 5.1/5/5-mini, if the owner wants one back) doesn't need a code change,
-/// just isn't offered as a one-click preset. Unverified mini ids
-/// (`gpt-5.1-mini`, `gpt-5.5-mini`, `gpt-5.6-mini`) were never listed.
-pub const MODEL_PRESETS: &[&str] = &[
-    "gpt-5.6-luna",
-    "gpt-5.6-terra",
-    "gpt-5.5",
-    "gpt-5.4",
-    "gpt-5.4-mini",
-];
+/// The only GPT models offered and accepted for answers and screenshots:
+/// the GPT-5.6 generation.
+pub const MODEL_PRESETS: &[&str] = &["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
 
-/// Default model for the cheap, asynchronous background memory-compression
-/// pipeline (`llm::background`, `window_memory::background`) — deliberately
-/// a `-mini` id, and one already verified/listed in [`MODEL_PRESETS`]
-/// above, not one of the "unverified, not listed" mini ids that comment
-/// calls out.
+/// The cheap, asynchronous background note-taker (`llm::background`,
+/// `window_memory::background`). Never shown as an answer model.
 pub const BACKGROUND_MODEL: &str = "gpt-5.4-mini";
 
-/// The model Screenshot always uses (2026-08-30, owner request: "use GPT
-/// Terra as default irrespective what model using in the session") —
-/// deliberately ignores whatever text-answer model is configured globally
-/// or per-Copilot. A real, previously-reported "screenshot doesn't work at
-/// all" symptom is consistent with this: before this pin, a screenshot's
-/// model followed the session/Copilot's saved choice, and not every model
-/// in [`MODEL_PRESETS`] is necessarily vision-capable — a non-vision model
-/// silently makes every screenshot request fail at the provider. Pinning to
-/// one known-good vision model removes that whole failure class.
-pub const VISION_MODEL: &str = "gpt-5.6-terra";
-
-/// Model families that do hidden "thinking" before answering, and therefore
-/// accept a `reasoning_effort` knob. Matched by prefix so a dated variant
-/// (`o4-mini-2025-…`) is covered without listing every one.
-const REASONING_FAMILIES: &[&str] = &["gpt-5", "o1", "o3", "o4"];
-
-/// Whether `model` is one of the reasoning families above.
-pub fn is_reasoning_model(model: &str) -> bool {
-    let m = model.trim().to_lowercase();
-    REASONING_FAMILIES.iter().any(|f| m.starts_with(f))
-}
-
-/// The `reasoning_effort` value to send, or `None` to omit the parameter
-/// entirely.
-///
-/// Hidden thinking is not streamed, so a high effort looks like a frozen
-/// screen. GPT-5.1+ and GPT-5.4/5.5/5.6 accept `"none"` and that is the
-/// live interview setting. Original `gpt-5` / `gpt-5-mini` and the o-series
-/// do not accept `"none"` (or `"minimal"` on newer 5.1+ models) — those
-/// keep `"low"`. Ordinary chat models omit the field.
-///
-/// Paid priority / flex service tiers are not sent. They stay optional and
-/// off unless a later setting opts in.
+/// The `reasoning_effort` to send. Hidden thinking is not streamed, so any
+/// thinking looks like a frozen screen mid-interview; every model Aside uses
+/// accepts `"none"`.
 pub fn reasoning_effort_for(model: &str) -> Option<&'static str> {
-    if !is_reasoning_model(model) {
-        return None;
-    }
     let m = model.trim().to_lowercase();
-    if m.starts_with("gpt-5.6")
-        || m.starts_with("gpt-5.5")
-        || m.starts_with("gpt-5.4")
-        || m.starts_with("gpt-5.2")
-        || m.starts_with("gpt-5.1")
-    {
-        Some("none")
-    } else {
-        Some("low")
-    }
+    (m.starts_with("gpt-5.6") || m.starts_with("gpt-5.4")).then_some("none")
 }
 
-/// Whether `temperature`/`top_p`/`seed` may be sent for `model`. Reasoning
-/// models return HTTP 400 for a non-default value of any of them.
+/// Whether `temperature`/`top_p`/`seed` may be sent for `model`. These
+/// reasoning models return HTTP 400 for a non-default value of any of them.
 ///
 /// Nothing sends sampling parameters today; this function plus its test
 /// exist so that a future "let's add temperature" change can't silently
-/// break every reasoning model. It is a tripwire, not dead weight.
-///
-/// `#[allow(dead_code)]` is honest here: production code doesn't call this
-/// *because* nothing currently sends sampling parameters, which is exactly
-/// the state it guards. Its test asserts the request body stays free of
-/// them.
+/// break every answer. It is a tripwire, not dead weight.
 #[allow(dead_code)]
 pub fn supports_sampling_params(model: &str) -> bool {
-    !is_reasoning_model(model)
+    reasoning_effort_for(model).is_none()
 }
 
 pub struct OpenAiProvider {
@@ -223,7 +158,7 @@ pub fn extract_usage(data: &str) -> Option<TokenUsage> {
 
 /// Extracts the text delta from one SSE `data:` payload, or `None` for the
 /// `[DONE]` sentinel / a chunk with no content (e.g. the first chunk, which
-/// only carries the role). Shared by `groq.rs`, which is wire-compatible.
+/// only carries the role).
 pub fn extract_delta(data: &str) -> Option<String> {
     if data.trim() == "[DONE]" {
         return None;
@@ -234,31 +169,9 @@ pub fn extract_delta(data: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-/// The actual HTTP + SSE streaming loop — shared by `openai.rs` and
-/// `groq.rs` (wire-compatible APIs), which is why it takes `endpoint`
-/// rather than being hardcoded to OpenAI's URL.
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn run_openai_compatible_stream(
-    client: &reqwest::Client,
-    endpoint: &str,
-    api_key: &str,
-    model: &str,
-    provider_label: &str,
-    question: &str,
-    context: Option<&str>,
-    sink: &mut dyn AnswerSink,
-) -> Result<(), String> {
-    let body = build_request_body(model, question, context);
-    stream_prebuilt_body(client, endpoint, api_key, provider_label, body, sink).await
-}
-
-/// The HTTP + SSE half, with the request body handed in already built.
-///
-/// Split out from [`run_openai_compatible_stream`] so the vision path
-/// ([`stream_vision_answer`]) reuses this exact decoding loop rather than
-/// duplicating it — two body builders, one stream reader. The alternative
-/// (copying the loop) is precisely how the two paths would drift on error
-/// handling or `[DONE]` framing later.
+/// The HTTP + SSE streaming loop, with the request body handed in already
+/// built — shared by text answers and screenshots so the two can't drift on
+/// error handling or `[DONE]` framing.
 async fn stream_prebuilt_body(
     client: &reqwest::Client,
     endpoint: &str,
@@ -320,16 +233,11 @@ async fn stream_prebuilt_body(
     if saw_text { Ok(()) } else { Err(format!("{provider_label}: the AI stream ended without an answer. Please try again.")) }
 }
 
-// --- Vision (⌘⇧↩ "look at my screen", 2026-08-25) ---
+// --- Screenshots ---
 //
-// A parallel function rather than a widened `LlmProvider` trait, and
-// deliberately so: `LlmProviderKind::ENABLED` is `[OpenAi]` only, so
-// widening the trait would force three dormant provider files to grow a
-// "vision not supported" arm for no benefit, and `FallbackLlmProvider` has
-// no meaningful vision fallback to orchestrate anyway. Stated cost: a
-// vision failure has no automatic second provider to try. Everything
-// downstream — `AnswerSink`, `SplittingSink`, the `answer-*` events, the
-// panel's `AnswerCard` — is reused completely unchanged.
+// Screenshots use the call's own model (`LlmProvider::stream_vision`); every
+// GPT-5.6 model reads images. Everything downstream (`AnswerSink`, the
+// `answer-*` events, the panel) is the same as for a spoken question.
 
 /// The vision request body — pure, so its shape is testable without a
 /// network call or a real screenshot.
@@ -340,44 +248,29 @@ async fn stream_prebuilt_body(
 /// the low-detail mode downsamples aggressively.
 pub fn build_vision_request_body(
     model: &str,
+    system: &str,
+    user_text: &str,
     jpeg_base64: &str,
-    context: Option<&str>,
-    question: Option<&str>,
 ) -> serde_json::Value {
     let mut body = json!({
         "model": model,
         "stream": true,
         "messages": [
-            {"role": "system", "content": super::vision_prompt::VISION_SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": [
-                {"type": "text", "text": super::vision_prompt::vision_user_prompt(context, question)},
+                {"type": "text", "text": user_text},
                 {"type": "image_url", "image_url": {
                     "url": format!("data:image/jpeg;base64,{jpeg_base64}"),
                     "detail": "high",
                 }},
             ]},
         ],
-        "prompt_cache_key": prompt::cache_key(super::vision_prompt::VISION_SYSTEM_PROMPT),
+        "prompt_cache_key": prompt::cache_key(system),
     });
     if let Some(effort) = reasoning_effort_for(model) {
         body["reasoning_effort"] = json!(effort);
     }
     body
-}
-
-/// Streams an answer about a screenshot, through the same sink (and so the
-/// same events, and so the same panel UI) as an ordinary spoken question.
-pub async fn stream_vision_answer(
-    client: &reqwest::Client,
-    api_key: &str,
-    model: &str,
-    jpeg_base64: &str,
-    context: Option<&str>,
-    question: Option<&str>,
-    sink: &mut dyn AnswerSink,
-) -> Result<(), String> {
-    let body = build_vision_request_body(model, jpeg_base64, context, question);
-    stream_prebuilt_body(client, ENDPOINT, api_key, "openai", body, sink).await
 }
 
 #[async_trait::async_trait]
@@ -397,6 +290,18 @@ impl LlmProvider for OpenAiProvider {
         sink: &mut dyn AnswerSink,
     ) -> Result<(), String> {
         let mut body = build_request_body(&self.model, question, context);
+        apply_live_openai_options(&mut body, self.service_tier.as_deref());
+        stream_prebuilt_body(&self.client, ENDPOINT, &self.api_key, "openai", body, sink).await
+    }
+
+    async fn stream_vision(
+        &self,
+        system: &str,
+        user_text: &str,
+        jpeg_base64: &str,
+        sink: &mut dyn AnswerSink,
+    ) -> Result<(), String> {
+        let mut body = build_vision_request_body(&self.model, system, user_text, jpeg_base64);
         apply_live_openai_options(&mut body, self.service_tier.as_deref());
         stream_prebuilt_body(&self.client, ENDPOINT, &self.api_key, "openai", body, sink).await
     }
@@ -447,7 +352,7 @@ mod tests {
                 write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", events.len(), events).unwrap();
             });
             let mut sink = TextSink::default();
-            let body = build_vision_request_body(VISION_MODEL, "test-image", None, None);
+            let body = build_vision_request_body(DEFAULT_MODEL, super::super::vision_prompt::VISION_SYSTEM_PROMPT, "Look at my screen.", "test-image");
             let result = stream_prebuilt_body(&reqwest::Client::new(), &format!("http://{address}"), "test-key", "test-provider", body, &mut sink).await;
             server.join().unwrap();
             if let Some(message) = expected_error { assert!(result.unwrap_err().contains(message)); }
@@ -457,8 +362,8 @@ mod tests {
 
     #[test]
     fn request_body_has_stream_true_and_both_messages() {
-        let body = build_request_body("gpt-4o-mini", "what is rust", None);
-        assert_eq!(body["model"], "gpt-4o-mini");
+        let body = build_request_body("gpt-5.6-luna", "what is rust", None);
+        assert_eq!(body["model"], "gpt-5.6-luna");
         assert_eq!(body["stream"], true);
         assert_eq!(body["messages"][0]["role"], "system");
         assert_eq!(body["messages"][1]["role"], "user");
@@ -469,82 +374,30 @@ mod tests {
     }
 
     #[test]
-    fn a_chat_model_gets_no_reasoning_effort_parameter_at_all() {
-        // Sending it to a non-reasoning model is an error, not a no-op —
-        // omitted entirely, not set to some "off" value.
-        let body = build_request_body("gpt-4o-mini", "q", None);
-        assert!(body.get("reasoning_effort").is_none(), "got {body}");
-    }
-
-    #[test]
-    fn gpt_5_6_live_interview_models_send_reasoning_effort_none() {
-        for model in [
-            "gpt-5.6-luna",
-            "gpt-5.6-terra",
-            "gpt-5.6-sol",
-            "gpt-5.5",
-            "gpt-5.4",
-            "gpt-5.1",
-        ] {
-            let body = build_request_body(model, "q", None);
-            assert_eq!(
-                body["reasoning_effort"], "none",
-                "model {model} produced {body}"
-            );
-        }
-    }
-
-    #[test]
-    fn original_gpt_5_and_o_series_keep_low_because_none_is_unsupported() {
-        for model in ["gpt-5", "gpt-5-mini", "o1-preview", "o3-mini", "o4-mini"] {
-            let body = build_request_body(model, "q", None);
-            assert_eq!(
-                body["reasoning_effort"], "low",
-                "model {model} produced {body}"
-            );
-        }
-    }
-
-    #[test]
-    fn luna_and_terra_are_offered_presets_and_the_request_names_them() {
-        assert!(MODEL_PRESETS.contains(&"gpt-5.6-luna"));
-        assert!(MODEL_PRESETS.contains(&"gpt-5.6-terra"));
+    fn only_the_gpt_5_6_generation_is_offered_and_luna_is_the_default() {
+        assert_eq!(MODEL_PRESETS, &["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"]);
         assert_eq!(MODEL_PRESETS[0], DEFAULT_MODEL);
-        let body = build_request_body("gpt-5.6-terra", "q", None);
-        assert_eq!(body["model"], "gpt-5.6-terra");
-        assert_eq!(body["stream"], true);
-        assert_eq!(body["reasoning_effort"], "none");
+        assert!(!MODEL_PRESETS.contains(&BACKGROUND_MODEL), "background model is not an answer choice");
     }
 
     #[test]
-    fn reasoning_effort_is_never_minimal() {
-        // `minimal` was removed after the original gpt-5 line and now
-        // returns HTTP 400 on newer models — a hard failure of the whole
-        // answer mid-interview, not a slower one. This test is the guard
-        // against someone "optimizing" `low` down to `minimal`.
-        for model in [
-            "gpt-5",
-            "gpt-5.6-luna",
-            "o1",
-            "o3",
-            "o4-mini",
-            "gpt-4o-mini",
-        ] {
-            assert_ne!(
-                reasoning_effort_for(model),
-                Some("minimal"),
-                "model {model}"
-            );
+    fn every_model_aside_uses_sends_reasoning_effort_none() {
+        for model in MODEL_PRESETS.iter().copied().chain([BACKGROUND_MODEL]) {
+            let body = build_request_body(model, "q", None);
+            assert_eq!(body["reasoning_effort"], "none", "model {model} produced {body}");
+            assert_eq!(body["model"], model);
+            assert_eq!(body["stream"], true);
         }
-        assert_ne!(reasoning_effort_for("gpt-5.6-luna"), Some("low"));
     }
 
     #[test]
-    fn reasoning_families_are_matched_by_prefix_so_dated_variants_are_covered() {
-        assert!(is_reasoning_model("o4-mini-2025-04-16"));
-        assert!(is_reasoning_model("gpt-5.1-turbo"));
-        assert!(!is_reasoning_model("gpt-4o"));
-        assert!(!is_reasoning_model("gpt-4.1-mini"));
+    fn a_screenshot_uses_the_given_model_and_carries_the_image() {
+        let body = build_vision_request_body("gpt-5.6-sol", "SYSTEM", "What is on screen?", "abc");
+        assert_eq!(body["model"], "gpt-5.6-sol");
+        assert_eq!(body["reasoning_effort"], "none");
+        assert_eq!(body["messages"][0]["content"], "SYSTEM");
+        assert_eq!(body["messages"][1]["content"][0]["text"], "What is on screen?");
+        assert_eq!(body["messages"][1]["content"][1]["image_url"]["url"], "data:image/jpeg;base64,abc");
     }
 
     #[test]
@@ -552,7 +405,7 @@ mod tests {
         // Nothing sends these today; this is a tripwire so a future
         // "let's add temperature" change can't silently 400 every
         // reasoning model.
-        for model in ["gpt-5", "o3-mini"] {
+        for model in MODEL_PRESETS {
             assert!(!supports_sampling_params(model));
             let body = build_request_body(model, "q", None);
             for param in ["temperature", "top_p", "seed"] {
@@ -562,13 +415,12 @@ mod tests {
                 );
             }
         }
-        assert!(supports_sampling_params("gpt-4o-mini"));
     }
 
     #[test]
     fn the_request_carries_a_stable_prompt_cache_key() {
-        let a = build_request_body("gpt-4o-mini", "first question", None);
-        let b = build_request_body("gpt-4o-mini", "a totally different question", None);
+        let a = build_request_body("gpt-5.6-luna", "first question", None);
+        let b = build_request_body("gpt-5.6-luna", "a totally different question", None);
         assert_eq!(
             a["prompt_cache_key"], b["prompt_cache_key"],
             "the key must key off the stable system prefix, not the question"
@@ -586,12 +438,12 @@ mod tests {
             prompt::SYSTEM_PROMPT
         );
         let a = build_request_body(
-            "gpt-4o-mini",
+            "gpt-5.6-luna",
             "q1",
             Some(&prompt::encode_messages(&sys, "user one")),
         );
         let b = build_request_body(
-            "gpt-4o-mini",
+            "gpt-5.6-luna",
             "q2",
             Some(&prompt::encode_messages(&sys, "user two")),
         );
@@ -606,9 +458,9 @@ mod tests {
         let p = OpenAiProvider::new(
             reqwest::Client::new(),
             "sk".to_string(),
-            Some("gpt-4o".to_string()),
+            Some("gpt-5.6-sol".to_string()),
         );
-        assert_eq!(p.model(), "gpt-4o");
+        assert_eq!(p.model(), "gpt-5.6-sol");
     }
 
     #[test]
@@ -630,7 +482,7 @@ mod tests {
     #[test]
     fn request_body_splices_retrieved_context_into_the_user_message() {
         let body = build_request_body(
-            "gpt-4o-mini",
+            "gpt-5.6-luna",
             "what is rust",
             Some("[you] I use Rust daily"),
         );
@@ -718,7 +570,7 @@ mod tests {
     // NOTE: `run_openai_compatible_stream`'s actual network path (a real
     // 200 SSE stream, or a real 401) is untested here — it needs a live
     // API key, which this session does not have. Same honest gap as
-    // Deepgram/Speechmatics (`status.md` 4.10/4.13): the pure request/parse
+    // Speechmatics (`status.md` 4.13): the pure request/parse
     // logic above is real, unit-tested code; the HTTP call itself has never
     // been exercised against the real service.
 }

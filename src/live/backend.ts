@@ -17,7 +17,7 @@ import type {
   TranscriptEvent,
   VadStatus,
 } from "../bridge/types";
-import type { Result } from "../bridge/api";
+import type { AnswerLength, Result } from "../bridge/api";
 import type { ChannelKey, LiveAction } from "./machine";
 
 export type ResizeDirection = Parameters<ReturnType<typeof getCurrentWindow>["startResizeDragging"]>[0];
@@ -45,9 +45,9 @@ export interface LiveBackend {
   /** Start listening on one ear (capture, then transcription). Resolves to the device name. */
   startChannel(channel: ChannelKey, session: ActiveSessionInfo | null): Promise<Result<string | null>>;
   stopChannel(channel: ChannelKey): Promise<void>;
-  answerWindow(): Promise<Result<void>>;
+  answerWindow(length: AnswerLength | null): Promise<Result<void>>;
   answerScreenshot(): Promise<Result<void>>;
-  ask(question: string, sessionId: string | null): Promise<Result<void>>;
+  ask(question: string, sessionId: string | null, length: AnswerLength | null): Promise<Result<void>>;
   end(sessionId: string | null): Promise<Result<void>>;
   savePrefs(prefs: OverlayPrefs): Promise<OverlayPrefs | null>;
   /** Puts the window back at its normal size, somewhere all of it shows. */
@@ -136,9 +136,9 @@ export const tauriBackend: LiveBackend = {
     await api.audio.stop(channel);
   },
 
-  answerWindow: () => api.live.answerWindow(null),
+  answerWindow: (length) => api.live.answerWindow(length),
   answerScreenshot: () => api.live.answerScreenshot(),
-  ask: (question, sessionId) => api.live.ask(question, sessionId),
+  ask: (question, sessionId, length) => api.live.ask(question, sessionId, length),
   end: (sessionId) => api.live.end(sessionId),
 
   async savePrefs(prefs) {

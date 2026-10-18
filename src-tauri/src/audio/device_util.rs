@@ -245,3 +245,60 @@ mod tests {
         assert!(same_physical_device(Some("abc:Output"), Some("abc:Input")));
     }
 }
+
+/// A driver or permission prompt must not leave startup waiting forever.
+/// A worker that answers late sees the stop flag and drops its stream.
+pub(super) fn wait_for_capture_start<T>(
+    receiver: &std::sync::mpsc::Receiver<Result<T, String>>,
+    stop: &std::sync::atomic::AtomicBool,
+    timeout: std::time::Duration,
+    label: &str,
+) -> Result<T, String> {
+    let result = match receiver.recv_timeout(timeout) {
+        Ok(result) => result,
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(format!("{label} did not respond. Check its permission and device, then retry. If you just allowed recording, quit and reopen Aside.")),
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(format!("{label} stopped before it could start. Try again.")),
+    };
+    if result.is_err() {
+        stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+    result
+}
+
+#[cfg(test)]
+mod capture_start_tests {
+    use super::wait_for_capture_start;
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    };
+    use std::time::Duration;
+    #[test]
+    fn an_unresponsive_driver_times_out_and_cancels_late_capture() {
+        let (_tx, rx) = mpsc::channel::<Result<(), String>>();
+        let stop = AtomicBool::new(false);
+        assert!(
+            wait_for_capture_start(&rx, &stop, Duration::from_millis(1), "System audio")
+                .unwrap_err()
+                .contains("did not respond")
+        );
+        assert!(stop.load(Ordering::SeqCst));
+    }
+    #[test]
+    fn ready_capture_continues_and_a_real_error_is_preserved() {
+        let (tx, rx) = mpsc::channel();
+        let stop = AtomicBool::new(false);
+        tx.send(Ok(42)).unwrap();
+        assert_eq!(
+            wait_for_capture_start(&rx, &stop, Duration::from_millis(5), "Microphone"),
+            Ok(42)
+        );
+        assert!(!stop.load(Ordering::SeqCst));
+        tx.send(Err("Permission denied".into())).unwrap();
+        assert_eq!(
+            wait_for_capture_start(&rx, &stop, Duration::from_millis(5), "Microphone"),
+            Err("Permission denied".into())
+        );
+        assert!(stop.load(Ordering::SeqCst));
+    }
+}

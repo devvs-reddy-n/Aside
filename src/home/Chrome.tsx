@@ -8,7 +8,7 @@ import { Dialog } from "../kit/Dialog";
 /**
  * The window uses the Mac's own red/yellow/green buttons now. What is left
  * here is the "Quit Aside?" question, opened by the app menu's Quit. The red
- * window button quits at once without asking.
+ * window button and keyboard Quit use the same confirmation.
  */
 export function QuitGuard() {
   const [asking, setAsking] = useState(false);
@@ -24,7 +24,7 @@ export function QuitGuard() {
       footer={
         <>
           <Button variant="ghost" onClick={() => setAsking(false)}>Cancel</Button>
-          <Button variant="danger" onClick={() => void api.windows.confirmQuit()}>Quit</Button>
+          <Button className="btn--end-quit" variant="danger" onClick={() => void api.windows.confirmQuit()}>Quit</Button>
         </>
       }
     >

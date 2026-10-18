@@ -23,7 +23,8 @@ export function CopilotsPage({ selectedId }: { selectedId: string | null }) {
   const { items, loaded, hiddenIds } = useStore(copilotsStore, (state) => state);
   const [starting, setStarting] = useState<CopilotSummary | Copilot | null>(null);
   const [linkFirst, setLinkFirst] = useState(false);
-  const visible = items.filter((copilot) => !hiddenIds.includes(copilot.id));
+  // Retired setup records stay hidden; their saved calls remain in History.
+  const visible = items.filter((copilot) => copilot.kind !== "screen" && !hiddenIds.includes(copilot.id));
   const creating = selectedId === "new";
   const selected = creating ? null : visible.find((copilot) => copilot.id === selectedId) ?? visible[0] ?? null;
 

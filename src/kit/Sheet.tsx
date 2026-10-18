@@ -2,7 +2,7 @@ import * as D from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { IconButton } from "./Button";
-import { EASE_OUT, FAST, SLOW } from "./motion";
+import { FAST, SPRING } from "./motion";
 
 /**
  * A panel that slides in from the right over a softly dimmed window. Used for
@@ -26,7 +26,7 @@ export function Sheet({ open, onClose, title, meta, children, footer, width = 60
                 initial={{ x: 24, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: 24, opacity: 0 }}
-                transition={{ duration: SLOW, ease: EASE_OUT }}
+                transition={SPRING}
               >
                 <header className="sheet__head">
                   <div className="sheet__heading">

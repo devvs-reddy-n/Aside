@@ -8,14 +8,11 @@
 //! buffering) or "finalize now" (its own stop-of-speech fired).
 //!
 //! **What's implemented:** the trait, a local-only hallucination filter
-//! (Parakeet EOU finals; cloud engines already filter their own output), a
-//! live Deepgram Nova WebSocket engine, a live Speechmatics WebSocket engine,
-//! and a local Parakeet Realtime EOU 120M engine (`parakeet-rs`, one English
-//! ONNX model, downloaded and cached on demand). Deepgram **Flux** is out of
-//! scope.
+//! (Parakeet EOU finals; Speechmatics already filters its own output), a
+//! live Speechmatics WebSocket engine, and a local Parakeet Realtime EOU 120M
+//! engine (`parakeet-rs`, one English ONNX model, downloaded and cached on
+//! demand). These are the only two engines.
 
-pub mod deepgram;
-pub mod deepgram_live;
 pub mod hallucination_filter;
 pub mod parakeet_cache;
 pub mod parakeet_local;
@@ -39,7 +36,6 @@ pub enum EngineKind {
     /// Local inference — needs the downloaded Parakeet Realtime EOU 120M
     /// model but no API key.
     ParakeetLocal,
-    Deepgram,
     /// The engine ParakeetAI itself uses (named directly in their privacy
     /// policy), which is why it is here: matching that product's transcript
     /// quality is the acceptance criterion this project is measured against.
@@ -47,32 +43,8 @@ pub enum EngineKind {
 }
 
 impl EngineKind {
-    /// Every engine with a real, working implementation, dormant or not.
-    /// Product Settings still uses `ENABLED`; the STT Inspector lists `ALL`
-    /// so Deepgram can be tested without turning it back on in the old UI.
-    #[cfg(test)]
-    pub const ALL: [EngineKind; 3] = [
-        EngineKind::ParakeetLocal,
-        EngineKind::Deepgram,
-        EngineKind::Speechmatics,
-    ];
-
-    /// Engines currently offered for selection — narrowed from `ALL` at the
-    /// owner's request (2026-08-24): Deepgram is dormant while local
-    /// Parakeet and Speechmatics are the two in active use. **Dormant, not
-    /// removed** — `DeepgramLiveEngine`, its settings, and every test stay
-    /// real and working; this list is the only thing that changed. Flip
-    /// this back to `ALL` (or add the variant back individually) to
-    /// re-enable it — no other code needs to change.
-    pub const ENABLED: [EngineKind; 2] = [EngineKind::ParakeetLocal, EngineKind::Speechmatics];
-
-    /// Whether this engine is currently selectable — checked by
-    /// `commands::stt::list_stt_engines` (so a dormant engine never appears
-    /// in a dropdown) and `set_stt_engine` (so it can't be set some other
-    /// way, e.g. a stale frontend build or a hand-crafted `invoke` call).
-    pub fn is_enabled(self) -> bool {
-        Self::ENABLED.contains(&self)
-    }
+    /// The two engines Aside supports, in the order Settings lists them.
+    pub const ALL: [EngineKind; 2] = [EngineKind::ParakeetLocal, EngineKind::Speechmatics];
 
     /// The `storage::settings` key this engine's API key is saved under, or
     /// `None` for engines that don't need one. Centralized here so the
@@ -81,7 +53,6 @@ impl EngineKind {
     pub fn api_key_setting(self) -> Option<&'static str> {
         match self {
             EngineKind::ParakeetLocal => None,
-            EngineKind::Deepgram => Some("stt_api_key_deepgram"),
             EngineKind::Speechmatics => Some("stt_api_key_speechmatics"),
         }
     }
@@ -92,7 +63,6 @@ impl EngineKind {
     pub fn as_setting_value(self) -> &'static str {
         match self {
             EngineKind::ParakeetLocal => "parakeet_local",
-            EngineKind::Deepgram => "deepgram",
             EngineKind::Speechmatics => "speechmatics",
         }
     }
@@ -100,7 +70,6 @@ impl EngineKind {
     pub fn from_setting_value(s: &str) -> Option<Self> {
         match s {
             "parakeet_local" => Some(EngineKind::ParakeetLocal),
-            "deepgram" => Some(EngineKind::Deepgram),
             "speechmatics" => Some(EngineKind::Speechmatics),
             _ => None,
         }
@@ -108,8 +77,7 @@ impl EngineKind {
 
     /// The `origin` column value `storage/transcripts.rs` writes for a
     /// segment produced by this engine — matching `storage/migrations.rs`'s
-    /// `transcript_segments` `CHECK (origin IN ('local_parakeet','deepgram','speechmatics'))`
-    /// exactly. Deliberately a separate mapping from `as_setting_value`
+    /// `transcript_segments` origin `CHECK` constraint exactly. Deliberately a separate mapping from `as_setting_value`
     /// above: that string (`"parakeet_local"`) predates this column and
     /// doesn't match the schema's spelling (`"local_parakeet"`). Centralizing
     /// it here, next to the setting-value mapping it's easy to confuse this
@@ -118,7 +86,6 @@ impl EngineKind {
     pub fn origin_db_value(self) -> &'static str {
         match self {
             EngineKind::ParakeetLocal => "local_parakeet",
-            EngineKind::Deepgram => "deepgram",
             EngineKind::Speechmatics => "speechmatics",
         }
     }
@@ -166,7 +133,7 @@ pub fn normalize_api_key(key: &str) -> Result<String, String> {
 ///
 /// - `is_final: false` — `text` is the current preview. A consumer
 ///   **replaces** its live preview with it and never appends. Engines differ
-///   in what that preview spans (Deepgram restates the whole open utterance;
+///   in what that preview spans (Parakeet restates the whole open utterance;
 ///   Speechmatics' partials cover only the not-yet-finalized tail), and that
 ///   is fine: "replace the preview" renders identically either way.
 /// - `is_final: true` — `text` is a **complete, self-contained** piece of
@@ -254,7 +221,7 @@ mod tests {
         // storage/migrations.rs's CHECK constraint pins these exact three
         // strings; this test fails loudly if either list is ever edited
         // without the other.
-        let expected = ["local_parakeet", "deepgram", "speechmatics"];
+        let expected = ["local_parakeet", "speechmatics"];
         for (kind, want) in EngineKind::ALL.iter().zip(expected) {
             assert_eq!(
                 kind.origin_db_value(),
@@ -281,37 +248,17 @@ mod tests {
     }
 
     #[test]
-    fn deepgram_is_dormant_local_and_speechmatics_are_enabled() {
-        assert!(
-            !EngineKind::Deepgram.is_enabled(),
-            "Deepgram must be dormant per the 2026-08-24 owner request"
-        );
-        assert!(EngineKind::ParakeetLocal.is_enabled());
-        assert!(EngineKind::Speechmatics.is_enabled());
-    }
-
-    #[test]
-    fn enabled_is_a_real_subset_of_all_not_a_disjoint_list() {
-        for kind in EngineKind::ENABLED {
-            assert!(
-                EngineKind::ALL.contains(&kind),
-                "{kind:?} is enabled but not a real EngineKind::ALL member"
-            );
-        }
-    }
-
-    #[test]
     fn every_live_engine_has_native_endpointing() {
         // The filter matrix: VAD must not flush STT because each of these
-        // already detects "they stopped talking" (EOU token / UtteranceEnd /
-        // AddTranscript). Adding an engine without native endpointing means
+        // already detects "they stopped talking" (EOU token / EndOfUtterance). Adding an engine without native endpointing means
         // this test must be revisited, not silently inheriting the skip.
         for kind in EngineKind::ALL {
             match kind {
-                EngineKind::ParakeetLocal | EngineKind::Deepgram | EngineKind::Speechmatics => {}
+                EngineKind::ParakeetLocal | EngineKind::Speechmatics => {}
             }
         }
-        assert_eq!(EngineKind::ALL.len(), 3);
+        assert_eq!(EngineKind::ALL.len(), 2);
+        assert_eq!(EngineKind::from_setting_value("deepgram"), None, "removed engine");
     }
 
     #[test]
@@ -323,7 +270,7 @@ mod tests {
 
     #[test]
     fn a_real_looking_key_is_accepted() {
-        assert!(validate_api_key("dg_abc123").is_ok());
+        assert!(validate_api_key("sm_abc123").is_ok());
         assert_eq!(normalize_api_key("  abc123 \n").unwrap(), "abc123");
         assert_eq!(normalize_api_key("Bearer abc123").unwrap(), "abc123");
         assert_eq!(normalize_api_key("\"abc123\"").unwrap(), "abc123");

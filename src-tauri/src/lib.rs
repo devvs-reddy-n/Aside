@@ -34,7 +34,7 @@ pub fn run() {
     // the first handshake panics ("no process-level CryptoProvider
     // available"). `reqwest` (used by the cloud STT engines and model
     // downloads) may install one lazily on its own first request, but the
-    // Deepgram WebSocket engine can open a TLS connection before any REST
+    // Speechmatics WebSocket engine can open a TLS connection before any REST
     // call ever happens — so this can't rely on that ordering. Verified
     // during the Phase 4 continuation research (`docs/evidence.md`);
     // `aws_lc_rs` matches the backend already in this project's dependency
@@ -73,6 +73,7 @@ pub fn run() {
         .manage(screen::cache::ScreenCache::default())
         .manage(stealth::OnScreenHidden::default())
         .manage(lifecycle::QuitDecision::default())
+        .manage(window_buttons::BubbleState::default())
         // One HTTP client for the whole process, not one per question.
         // `build_provider_chain` used to call `reqwest::Client::new()` on
         // every answer, so every question paid a fresh TCP + TLS handshake
@@ -86,6 +87,7 @@ pub fn run() {
             commands::audio::start_mic_capture,
             commands::audio::stop_mic_capture,
             commands::audio::start_system_audio_capture,
+            commands::audio::play_system_audio_test,
             commands::audio::stop_system_audio_capture,
             commands::audio::list_output_devices,
             commands::audio::list_input_devices,
@@ -112,6 +114,7 @@ pub fn run() {
             commands::copilots::update_copilot,
             commands::copilots::delete_copilot,
             commands::copilots::start_copilot_call,
+            commands::copilots::start_resume_quick_call,
             commands::stt::list_stt_engines,
             commands::stt::get_stt_engine,
             commands::stt::set_stt_engine,
@@ -123,6 +126,7 @@ pub fn run() {
             commands::stt::stop_channel_transcription,
             commands::capture::get_capture_status,
             commands::llm::list_llm_providers,
+            commands::llm::summarize_setup_text,
             commands::llm::get_llm_provider,
             commands::llm::set_llm_provider,
             commands::llm::set_llm_api_key,
@@ -150,6 +154,7 @@ pub fn run() {
             commands::past_sessions::summarize_past_session,
             commands::past_sessions::search_transcripts,
             commands::past_sessions::delete_session,
+            commands::past_sessions::delete_history_sessions,
             commands::overlay::open_overlay,
             commands::overlay::resize_overlay,
             commands::overlay_resize::drag_resize_overlay,
@@ -164,7 +169,9 @@ pub fn run() {
             stealth::set_stealth,
             stealth::toggle_on_screen_command,
             lifecycle::request_quit_command,
-            lifecycle::confirm_quit
+            lifecycle::confirm_quit,
+            window_buttons::restore_bubble,
+            window_buttons::toggle_visibility
         ])
         .setup(|app| {
             let data_dir = app.path().app_data_dir().expect("resolve app data dir");
@@ -192,13 +199,16 @@ pub fn run() {
             // the same place `llm::spawn_prewarm` is.
             window_memory::init_background_worker(app.handle());
 
-            // The red button (and Cmd+W) quits Aside at once, live window
-            // included; the yellow one is Aside's own (`window_buttons`).
+            // Closing asks before quitting; minimizing keeps a visible bubble.
             if let Some(main) = app.get_webview_window("main") {
                 // A window taller than the usable screen looks "cut in the
                 // middle"; shrink and move it until all of it is visible.
                 window_fit::fit_window(&main, 960, 640);
                 window_buttons::install(&main);
+                // Windows starts hidden until saved capture/taskbar policy is set.
+                // Otherwise a disabled Stealth preference could briefly be ignored.
+                #[cfg(target_os = "windows")]
+                main.show()?;
                 let app_for_quit = app.handle().clone();
                 main.on_window_event(move |event| {
                     // Also runs on the main thread's native event-dispatch
@@ -207,7 +217,13 @@ pub fn run() {
                     if let Err(message) = panic_guard::catch("closing the window", || {
                         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                             api.prevent_close();
-                            window_buttons::quit_now(&app_for_quit);
+                            lifecycle::request_quit(&app_for_quit);
+                        } else if let tauri::WindowEvent::Resized(_) = event {
+                            if let Some(main) = app_for_quit.get_webview_window("main") {
+                                if main.is_minimized().unwrap_or(false) {
+                                    window_buttons::minimize(&app_for_quit, &main);
+                                }
+                            }
                         }
                     }) {
                         eprintln!("{message}");

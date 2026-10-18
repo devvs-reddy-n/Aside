@@ -305,7 +305,7 @@ mod tests {
             &conn,
             session_id,
             "system",
-            "deepgram",
+            "speechmatics",
             "them: hi back",
             100,
             200,
@@ -320,7 +320,7 @@ mod tests {
         assert_eq!(mic.channel, "mic");
         assert_eq!(mic.origin, "local_parakeet");
         assert_eq!(system.channel, "system");
-        assert_eq!(system.origin, "deepgram");
+        assert_eq!(system.origin, "speechmatics");
     }
 
     #[test]
@@ -356,7 +356,7 @@ mod tests {
         )
         .unwrap();
         insert_segment(
-            &conn, session_id, "system", "deepgram", "second", 2_000, 2_500, None, true, 2_500,
+            &conn, session_id, "system", "speechmatics", "second", 2_000, 2_500, None, true, 2_500,
         )
         .unwrap();
 

@@ -297,6 +297,39 @@ CREATE INDEX IF NOT EXISTS idx_session_window_summaries_session
   ON session_window_summaries(session_id, seq);
 "#;
 
+/// Copilots come in two kinds (2026-10-08): a full `interview` setup with its
+/// own guidance, and a quick recruiter `screen` that shares one guidance with
+/// every other screen. Existing rows stay interviews.
+const V10_SCHEMA: &str = r#"
+ALTER TABLE copilots ADD COLUMN kind TEXT NOT NULL DEFAULT 'interview' CHECK (kind IN ('interview','screen'));
+"#;
+
+/// 2026-10-17: Aside supports only Speechmatics/Parakeet speech and
+/// GPT-5.6 / current Claude answer models. Removes settings (including any
+/// saved keys) for the deleted engines and providers, and points Copilots
+/// that chose a removed model back at the Settings default. Data only; the
+/// schema is unchanged.
+const V11_SCHEMA: &str = r#"
+DELETE FROM settings WHERE key IN (
+  'stt_api_key_deepgram',
+  'llm_api_key_gemini', 'llm_api_key_groq',
+  'llm_model_gemini', 'llm_model_groq',
+  'llm_background_model_openai', 'llm_background_model_anthropic',
+  'llm_background_model_gemini', 'llm_background_model_groq'
+);
+DELETE FROM settings WHERE key = 'stt_engine' AND value NOT IN ('speechmatics', 'parakeet_local');
+DELETE FROM settings WHERE key = 'llm_provider' AND value NOT IN ('openai', 'anthropic');
+DELETE FROM settings WHERE key = 'llm_model_openai'
+  AND value NOT IN ('gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol');
+DELETE FROM settings WHERE key = 'llm_model_anthropic'
+  AND value NOT IN ('claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1');
+UPDATE copilots SET llm_provider = 'open_ai', llm_model = 'default'
+  WHERE llm_provider NOT IN ('open_ai', 'anthropic')
+     OR (llm_model <> 'default' AND llm_model NOT IN (
+       'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol',
+       'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1'));
+"#;
+
 /// Brings `conn`'s schema up to the latest version. Safe to call on every
 /// startup, including against a database that's already current — each step
 /// only runs if `user_version` says it hasn't yet, and table creation itself
@@ -385,6 +418,20 @@ pub fn run(conn: &Connection) -> Result<(), String> {
             .map_err(|e| format!("failed to record schema version 9: {e}"))?;
     }
 
+    if version < 10 {
+        conn.execute_batch(V10_SCHEMA)
+            .map_err(|e| format!("migration v10 failed: {e}"))?;
+        conn.pragma_update(None, "user_version", 10)
+            .map_err(|e| format!("failed to record schema version 10: {e}"))?;
+    }
+
+    if version < 11 {
+        conn.execute_batch(V11_SCHEMA)
+            .map_err(|e| format!("migration v11 failed: {e}"))?;
+        conn.pragma_update(None, "user_version", 11)
+            .map_err(|e| format!("failed to record schema version 11: {e}"))?;
+    }
+
     Ok(())
 }
 
@@ -399,7 +446,7 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(version, 9);
+        assert_eq!(version, 11);
     }
 
     #[test]
@@ -410,7 +457,39 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(version, 9);
+        assert_eq!(version, 11);
+    }
+
+    #[test]
+    fn v11_removes_deleted_engines_and_models_but_keeps_current_choices() {
+        let conn = Connection::open_in_memory().unwrap();
+        run(&conn).unwrap();
+        conn.pragma_update(None, "user_version", 10).unwrap();
+        for (key, value) in [
+            ("stt_api_key_deepgram", "dg"), ("stt_engine", "deepgram"),
+            ("llm_api_key_groq", "gk"), ("llm_provider", "groq"),
+            ("llm_model_openai", "gpt-5.5"), ("llm_model_anthropic", "claude-opus-5-5"),
+            ("llm_api_key_openai", "sk"), ("stt_api_key_speechmatics", "sm"),
+        ] {
+            conn.execute("INSERT INTO settings (key, value) VALUES (?1, ?2)", [key, value]).unwrap();
+        }
+        for (id, provider, model) in [("a", "gemini", "gemini-x"), ("b", "open_ai", "gpt-5.4"), ("c", "anthropic", "claude-sonnet-5-5")] {
+            conn.execute(
+                "INSERT INTO copilots (id, name, save_transcript, llm_provider, llm_model, created_at_ms, updated_at_ms) VALUES (?1, ?1, 1, ?2, ?3, 0, 0)",
+                [id, provider, model],
+            ).unwrap();
+        }
+        run(&conn).unwrap();
+        let keys: Vec<String> = conn.prepare("SELECT key FROM settings ORDER BY key").unwrap()
+            .query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect();
+        assert_eq!(keys, ["llm_api_key_openai", "llm_model_anthropic", "stt_api_key_speechmatics"]);
+        let copilots: Vec<(String, String)> = conn.prepare("SELECT llm_provider, llm_model FROM copilots ORDER BY id").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().map(Result::unwrap).collect();
+        assert_eq!(copilots, [
+            ("open_ai".into(), "default".into()),
+            ("open_ai".into(), "default".into()),
+            ("anthropic".into(), "claude-sonnet-5-5".into()),
+        ]);
     }
 
     #[test]
@@ -497,7 +576,7 @@ mod tests {
     }
 
     #[test]
-    fn transcript_origin_accepts_the_three_live_engines_and_rejects_anything_else() {
+    fn transcript_origin_accepts_both_live_engines_and_rejects_anything_else() {
         let conn = Connection::open_in_memory().unwrap();
         run(&conn).unwrap();
         conn.execute(
@@ -506,7 +585,9 @@ mod tests {
             [],
         )
         .unwrap();
-        for origin in ["local_parakeet", "deepgram", "speechmatics"] {
+        // The v1 CHECK also still lists a retired engine so older saved
+        // transcripts stay readable; nothing writes it any more.
+        for origin in ["local_parakeet", "speechmatics"] {
             conn.execute(
                 "INSERT INTO transcript_segments (id, session_id, channel, origin, text, start_ms, end_ms, created_at_ms)
                  VALUES (?1, 's1', 'mic', ?2, 'hi', 0, 1, 0)",

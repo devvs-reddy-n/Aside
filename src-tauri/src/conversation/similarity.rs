@@ -36,7 +36,7 @@ pub fn jaccard(a: &str, b: &str) -> f64 {
 }
 
 /// True when `new` is a growing (or slightly corrected) restatement of
-/// `old` — the shape local Parakeet and Deepgram emit for partials — rather
+/// `old` — the shape local Parakeet emits for partials — rather
 /// than a fresh tail of unfinalized words (Speechmatics).
 pub fn is_restatement(old: &str, new: &str) -> bool {
     let old = old.trim();

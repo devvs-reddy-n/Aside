@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
 import { Callout } from "../kit/Bits";
+import { Icon } from "../kit/Icon";
 import { Button } from "../kit/Button";
 import { SPRING } from "../kit/motion";
 import { ToastHost } from "../kit/toast";
+import { StealthStatus } from "../kit/Stealth";
 import { useStore } from "../core/store";
 import { isTauriRuntime, isDemoMode, NOT_TAURI_MESSAGE } from "../bridge/runtime";
 import { CallSaved, announceCallEnded } from "./CallSaved";
@@ -15,15 +17,17 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { refreshSystem, returnToCall, systemStore, watchSystem } from "./data";
 import { useRoute } from "./router";
 import { Sidebar } from "./Sidebar";
-import "./home.css";
-import "./launch.css";
 
 /** The strip above the page: room to drag the window, and the running call on the right. */
 function TopStrip() {
+  const route = useRoute();
+  const labels = { copilots: "Copilots", library: "Library", history: "History", settings: "Settings" };
   const active = useStore(systemStore, (state) => state.active);
   return (
     <div className="hm-top" data-tauri-drag-region>
+      <div className="hm-top__path" data-tauri-drag-region><span>Workspace</span><Icon name="chevronRight" size={13} /><b>{labels[route.page]}</b></div>
       <div className="hm-top__end" data-tauri-drag-region>
+        <StealthStatus />
         <AnimatePresence initial={false}>
           {active ? (
             <motion.div
@@ -50,21 +54,18 @@ function Page() {
   // Switching between copilots stays inside one page (the sidebar highlight glides; no page fade).
   const key = route.page;
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={key}
-        className="hm-page-host"
-        initial={{ opacity: 0, y: 10, scale: 0.995 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
-        transition={SPRING}
-      >
-        {route.page === "library" ? <LibraryPage filter={route.param} />
-          : route.page === "history" ? <HistoryPage selectedId={route.param} />
-          : route.page === "settings" ? <SettingsPage section={route.param} />
-          : <CopilotsPage selectedId={route.param} />}
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      key={key}
+      className="hm-page-host"
+      initial={{ opacity: 0.96 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.12 }}
+    >
+      {route.page === "library" ? <LibraryPage filter={route.param} />
+        : route.page === "history" ? <HistoryPage selectedId={route.param} />
+        : route.page === "settings" ? <SettingsPage section={route.param} />
+        : <CopilotsPage selectedId={route.param} />}
+    </motion.div>
   );
 }
 

@@ -128,11 +128,11 @@
 
 /* ---------- Segmented control (Radix ToggleGroup) ---------- */
 .seg { display: inline-flex; flex: none; gap: 2px; padding: 2px; border-radius: var(--r-s); background: var(--surface-muted); box-shadow: inset 0 0 0 1px var(--border); }
-.seg__item { position: relative; display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 520; transition: color var(--fast); }
+.seg__item { position: relative; display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 12px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--text-2); font-size: 13px; font-weight: 520; transition: color var(--fast); }
 .seg--sm .seg__item { height: 24px; padding: 0 9px; font-size: 12px; }
 .seg__item:hover { color: var(--text); }
 .seg__item[data-state="on"] { color: var(--text); }
-.seg__thumb { position: absolute; inset: 0; border-radius: 6px; background: var(--surface); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--border); }
+.seg__thumb { position: absolute; inset: 0; border-radius: var(--r-s); background: var(--surface); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--border); }
 .seg__label { position: relative; display: inline-flex; align-items: center; gap: 5px; }
 
 /* ---------- Small bits ---------- */
@@ -169,7 +169,7 @@
 .keys { display: inline-flex; gap: 3px; }
 
 .skeleton { display: grid; gap: 8px; padding: 2px 0; }
-.skeleton i { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-muted) 0%, var(--hover) 40%, var(--surface-muted) 80%); background-size: 240% 100%; animation: shimmer 1.2s linear infinite; }
+.skeleton i { display: block; height: 12px; border-radius: var(--r-s); background: linear-gradient(90deg, var(--surface-muted) 0%, var(--hover) 40%, var(--surface-muted) 80%); background-size: 240% 100%; animation: shimmer 1.2s linear infinite; }
 @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 
 /* ---------- Rich text preview ---------- */
@@ -204,7 +204,7 @@
 .editor::placeholder { color: var(--text-3); }
 
 /* ---------- Tooltip, menu, popover (Radix) ---------- */
-.tip { z-index: 90; max-width: 260px; padding: 5px 8px; border-radius: 6px; background: var(--text); color: var(--surface); font-size: 12px; line-height: 16px; animation: pop-in var(--fast) var(--ease-out); white-space: pre-wrap; }
+.tip { z-index: 90; max-width: 260px; padding: 5px 8px; border-radius: var(--r-s); background: var(--text); color: var(--surface); font-size: 12px; line-height: 16px; animation: pop-in var(--fast) var(--ease-out); white-space: pre-wrap; }
 .menu, .pop {
   z-index: 80;
   min-width: 180px;
@@ -217,7 +217,7 @@
   animation: pop-in var(--base) var(--ease-out);
 }
 .pop { width: 300px; padding: 12px; }
-.menu__item { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 9px; border-radius: 6px; color: var(--text); font-size: 13.5px; outline: none; cursor: default; user-select: none; }
+.menu__item { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 9px; border-radius: var(--r-s); color: var(--text); font-size: 13.5px; outline: none; cursor: default; user-select: none; }
 .menu__item .icon { color: var(--text-2); }
 .menu__item[data-highlighted] { background: var(--hover); }
 .menu__item[data-danger] { color: var(--danger-ink); }
@@ -235,14 +235,19 @@
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
   padding: 24px;
-  background: rgba(10, 10, 14, 0.24);
+  background: rgba(0, 0, 0, 0.24);
   animation: fade var(--fast) var(--ease-std);
 }
 .dialog {
+  position: fixed;
+  z-index: 80;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
-  width: 100%;
-  max-height: 100%;
+  width: calc(100% - 48px);
+  max-height: calc(100% - 48px);
   border-radius: var(--r-l);
   outline: none;
   background: var(--surface);
@@ -254,7 +259,7 @@
 .dialog--md { max-width: 520px; }
 .dialog--lg { max-width: 720px; }
 .dialog--wide { max-width: 1000px; }
-.dialog--xl { max-width: 960px; height: 100%; }
+.dialog--xl { max-width: 960px; height: calc(100% - 48px); }
 .dialog--xl .dialog__body { display: flex; flex-direction: column; gap: 8px; }
 .dialog__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 16px 6px 22px; }
 .dialog__titles { display: grid; gap: 2px; min-width: 0; }
@@ -264,11 +269,11 @@
 .dialog__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
 @media (max-height: 720px) { .dialog-backdrop { padding: 12px; } .dialog__head { padding-top: 12px; } .dialog__foot { padding: 10px 16px; } }
 @keyframes fade { from { opacity: 0; } }
-@keyframes dialog-in { from { opacity: 0; transform: scale(0.97); } }
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); } }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 
 /* ---------- Sheet (right side) ---------- */
-.sheet-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(14, 14, 16, 0.28); }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.28); }
 .sheet {
   position: fixed;
   top: 0;
@@ -295,9 +300,9 @@
 .toast--ok .icon:first-child { color: var(--success); }
 .toast--bad .icon:first-child, .toast--warn .icon:first-child { color: var(--warning); }
 .toast__text { flex: 1; min-width: 0; font-size: 13px; }
-.toast__action { padding: 5px 10px; border: 0; border-radius: 6px; background: rgba(127, 127, 127, 0.28); color: inherit; font-size: 12.5px; font-weight: 600; }
+.toast__action { padding: 5px 10px; border: 0; border-radius: var(--r-s); background: rgba(127, 127, 127, 0.28); color: inherit; font-size: 12.5px; font-weight: 600; }
 .toast__action:hover { background: rgba(127, 127, 127, 0.4); }
-.toast__close { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 6px; background: none; color: inherit; opacity: 0.6; }
+.toast__close { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: var(--r-s); background: none; color: inherit; opacity: 0.6; }
 .toast__close:hover { opacity: 1; }
 
 /* Five-bar level meter */

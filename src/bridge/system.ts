@@ -1,15 +1,12 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { isTauriRuntime } from "./runtime";
+import { privacySettingsUrl } from "../core/platform";
 
 export type PrivacyPane = "microphone" | "screen";
 
-const PANES: Record<PrivacyPane, string> = {
-  microphone: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
-  screen: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
-};
-
-/** Opens the matching page of macOS System Settings → Privacy & Security. */
+/** Opens the matching audio/privacy page on this computer. */
 export async function openPrivacySettings(pane: PrivacyPane): Promise<void> {
   if (!isTauriRuntime()) return;
-  await openUrl(PANES[pane]).catch(() => undefined);
+  const url = privacySettingsUrl(pane);
+  if (url) await openUrl(url).catch(() => undefined);
 }

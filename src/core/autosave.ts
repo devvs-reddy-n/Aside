@@ -10,7 +10,7 @@ export interface Autosaver<T> {
   /** Note a new value; saves `delayMs` after the last call. */
   change: (value: T) => void;
   /** Save now if something is waiting (e.g. before leaving the page). */
-  flush: () => Promise<void>;
+  flush: () => Promise<boolean>;
   dispose: () => void;
 }
 
@@ -21,37 +21,51 @@ export function createAutosaver<T>(
 ): Autosaver<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let waiting: { value: T } | null = null;
-  let running: Promise<void> | null = null;
+  let running: Promise<boolean> | null = null;
+  let failed: { value: T } | null = null;
+  let lastOk = true;
 
-  const run = async (): Promise<void> => {
-    if (!waiting) return;
+  const hasWork = () => waiting !== null || running !== null;
+
+  const run = async (): Promise<boolean> => {
+    // A save may already have consumed its queue but still be writing.
     if (running) {
       await running;
-      return run();
+      return hasWork() ? run() : lastOk;
     }
-    const { value } = waiting;
+    if (!waiting) return lastOk;
+    const current = waiting;
     waiting = null;
+    failed = null;
     onState("saving");
-    running = save(value)
-      .then((ok) => onState(ok ? (waiting ? "pending" : "saved") : "error"))
-      .catch(() => onState("error"))
-      .finally(() => {
-        running = null;
-      });
+    running = Promise.resolve().then(() => save(current.value))
+      .catch(() => false)
+      .then((ok) => {
+        lastOk = ok;
+        if (!ok && !waiting) failed = current;
+        onState(waiting ? "pending" : ok ? "saved" : "error");
+        return ok;
+      })
+      .finally(() => { running = null; });
     await running;
-    if (waiting) await run();
+    return hasWork() ? run() : lastOk;
   };
 
   return {
     change(value) {
       waiting = { value };
+      failed = null;
       onState("pending");
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void run(), delayMs);
     },
     async flush() {
       if (timer) clearTimeout(timer);
-      await run();
+      if (!running && !waiting && failed) {
+        waiting = failed;
+        failed = null;
+      }
+      return run();
     },
     dispose() {
       if (timer) clearTimeout(timer);

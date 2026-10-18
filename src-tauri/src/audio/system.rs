@@ -322,7 +322,7 @@ pub fn list_output_devices() -> Result<Vec<OutputDevice>, String> {
 }
 
 /// Picks the output device to capture from, by stable id, or the system default.
-fn resolve_device(preferred: Option<&str>) -> Result<cpal::Device, String> {
+pub(super) fn resolve_device(preferred: Option<&str>) -> Result<cpal::Device, String> {
     let host = cpal::default_host();
 
     if let Some(want) = preferred {
@@ -648,21 +648,17 @@ pub fn start(
         }
     });
 
-    match ready_rx.recv() {
-        Ok(Ok(info)) => Ok(SystemCaptureHandle {
-            stop_flag,
-            thread: Some(thread),
-            info,
-        }),
-        Ok(Err(e)) => {
-            let _ = thread.join();
-            Err(e)
-        }
-        Err(_) => {
-            let _ = thread.join();
-            Err("system audio capture thread exited before it could start".into())
-        }
-    }
+    let info = super::device_util::wait_for_capture_start(
+        &ready_rx,
+        &stop_flag,
+        std::time::Duration::from_secs(8),
+        "System audio",
+    )?;
+    Ok(SystemCaptureHandle {
+        stop_flag,
+        thread: Some(thread),
+        info,
+    })
 }
 
 #[cfg(test)]

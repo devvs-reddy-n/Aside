@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { parseAnswerText } from "../../core/answerParse";
 import { Icon } from "../../kit/Icon";
+import { ANSWER_SHORTCUT } from "../../core/shortcuts";
 import { useController, useLive, useLiveUi } from "../context";
 import { describeAnswerError } from "../errors";
 import type { Answer } from "../machine";
@@ -60,7 +61,7 @@ function AnswerText({ answer }: { answer: Answer }) {
 }
 
 /** The middle of the window: one question and its answer. Everything else in the window is a control. */
-export function Reading() {
+export function Reading({ actions, followUp }: { actions: ReactNode; followUp: ReactNode }) {
   const { page } = useAnswerPage();
   const capturing = useLive((state) => state.requestPending && state.nextSource === "screen");
   const resting = useLive((state) => state.channels.mic.status === "off" && state.channels.system.status === "off");
@@ -72,28 +73,36 @@ export function Reading() {
 
   const screenAnswer = page?.kind === "answer" && page.answer.source === "screen";
 
-  // Same shape as the main window's section cards: a small icon and a title
-  // (here, the question), then the answer in the dark inner box, which is the
-  // only part that scrolls.
+  // The question has a quiet filled surface; the answer keeps its own scroll area.
   return (
     <div className="lv-reading">
       {capturing || !page ? (
         <section className="lv-card" data-empty="">
           <header className="lv-card__head">
-            {capturing ? <span className="lv-spin" aria-hidden="true" /> : <Icon name={paused || resting ? "pause" : "wave"} size={15} />}
-            <p className="lv-quiet" role="status">{capturing ? "Reading your screen…" : paused || resting ? "Listening is paused." : "Listening. The next question shows here."}</p>
+            <div className="lv-card__title">
+              {capturing ? <span className="lv-spin" aria-hidden="true" /> : <Icon name={paused || resting ? "pause" : "wave"} size={15} />}
+              <p className="lv-quiet" role="status">{capturing ? "Reading your screen…" : paused || resting ? "Listening is paused." : "Listening for your next question"}</p>
+            </div>
+            {actions}
+            {followUp}
           </header>
+          {!capturing && !paused && !resting ? <div className="lv-waiting" aria-label="Getting started">
+            <span className="lv-waiting__mark"><Icon name="wave" size={24} /></span>
+            <p>Ready when you are</p>
+            <span>Press <kbd>{ANSWER_SHORTCUT}</kbd> or choose Answer.</span>
+          </div> : null}
         </section>
       ) : (
         <section className="lv-card">
-          {question ? (
-            <header className="lv-card__head">
-              <Icon name={screenAnswer ? "screen" : "question"} size={15} />
-              <p className="lv-question selectable">{question}</p>
-            </header>
-          ) : null}
+          <header className="lv-card__head">
+            <div className="lv-card__title">
+              {question ? <><Icon name={screenAnswer ? "screen" : "question"} size={15} /><p className="lv-question selectable" tabIndex={0}>{question}</p></> : null}
+            </div>
+            {actions}
+            {followUp}
+          </header>
           <div ref={box} className="lv-well" tabIndex={0} aria-live="polite">
-            {page.kind === "answer" ? <AnswerText key={page.answer.id} answer={page.answer} /> : <p className="lv-quiet">Press Answer when you're ready.</p>}
+            {page.kind === "answer" ? <AnswerText key={page.answer.id} answer={page.answer} /> : <p className="lv-quiet">Choose Answer when you're ready.</p>}
           </div>
         </section>
       )}

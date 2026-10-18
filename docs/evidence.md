@@ -901,3 +901,26 @@ Limits: native Windows runtime/installer and actual audio/cloud-call checks rema
 - Real Speechmatics (US1, owner's saved key read locally and never printed; generated `/usr/bin/say` phrase, 9.7s, 16 kHz; no mic/private data). Log /tmp/aside-speech-synth-1.log. Standard 4.0 + vocab: ready 1791 ms (first vocab init), first text 561 ms, final 2239 ms after speech end, shutdown 238 ms, all of RAG/MCP/Kubernetes/Kiro/PostgreSQL correct. Enhanced 4.0 + vocab: ready 2676 ms, identical text, final 2240 ms. Standard 2.0 + vocab: ready 428 ms, identical text, final 2240 ms. Standard 4.0 without vocab: "Rag", "Cairo". Rerun: after 4s trailing silence only the last ~12 of ~344 packets were unconfirmed (silence is acknowledged).
 - `cargo build` clean (no warnings); `cargo test --lib` 840 passed, 14 ignored; `npm test` 81 passed; `npm run build` passed (existing chunk-size advisory); `git diff --check` on Rust sources clean. `./scripts/build-app.sh` passed (/tmp/aside-build-app.log); root Aside.app refreshed. The already-open Aside process predates the rebuild.
 - Not run: real microphone/system audio through the new engine, AirPods, a long call, a real network interruption.
+
+
+### 2026-10-17 — answer prompt: owner's rules and guidance first
+
+- `cargo test --lib -- window_memory:: llm::` → 217 passed after updating 6 old-layout tests and adding: guidance/rules order and labels (core → strict rules → guidance → background, no "[Notes]", closing reminder), long resume/JD sent whole (15k/11k chars with end markers), spoken-words-win rule present under a custom override, screenshot system prompt starts with the owner's prefix and keeps the injection contract.
+- Checked the owner's saved Strict rules for old conflicting phrases (searched phrases only, content not read): none present.
+- `cargo build` clean (no warnings); `cargo test --lib` 845 passed, 14 ignored; `npm test` 81 passed; `npm run build` passed; `git diff --check` on Rust sources clean. `./scripts/build-app.sh` passed (/tmp/aside-build-app-4.log); root Aside.app refreshed.
+- Not run: a real answer from OpenAI with the new prompt, so answer quality is not yet verified; first-answer latency with the larger prefix not measured.
+
+
+### 2026-10-17 — screenshot auto-solve and typed-answer streaming
+
+- New test: coding screens are solved without a code request, in both spoken/no-spoken cases, and small talk is marked context-only. `cargo test --lib` 846 passed, 14 ignored; `cargo build` clean; `npm run build` passed; `git diff --check` clean.
+- Measured the owner's main copilot (lengths only): guidance 6,708 chars, resume 7,521 (previously cut at 6,000), supporting documents 2,529 + 7,634 (previously squeezed into 8,000). Stable prefix now about 33,000 chars (~8,200 tokens).
+- Not run: a real screenshot or typed answer against OpenAI with the new prompts.
+
+
+### 2026-10-17 — latest models, Claude, Deepgram removal
+
+- Deleted `stt/deepgram.rs`, `stt/deepgram_live.rs`, `llm/gemini.rs`, `llm/groq.rs`; no remaining mentions in `src/` or `src-tauri/src/` except tests asserting the old names are rejected and the historical v1 schema CHECK.
+- New tests: closed model lists per provider; old saved models ignored; provider order with both keys; Claude request shape (cached system block, effort low, per-model thinking, fallback except Haiku, image before text, usage/cached tokens, refusal and error handling); GPT vision uses the given model; migration v11 cleanup keeps current choices.
+- `cargo build` clean (no warnings); `cargo test --lib` 805 passed, 14 ignored; `npm test` 81 passed; `npm run build` passed; `git diff --check` clean. Browser preview of Settings shows the OpenAI and Anthropic key rows (plain preview has no backend, so the model list was empty there).
+- Not run: any real Claude request (no Anthropic key saved on this machine); a real GPT-5.6 Sol answer or screenshot with the session model.

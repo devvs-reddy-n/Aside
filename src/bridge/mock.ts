@@ -20,20 +20,16 @@ let copilots: CopilotSummary[] = [
     id: "c1", name: "Nimbus platform interview", company: "Nimbus", target_role: "Senior Platform Engineer",
     job_description: "Own the reliability of our multi-region API platform. Work with product teams on rate limiting, observability and incident response.\n\nWhat you'll do:\n- Design and run the global traffic layer across three regions\n- Lead incident reviews and turn them into lasting fixes\n- Build the tooling that keeps deploys safe at 400 releases a week\n\nYou have eight or more years running large distributed systems, strong Go or Rust, and you explain trade-offs clearly to people outside engineering.",
     instructions: "Keep answers under a minute. Lead with the outcome, then the how. Mention the payments migration when reliability comes up, and keep numbers concrete. Avoid jargon unless they use it first.", save_transcript: true,
-    llm_provider: "open_ai", llm_model: "gpt-5.6-luna", created_at_ms: now - 6 * DAY, updated_at_ms: now - 2 * 3_600_000,
+    llm_provider: "open_ai", llm_model: "gpt-5.6-luna", kind: "interview", created_at_ms: now - 6 * DAY, updated_at_ms: now - 2 * 3_600_000,
     document_count: 3, has_resume: true,
   },
   {
     id: "c2", name: "Harbor design screen", company: "Harbor", target_role: "Staff Product Designer",
     job_description: "Lead design for the payments experience.", instructions: null, save_transcript: true,
-    llm_provider: "open_ai", llm_model: "gpt-5.6-luna", created_at_ms: now - 12 * DAY, updated_at_ms: now - 3 * DAY,
+    llm_provider: "open_ai", llm_model: "gpt-5.6-luna", kind: "interview", created_at_ms: now - 12 * DAY, updated_at_ms: now - 3 * DAY,
     document_count: 1, has_resume: true,
   },
-  {
-    id: "c3", name: "Kite recruiter call", company: "Kite", target_role: null, job_description: null, instructions: null,
-    save_transcript: false, llm_provider: "open_ai", llm_model: "gpt-5.6-terra", created_at_ms: now - 20 * DAY, updated_at_ms: now - 9 * DAY,
-    document_count: 0, has_resume: false,
-  },
+
 ];
 
 const doc = (id: string, type: string, file: string, days: number, bytes: number, original = true): StoredDocument => ({
@@ -75,10 +71,21 @@ let rules = { text: "You are Aside, a quiet interview copilot. Answer in the fir
 
 export async function mockInvoke<T>(command: string, args?: Record<string, unknown>): Promise<InvokeResult<T>> {
   const id = (args?.copilotId ?? args?.documentId ?? args?.sessionId) as string | undefined;
+  if (command === "summarize_setup_text" && String(args?.text).includes("[demo-error]")) return { ok: false, error: "Demo AI connection unavailable. Try again." };
   const result = (): unknown => {
     switch (command) {
+      case "summarize_setup_text": {
+        // Development fixture only. Production always uses the real AI summary command.
+        return args?.kind === "guidance"
+          ? ["Keep answers conversational and concise.", "Lead with the outcome, then explain how.", "Use concrete examples and relevant numbers.", "Match the tone and priorities in your guidance.", "Avoid unnecessary jargon or filler."]
+          : ["Build and maintain reliable software services.", "Collaborate with product and engineering teams.", "Design scalable systems and improve performance.", "Own delivery, reviews, and operational quality.", "Use relevant technical skills and experience."];
+      }
       case "list_copilots": return copilots;
-      case "get_copilot_documents": return documents.filter((d) => (id === "c1" ? ["d1", "d3"].includes(d.id) : id === "c2" ? ["d2"].includes(d.id) : false));
+      case "get_copilot_documents": {
+        const saved = copilots.find((copilot) => copilot.id === id) as (CopilotSummary & { resume_id?: string | null; document_ids?: string[] }) | undefined;
+        const ids = saved?.document_ids ? [saved.resume_id, ...saved.document_ids] : id === "c1" ? ["d1", "d3"] : id === "c2" ? ["d2"] : [];
+        return documents.filter((document) => ids.includes(document.id));
+      }
       case "create_copilot": {
         const input = args?.input as Record<string, unknown>;
         const created = { ...(input as object), id: `c${copilots.length + 1}`, created_at_ms: Date.now(), updated_at_ms: Date.now(), document_count: 0, has_resume: Boolean(input.resume_id) } as unknown as CopilotSummary;
@@ -91,7 +98,8 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
         return copilots.find((c) => c.id === id);
       }
       case "delete_copilot": copilots = copilots.filter((c) => c.id !== id); return true;
-      case "start_copilot_call": return { session: { id: "demo-session", title: "Demo", mode_id: null, participants: [], started_at_ms: Date.now(), ended_at_ms: null, status: "active", created_at_ms: Date.now(), updated_at_ms: Date.now(), company: "Nimbus", job_description: null, session_type: "interview", save_transcript: true } };
+      case "start_resume_quick_call":
+      case "start_copilot_call": return { session: { id: "demo-session", title: command === "start_resume_quick_call" ? "Quick recruiter call" : "Demo", mode_id: null, participants: [], started_at_ms: Date.now(), ended_at_ms: null, status: "active", created_at_ms: Date.now(), updated_at_ms: Date.now(), company: command === "start_resume_quick_call" ? null : "Nimbus", job_description: null, session_type: "interview", save_transcript: true } };
       case "list_doc_types": return ["resume", "job_description", "other"];
       case "list_recent_documents": return documents.filter((d) => d.doc_type === args?.docType);
       case "ingest_document": {
@@ -120,6 +128,12 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
         return transcript.filter((t) => t.text.toLowerCase().includes(q)).map((t) => ({ session_id: "s1", session_title: "Senior Platform Engineer", speaker: t.speaker, text: t.text, start_ms: t.start_ms }));
       }
       case "delete_session": sessions = sessions.filter((s) => s.id !== id); return true;
+      case "delete_history_sessions": {
+        const ids = args?.sessionIds as string[];
+        const before = sessions.length;
+        sessions = sessions.filter((s) => s.status === "active" || !ids.includes(s.id));
+        return before - sessions.length;
+      }
       case "list_stt_engines": return ["speechmatics", "parakeet_local"];
       case "get_stt_engine": return engine;
       case "set_stt_engine": engine = String(args?.engine); return null;
@@ -127,13 +141,15 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
       case "set_stt_api_key": return null;
       case "is_parakeet_model_downloaded": return true;
       case "download_parakeet_model": return null;
-      case "list_llm_providers": return ["open_ai"];
-      case "list_llm_models": return ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini"];
+      case "list_llm_providers": return ["open_ai", "anthropic"];
+      case "list_llm_models": return args?.provider === "anthropic"
+        ? ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1"]
+        : ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
       case "get_llm_provider": return "open_ai";
       case "get_llm_model": return "gpt-5.6-luna";
       case "set_llm_provider": case "set_llm_model": case "set_llm_api_key": case "set_llm_service_tier": return null;
       case "has_llm_api_key": return true;
-      case "check_model_connections": return { ai: { state: "connected", detail: "Connected to OpenAI." }, speech: { state: "connected", detail: "Runs on this Mac." } };
+      case "check_model_connections": return { ai: { state: "connected", detail: "Connected to OpenAI." }, speech: { state: "connected", detail: "Runs on this computer." } };
       case "get_llm_service_tier": return "";
       case "get_stealth": return stealth;
       case "set_stealth": stealth = Boolean(args?.enabled); return stealth;
@@ -144,6 +160,7 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
       case "set_answer_rules": rules = { ...rules, text: String(args?.text), isDefault: false }; return rules;
       case "reset_answer_rules": rules = { ...rules, isDefault: true }; return rules;
       case "start_mic_capture": case "start_system_audio_capture": return { sample_rate: 48000, channels: 1, device_name: "Demo device", device_id: null };
+      case "play_system_audio_test": return null;
       case "get_mic_device": case "get_system_device": return null;
       case "open_overlay": case "hide_main_window": case "show_main_window": case "toggle_on_screen": case "request_quit": case "confirm_quit": return null;
       default: return null;

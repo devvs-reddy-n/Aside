@@ -10,8 +10,9 @@ export interface Route {
 
 const PAGES: PageId[] = ["copilots", "library", "history", "settings"];
 
-/** Older links from when Resumes and Documents were two pages. */
+/** Retired destinations and older Library links lead to supported pages. */
 const MOVED: Record<string, Route> = {
+  screens: { page: "copilots", param: null },
   resumes: { page: "library", param: "resumes" },
   documents: { page: "library", param: "documents" },
 };

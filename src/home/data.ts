@@ -251,12 +251,14 @@ export interface LaunchOptions {
 }
 
 /**
- * Creates the call from a Copilot and starts listening on both ears (each can be turned off in the live window).
+ * Creates a call from a Copilot or a Library resume and starts listening on both ears (each can be turned off in the live window).
  * Nothing is shown yet: the caller decides whether to go live (or offer a fix first).
  */
-export async function prepareCall(copilotId: string, options: LaunchOptions = {}): Promise<Result<PreparedCall>> {
+export async function prepareCall(source: string | { resumeId: string }, options: LaunchOptions = {}): Promise<Result<PreparedCall>> {
   options.onStep?.("session");
-  const started = await api.copilots.startCall(copilotId);
+  const started = typeof source === "string"
+    ? await api.copilots.startCall(source)
+    : await api.copilots.startQuickCall(source.resumeId);
   if (!started.ok) return started;
   const session = started.value.session;
   const failures: ChannelFailure[] = [];

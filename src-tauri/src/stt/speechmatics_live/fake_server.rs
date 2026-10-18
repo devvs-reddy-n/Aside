@@ -310,3 +310,28 @@ async fn sequential_sessions_never_overlap_on_the_server() {
     assert_eq!(fake.record.max_open.load(Ordering::SeqCst), 1);
     assert_eq!(fake.record.connections.load(Ordering::SeqCst), 3);
 }
+
+#[tokio::test]
+async fn the_diagnostic_log_has_counts_but_never_the_key_or_words() {
+    let fake = fake(vec![Step::Ready], "secret words").await;
+    let dir = std::env::temp_dir().join(format!("aside-diag-{}", std::process::id()));
+    let path = dir.join("speechmatics-connection.log");
+    let _ = std::fs::remove_file(&path);
+    let mut engine = SpeechmaticsLiveEngine::start_with_options(
+        "test-key".into(),
+        SpeechmaticsConfig { sample_rate: RATE, additional_vocab: vec!["Kiro".into()], ..SpeechmaticsConfig::for_notebook() },
+        TransportOptions { endpoint: Some(fake.url.clone()), handshake_timeout: Duration::from_secs(2), retry_scale: 0.01, diagnostics: Some(path.clone()) },
+    );
+    engine.push_audio(&tone(0.3), RATE);
+    crate::stt::connection::wait_ready(engine.status.clone()).await.unwrap();
+    let words = Box::new(engine).shutdown().await;
+    assert_eq!(finals(&words), vec!["secret words"]);
+    let log = std::fs::read_to_string(&path).unwrap();
+    for forbidden in ["test-key", "secret", "Kiro", "127.0.0.1"] {
+        assert!(!log.contains(forbidden), "log leaked {forbidden}: {log}");
+    }
+    assert!(log.contains(r#""finals_out":1"#), "{log}");
+    assert!(log.contains(r#""end_of_transcript_in":1"#), "{log}");
+    assert!(log.contains(r#""graceful":true"#) && log.contains(r#""trailing_finals":1"#), "{log}");
+    let _ = std::fs::remove_dir_all(dir);
+}

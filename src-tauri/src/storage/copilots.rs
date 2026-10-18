@@ -4,6 +4,32 @@ use uuid::Uuid;
 
 use crate::llm::LlmProviderKind;
 
+/// Interview setups and a retired screen marker retained to read older databases.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CopilotKind {
+    #[default]
+    Interview,
+    Screen,
+}
+
+impl CopilotKind {
+    fn as_db(self) -> &'static str {
+        match self {
+            CopilotKind::Interview => "interview",
+            CopilotKind::Screen => "screen",
+        }
+    }
+
+    fn from_db(value: &str) -> Self {
+        if value == "screen" {
+            CopilotKind::Screen
+        } else {
+            CopilotKind::Interview
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Copilot {
     pub id: Uuid,
@@ -15,6 +41,8 @@ pub struct Copilot {
     pub save_transcript: bool,
     pub llm_provider: LlmProviderKind,
     pub llm_model: String,
+    #[serde(default)]
+    pub kind: CopilotKind,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
@@ -46,6 +74,7 @@ fn row_to_copilot(row: &rusqlite::Row) -> rusqlite::Result<Copilot> {
         save_transcript: row.get::<_, i64>("save_transcript")? != 0,
         llm_provider: provider,
         llm_model: row.get("llm_model")?,
+        kind: CopilotKind::from_db(&row.get::<_, String>("kind")?),
         created_at_ms: row.get("created_at_ms")?,
         updated_at_ms: row.get("updated_at_ms")?,
     })
@@ -58,13 +87,13 @@ pub fn create(conn: &Connection, copilot: &Copilot) -> Result<(), String> {
         .unwrap_or_default()
         .to_owned();
     conn.execute(
-        "INSERT INTO copilots (id, name, company, target_role, job_description, instructions, save_transcript, llm_provider, llm_model, created_at_ms, updated_at_ms)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO copilots (id, name, company, target_role, job_description, instructions, save_transcript, llm_provider, llm_model, created_at_ms, updated_at_ms, kind)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             copilot.id.to_string(), copilot.name, copilot.company, copilot.target_role,
             copilot.job_description, copilot.instructions,
             copilot.save_transcript as i64, provider, copilot.llm_model,
-            copilot.created_at_ms, copilot.updated_at_ms,
+            copilot.created_at_ms, copilot.updated_at_ms, copilot.kind.as_db(),
         ],
     ).map_err(|e| format!("failed to create Copilot: {e}"))?;
     Ok(())
@@ -78,11 +107,11 @@ pub fn update(conn: &Connection, copilot: &Copilot) -> Result<bool, String> {
         .to_owned();
     let changed = conn.execute(
         "UPDATE copilots SET name=?1, company=?2, target_role=?3, job_description=?4, instructions=?5,
-          save_transcript=?6, llm_provider=?7, llm_model=?8, updated_at_ms=?9 WHERE id=?10",
+          save_transcript=?6, llm_provider=?7, llm_model=?8, updated_at_ms=?9, kind=?10 WHERE id=?11",
         params![
             copilot.name, copilot.company, copilot.target_role, copilot.job_description,
             copilot.instructions, copilot.save_transcript as i64,
-            provider, copilot.llm_model, copilot.updated_at_ms, copilot.id.to_string(),
+            provider, copilot.llm_model, copilot.updated_at_ms, copilot.kind.as_db(), copilot.id.to_string(),
         ],
     ).map_err(|e| format!("failed to save Copilot: {e}"))?;
     Ok(changed > 0)
@@ -120,10 +149,17 @@ pub fn list(conn: &Connection) -> Result<Vec<CopilotSummary>, String> {
 }
 
 pub fn delete(conn: &Connection, id: Uuid) -> Result<bool, String> {
-    Ok(conn
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    let deleted = tx
         .execute("DELETE FROM copilots WHERE id=?1", params![id.to_string()])
         .map_err(|e| format!("failed to delete Copilot: {e}"))?
-        > 0)
+        > 0;
+    // Display summaries belong to their copilot, including their cached source text.
+    for kind in ["job_description", "guidance"] {
+        super::settings::delete(&tx, &format!("setup_summary:{id}:{kind}"))?;
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(deleted)
 }
 
 pub fn replace_documents(
@@ -186,9 +222,24 @@ mod tests {
             save_transcript: true,
             llm_provider: LlmProviderKind::OpenAi,
             llm_model: "gpt-5.6-luna".into(),
+            kind: CopilotKind::Interview,
             created_at_ms: now,
             updated_at_ms: now,
         }
+    }
+
+    #[test]
+    fn deleting_copilot_also_removes_only_its_display_summaries() {
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        let copilot = sample(100);
+        create(&conn, &copilot).unwrap();
+        let key = format!("setup_summary:{}:guidance", copilot.id);
+        super::super::settings::set(&conn, &key, "cached source").unwrap();
+        super::super::settings::set(&conn, "unrelated", "keep").unwrap();
+        assert!(delete(&conn, copilot.id).unwrap());
+        assert!(super::super::settings::get(&conn, &key).unwrap().is_none());
+        assert_eq!(super::super::settings::get(&conn, "unrelated").unwrap().as_deref(), Some("keep"));
     }
 
     #[test]
@@ -205,6 +256,19 @@ mod tests {
             get(&conn, copilot.id).unwrap().unwrap().name,
             "Payments platform role"
         );
+    }
+
+    #[test]
+    fn a_recruiter_screen_keeps_its_kind() {
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        let mut copilot = sample(100);
+        copilot.kind = CopilotKind::Screen;
+        create(&conn, &copilot).unwrap();
+        assert_eq!(get(&conn, copilot.id).unwrap().unwrap().kind, CopilotKind::Screen);
+        copilot.kind = CopilotKind::Interview;
+        update(&conn, &copilot).unwrap();
+        assert_eq!(list(&conn).unwrap()[0].copilot.kind, CopilotKind::Interview);
     }
 
     #[test]

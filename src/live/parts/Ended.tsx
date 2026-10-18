@@ -10,7 +10,7 @@ export function Ended() {
     <div className="lv-ended" role="status">
       <span className="lv-ended__check"><Icon name="check" size={26} strokeWidth={2.25} /></span>
       <h2>Session ended</h2>
-      <p>Transcript, notes and answers are saved to History.</p>
+      <p>Open History in Aside to review your saved sessions.</p>
       <dl>
         <div><dt>Length</dt><dd className="tabular">{formatClock(ended.elapsedMs)}</dd></div>
         <div><dt>Turns</dt><dd className="tabular">{ended.turns}</dd></div>

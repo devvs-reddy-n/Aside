@@ -44,8 +44,7 @@
 //! `.await` on alongside a timer in one `select!`.
 //!
 //! **No VAD flush.** Every live engine has its own stop-of-speech: Parakeet
-//! EOU's `[EOU]` token, Deepgram `UtteranceEnd` / `endpointing`, Speechmatics
-//! `max_delay` / `AddTranscript`. Speaking-light VAD stays UI-only (the
+//! EOU's `[EOU]` token, Speechmatics `EndOfUtterance`. Speaking-light VAD stays UI-only (the
 //! original Phase 2 rule). `flush()` runs only when this task stops, so a
 //! trailing open utterance is still committed.
 
@@ -128,7 +127,7 @@ fn event_name(channel: Channel) -> &'static str {
 
 /// A separate event name from `event_name`'s transcript stream, mirroring how
 /// `audio/mic.rs`/`audio/system.rs` already split `*-level` from `*-error`.
-/// Without this, an engine failure (bad API key, exhausted Deepgram
+/// Without this, an engine failure (bad API key, exhausted Speechmatics
 /// reconnects) was only ever `eprintln!`'d — invisible to anyone not
 /// watching the terminal, and indistinguishable in the UI from "no speech
 /// yet" (found by adversarial review; see `docs/evidence.md`).
@@ -329,7 +328,7 @@ async fn run(
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
     // Tracks the last error string emitted to the frontend so a permanently
-    // failed engine (e.g. Deepgram after exhausting reconnects) doesn't spam
+    // failed engine (e.g. Speechmatics after exhausting reconnects) doesn't spam
     // an identical event every 1.5s tick for the rest of the session.
     let mut last_reported_error: Option<String> = None;
     let mut segment_start_ms = now_ms();
@@ -902,7 +901,7 @@ mod tests {
             &db,
             Some(session_id),
             Channel::System,
-            "deepgram",
+            "speechmatics",
             &[Transcript {
                 text: "them: hi".into(),
                 is_final: true,
@@ -919,7 +918,7 @@ mod tests {
         assert_eq!(mic_row.channel, "mic");
         assert_eq!(mic_row.origin, "local_parakeet");
         assert_eq!(system_row.channel, "system");
-        assert_eq!(system_row.origin, "deepgram");
+        assert_eq!(system_row.origin, "speechmatics");
     }
 
     #[test]

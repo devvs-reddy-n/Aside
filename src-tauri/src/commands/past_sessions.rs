@@ -207,6 +207,12 @@ pub fn delete_session(db: State<Db>, session_id: Uuid) -> Result<bool, String> {
     sessions::delete(&conn, session_id)
 }
 
+#[tauri::command]
+pub fn delete_history_sessions(db: State<Db>, session_ids: Vec<Uuid>) -> Result<usize, String> {
+    let mut conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
+    sessions::delete_many_inactive(&mut conn, &session_ids)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

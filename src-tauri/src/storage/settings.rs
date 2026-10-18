@@ -68,10 +68,10 @@ mod tests {
         let db = Db::open_in_memory();
         let conn = db.0.lock().unwrap();
         set(&conn, "stt_engine", "parakeet_local").unwrap();
-        set(&conn, "stt_engine", "deepgram").unwrap();
+        set(&conn, "stt_engine", "speechmatics").unwrap();
         assert_eq!(
             get(&conn, "stt_engine").unwrap(),
-            Some("deepgram".to_string())
+            Some("speechmatics".to_string())
         );
     }
 
@@ -79,11 +79,11 @@ mod tests {
     fn different_keys_do_not_collide() {
         let db = Db::open_in_memory();
         let conn = db.0.lock().unwrap();
-        set(&conn, "stt_api_key_deepgram", "dg_abc").unwrap();
+        set(&conn, "llm_api_key_openai", "sk_abc").unwrap();
         set(&conn, "stt_api_key_speechmatics", "sm_xyz").unwrap();
         assert_eq!(
-            get(&conn, "stt_api_key_deepgram").unwrap(),
-            Some("dg_abc".to_string())
+            get(&conn, "llm_api_key_openai").unwrap(),
+            Some("sk_abc".to_string())
         );
         assert_eq!(
             get(&conn, "stt_api_key_speechmatics").unwrap(),

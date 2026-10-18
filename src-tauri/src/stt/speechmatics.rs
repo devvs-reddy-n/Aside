@@ -1,26 +1,25 @@
 //! Speechmatics Real-Time protocol — URL, auth, message shapes, no socket.
 //!
-//! Deliberately the same split as `deepgram.rs`: everything here is pure and
-//! unit-testable with no network, and `speechmatics_live.rs` owns the actual
-//! WebSocket. Getting a protocol detail wrong is the expensive failure mode
-//! for a streaming engine (it shows up as "no transcripts, no error"), so the
-//! parts that can be tested offline are.
+//! Everything here is pure and unit-testable with no network, and
+//! `speechmatics_live.rs` owns the actual WebSocket. Getting a protocol
+//! detail wrong is the expensive failure mode for a streaming engine (it
+//! shows up as "no transcripts, no error"), so the parts that can be tested
+//! offline are.
 //!
 //! Chosen because it is the engine ParakeetAI itself uses — their privacy
 //! policy names Speechmatics directly — and matching that product's transcript
 //! quality is the actual acceptance criterion here.
 //!
-//! ## Three ways this differs from Deepgram, each a real trap
+//! ## Protocol traps
 //!
-//! 1. **Config travels in a message, not the URL.** Deepgram encodes
-//!    everything as query parameters; here the URL is essentially static and
-//!    the whole configuration goes in `StartRecognition`. That also means the
-//!    server can reject the config *after* a successful handshake.
+//! 1. **Config travels in a message, not the URL.** The URL is essentially
+//!    static and the whole configuration goes in `StartRecognition`. That
+//!    also means the server can reject the config *after* a successful
+//!    handshake.
 //! 2. **Audio must not be sent until `RecognitionStarted` arrives.** The docs
 //!    are explicit ("You should wait for this message before sending audio"),
 //!    and sending early earns a `protocol_error` that terminates the session.
-//!    Deepgram needs no such gate, so this is genuinely new state.
-//! 3. **`EndOfStream` is permanent.** It is *not* Deepgram's `Finalize`. After
+//! 3. **`EndOfStream` is permanent.** After
 //!    it, the docs state any further audio "will be ignored" and the server
 //!    closes. The soft equivalent — "give me a final for what you have so
 //!    far", which is what `SttEngine::flush` actually means — is
@@ -170,13 +169,9 @@ pub const JWT_MINT_URL: &str = "https://mp.speechmatics.com/v1/api_keys?type=rt"
 /// live engine remints before this expires.
 pub const JWT_TTL_SECS: u64 = 3600;
 
-/// Speechmatics uses `Authorization: Bearer <key>` — **not** Deepgram's
-/// `Token <key>`.
-///
-/// Its own function for the same reason `deepgram::auth_header_value` is:
-/// with two WebSocket engines in one codebase using two different schemes,
-/// the copy-paste failure is a 401 that looks like a bad key rather than a
-/// bad header.
+/// Speechmatics uses `Authorization: Bearer <key>` (not `Token <key>`, the
+/// scheme some other speech APIs use); getting it wrong is a 401 that looks
+/// like a bad key rather than a bad header.
 pub fn auth_header_value(api_key: &str) -> String {
     format!("Bearer {api_key}")
 }
@@ -491,11 +486,8 @@ mod tests {
 
     #[test]
     fn auth_header_uses_bearer_not_token() {
-        // The direct analogue of `deepgram.rs`'s
-        // `auth_header_uses_token_not_bearer`, and the reason both exist:
-        // this codebase now has two WebSocket engines using two *different*
-        // schemes, so copying either one's header into the other produces a
-        // 401 that reads like a bad key.
+        // `Token <key>` is a different scheme; sending it is a 401 that
+        // reads like a bad key.
         assert_eq!(auth_header_value("abc123"), "Bearer abc123");
         assert!(!auth_header_value("abc123").starts_with("Token "));
     }

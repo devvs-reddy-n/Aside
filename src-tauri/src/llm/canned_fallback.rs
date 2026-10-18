@@ -1,15 +1,10 @@
 //! The last resort: a pre-written message so the panel is never fully
 //! silent when every configured LLM provider has failed.
 //!
-//! Credited in `status.md` 6.4 to OpenCluely, though what it actually does
-//! (per this phase's research, see `llm/mod.rs`'s doc comment) is a
-//! *model-name* fallback within Gemini alone, terminating in hardcoded
-//! per-skill canned strings (`generateFallbackResponse`,
-//! `src/services/llm.service.js`) tagged `usedFallback: true` so its own UI
-//! knows not to treat it as a real model answer. This is the same idea,
-//! generalized to Aside's provider-level `FallbackLlmProvider`: one plain
-//! message rather than OpenCluely's several skill-specific ones, since
-//! Aside has no per-skill routing to key off of at this phase.
+//! Credited in `status.md` 6.4 to OpenCluely, whose model fallback ends in
+//! hardcoded canned strings tagged so its UI never mistakes them for a real
+//! answer. Same idea here at the end of Aside's provider-level
+//! `FallbackLlmProvider`: one plain message.
 
 /// The message shown when every provider in the chain failed. A constant
 /// function (not a literal `const &str`) so a future version can vary it

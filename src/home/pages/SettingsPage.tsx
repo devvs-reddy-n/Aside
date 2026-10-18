@@ -11,14 +11,15 @@ import { Icon, type IconName } from "../../kit/Icon";
 import { Sheet } from "../../kit/Sheet";
 import { TextEditor } from "../../kit/TextEditor";
 import { useAutosave } from "../../kit/useAutosave";
+import { useStealth } from "../../kit/Stealth";
 import { wordCount } from "../../core/text";
 import { toast } from "../../kit/toast";
 import { refreshSystem, systemStore } from "../data";
-import { ENGINE_ORDER, LANGUAGES, engineName, engineNeedsKey, modelLabel, providerLabel } from "../labels";
+import { ENGINE_ORDER, LANGUAGES, engineName, engineNeedsKey, modelLabel } from "../labels";
 
 const SECTIONS = ["speech", "ai", "rules", "general"] as const;
 
-/** Grouped preferences in two compact columns, with a readable hierarchy. */
+/** Familiar grouped preferences with enough room for complete control values. */
 export function SettingsPage({ section }: { section: string | null }) {
   useEffect(() => {
     if (!section) return;
@@ -31,7 +32,7 @@ export function SettingsPage({ section }: { section: string | null }) {
       <header className="pg-head"><h1>Settings</h1></header>
       {!backendAvailable() ? <Callout tone="warn">Open Aside.app to change settings.</Callout> : null}
       <div className="set-grid">
-        <Section id="general" title="Privacy" icon="shield"><PrivacyRow /></Section>
+        <Section id="general" title="Privacy" icon="shield" footer="Stealth keeps Aside out of screenshots and shared screens."><PrivacyRow /></Section>
         <AiSection />
         <SpeechSection />
       </div>
@@ -111,7 +112,7 @@ function SpeechSection() {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<OverlayPrefs | null>(null);
-  const engines = (system.engines.length > 0 ? system.engines : ENGINE_ORDER).filter((engine) => engine !== "deepgram");
+  const engines = system.engines.length > 0 ? system.engines : ENGINE_ORDER;
 
   useEffect(() => {
     void api.windows.overlayPrefs().then((result) => result.ok && setPrefs(result.value));
@@ -183,11 +184,28 @@ function SpeechSection() {
 
 interface ModelOption { provider: LlmProviderKind; model: string }
 
+const PROVIDERS: LlmProviderKind[] = ["open_ai", "anthropic"];
+
+/** OpenAI also writes the background call notes, so it is needed even when Claude answers. */
+const KEY_LABELS: Record<LlmProviderKind, string> = {
+  open_ai: "OpenAI key (answers and call notes)",
+  anthropic: "Anthropic key (Claude)",
+};
+
 function AiSection() {
   const system = useStore(systemStore, (state) => state);
   const [options, setOptions] = useState<ModelOption[]>([]);
+  const [keys, setKeys] = useState<Partial<Record<LlmProviderKind, boolean>>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  async function refreshKeys() {
+    const saved = await Promise.all(PROVIDERS.map(async (provider) => {
+      const result = await api.model.hasKey(provider);
+      return [provider, result.ok && result.value] as const;
+    }));
+    setKeys(Object.fromEntries(saved));
+  }
 
   useEffect(() => {
     let alive = true;
@@ -203,6 +221,7 @@ function AiSection() {
       const tier = await api.model.tier();
       if (tier.ok && tier.value) await api.model.setTier("");
       if (alive) setOptions(lists.flat());
+      if (alive) await refreshKeys();
     })();
     return () => {
       alive = false;
@@ -228,15 +247,19 @@ function AiSection() {
           {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
         </Select>
       </Row>
-      <KeyRow
-        label={`${providerLabel(provider)} key`}
-        hasKey={system.aiKey}
-        onSave={async (key) => {
-          const result = await api.model.saveKey(provider, key);
-          await refreshSystem();
-          return result.ok;
-        }}
-      />
+      {PROVIDERS.map((each) => (
+        <KeyRow
+          key={each}
+          label={KEY_LABELS[each]}
+          hasKey={keys[each] ?? false}
+          onSave={async (key) => {
+            const result = await api.model.saveKey(each, key);
+            await refreshKeys();
+            await refreshSystem();
+            return result.ok;
+          }}
+        />
+      ))}
       {error ? <p className="set-row set-bad" role="alert">{error}</p> : null}
     </Section>
   );
@@ -245,6 +268,7 @@ function AiSection() {
 /* --------------------------------- privacy --------------------------------- */
 
 function PrivacyRow() {
+  const stealth = useStealth();
   const hidden = useStore(systemStore, (state) => state.hidden);
   const [pending, setPending] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -252,23 +276,28 @@ function PrivacyRow() {
   async function confirm() {
     if (pending === null) return;
     setBusy(true);
-    // The backend saves the choice and reopens Aside so it applies from the first frame.
-    const result = await api.stealth.set(pending);
-    setBusy(false);
+    const next = pending;
     setPending(null);
+    // The backend saves the choice and reopens Aside so it applies from the first frame.
+    const result = await api.stealth.set(next);
     if (!result.ok) toast(result.error, { tone: "bad" });
+    else {
+      await stealth.refresh();
+      await refreshSystem();
+    }
+    setBusy(false);
   }
 
   return (
     <>
-      <Row label="Hide from screen sharing">
-        <Toggle checked={hidden ?? true} label="Hide from screen sharing" disabled={hidden === null} onChange={(next) => setPending(next)} />
+      <Row label="Stealth">
+        <Toggle checked={hidden ?? true} label="Stealth" disabled={hidden === null || busy} onChange={(next) => setPending(next)} />
       </Row>
       <Dialog
         open={pending !== null}
         onClose={() => setPending(null)}
         size="sm"
-        title={pending ? "Turn on hiding?" : "Turn off hiding?"}
+        title={pending ? "Turn on Stealth?" : "Turn off Stealth?"}
         footer={
           <>
             <Button variant="ghost" onClick={() => setPending(null)}>Cancel</Button>

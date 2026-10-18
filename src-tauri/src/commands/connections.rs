@@ -1,8 +1,8 @@
 //! Whether the default AI model and speech engine can actually be reached,
 //! for the two status dots at the bottom of the main window's sidebar.
 //!
-//! Each check makes one small real request with the saved key (OpenAI: look
-//! up the chosen model; Speechmatics: mint a realtime token). Nothing is sent
+//! Each check makes one small real request with the saved key (OpenAI and
+//! Anthropic: look up the chosen model; Speechmatics: mint a realtime token). Nothing is sent
 //! for transcription or answering, and keys never leave the request header.
 
 use std::time::Duration;
@@ -17,6 +17,7 @@ use crate::stt::speechmatics_live::{verify_key, KeyCheck};
 use crate::stt::{parakeet_cache, EngineKind};
 
 const OPENAI_MODELS_URL: &str = "https://api.openai.com/v1/models/";
+const ANTHROPIC_MODELS_URL: &str = "https://api.anthropic.com/v1/models/";
 const TIMEOUT: Duration = Duration::from_secs(8);
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -47,14 +48,14 @@ pub struct ModelConnections {
     pub speech: Link,
 }
 
-/// What OpenAI's answer to "look up this model" means for the dot.
-fn openai_link(status: u16, model: &str) -> Link {
+/// What a provider's answer to "look up this model" means for the dot.
+fn model_link(provider: &str, status: u16, model: &str) -> Link {
     match status {
-        200..=299 => Link::new(LinkState::Connected, "Connected to OpenAI."),
-        401 | 403 => Link::new(LinkState::Failed, "OpenAI rejected the saved API key."),
-        404 => Link::new(LinkState::Failed, format!("OpenAI doesn't offer {model} to this key.")),
-        429 => Link::new(LinkState::Failed, "OpenAI is limiting requests for this key right now."),
-        _ => Link::new(LinkState::Failed, format!("OpenAI answered with an error ({status}).")),
+        200..=299 => Link::new(LinkState::Connected, format!("Connected to {provider}.")),
+        401 | 403 => Link::new(LinkState::Failed, format!("{provider} rejected the saved API key.")),
+        404 => Link::new(LinkState::Failed, format!("{provider} doesn't offer {model} to this key.")),
+        429 => Link::new(LinkState::Failed, format!("{provider} is limiting requests for this key right now.")),
+        _ => Link::new(LinkState::Failed, format!("{provider} answered with an error ({status}).")),
     }
 }
 
@@ -62,22 +63,30 @@ async fn check_ai(client: reqwest::Client, plan: Option<(LlmProviderKind, Option
     let Some((provider, key, model)) = plan else {
         return Link::new(LinkState::Failed, "No AI model chosen yet.");
     };
-    if provider != LlmProviderKind::OpenAi {
-        return Link::new(LinkState::Unchecked, "Checked when a call starts.");
-    }
     let Some(key) = key else {
         return Link::new(LinkState::Failed, "No API key saved.");
     };
-    let mut url = match reqwest::Url::parse(OPENAI_MODELS_URL) {
+    let (name, base) = match provider {
+        LlmProviderKind::OpenAi => ("OpenAI", OPENAI_MODELS_URL),
+        LlmProviderKind::Anthropic => ("Anthropic", ANTHROPIC_MODELS_URL),
+    };
+    let mut url = match reqwest::Url::parse(base) {
         Ok(url) => url,
-        Err(_) => return Link::new(LinkState::Failed, "Couldn't build the OpenAI address."),
+        Err(_) => return Link::new(LinkState::Failed, format!("Couldn't build the {name} address.")),
     };
     if let Ok(mut segments) = url.path_segments_mut() {
         segments.pop_if_empty().push(&model);
     }
-    match client.get(url).bearer_auth(key).timeout(TIMEOUT).send().await {
-        Ok(response) => openai_link(response.status().as_u16(), &model),
-        Err(_) => Link::new(LinkState::Failed, "Couldn't reach OpenAI. Check the internet connection."),
+    let request = match provider {
+        LlmProviderKind::OpenAi => client.get(url).bearer_auth(key),
+        LlmProviderKind::Anthropic => client
+            .get(url)
+            .header("x-api-key", key)
+            .header("anthropic-version", crate::llm::anthropic::ANTHROPIC_VERSION),
+    };
+    match request.timeout(TIMEOUT).send().await {
+        Ok(response) => model_link(name, response.status().as_u16(), &model),
+        Err(_) => Link::new(LinkState::Failed, format!("Couldn't reach {name}. Check the internet connection.")),
     }
 }
 
@@ -85,13 +94,12 @@ enum SpeechPlan {
     NoEngine,
     Parakeet { downloaded: bool },
     Speechmatics { key: Option<String> },
-    Other,
 }
 
 async fn check_speech(plan: SpeechPlan) -> Link {
     match plan {
         SpeechPlan::NoEngine => Link::new(LinkState::Failed, "No speech engine chosen yet."),
-        SpeechPlan::Parakeet { downloaded: true } => Link::new(LinkState::Connected, "Runs on this Mac."),
+        SpeechPlan::Parakeet { downloaded: true } => Link::new(LinkState::Connected, "Runs on this computer."),
         SpeechPlan::Parakeet { downloaded: false } => Link::new(LinkState::Failed, "Parakeet isn't downloaded yet."),
         SpeechPlan::Speechmatics { key: None } => Link::new(LinkState::Failed, "No API key saved."),
         SpeechPlan::Speechmatics { key: Some(key) } if looks_like_jwt(&key) => {
@@ -104,7 +112,6 @@ async fn check_speech(plan: SpeechPlan) -> Link {
                 KeyCheck::Unreachable => Link::new(LinkState::Failed, "Couldn't reach Speechmatics. Check the internet connection."),
             }
         }
-        SpeechPlan::Other => Link::new(LinkState::Unchecked, "Checked when a call starts."),
     }
 }
 
@@ -131,7 +138,7 @@ pub async fn check_model_connections(
                     .map(|key| key.trim().to_owned())
                     .filter(|key| !key.is_empty());
                 let model = settings::get(&conn, provider.model_setting())?
-                    .filter(|model| !model.trim().is_empty())
+                    .filter(|model| provider.supports_model(model))
                     .or_else(|| provider.model_presets().first().map(|model| model.to_string()))
                     .unwrap_or_default();
                 Some((provider, key, model))
@@ -150,7 +157,6 @@ pub async fn check_model_connections(
                 };
                 SpeechPlan::Speechmatics { key: key.and_then(|raw| crate::stt::normalize_api_key(&raw).ok()) }
             }
-            Some(_) => SpeechPlan::Other,
         };
         (ai_plan, speech_plan)
     };
@@ -164,10 +170,10 @@ mod tests {
 
     #[test]
     fn openai_answers_map_to_plain_states() {
-        assert_eq!(openai_link(200, "m").state, LinkState::Connected);
-        assert_eq!(openai_link(401, "m").state, LinkState::Failed);
-        assert!(openai_link(404, "gpt-x").detail.contains("gpt-x"));
-        assert_eq!(openai_link(500, "m").state, LinkState::Failed);
+        assert_eq!(model_link("OpenAI", 200, "m").state, LinkState::Connected);
+        assert_eq!(model_link("OpenAI", 401, "m").state, LinkState::Failed);
+        assert!(model_link("Anthropic", 404, "claude-x").detail.contains("claude-x"));
+        assert_eq!(model_link("OpenAI", 500, "m").state, LinkState::Failed);
     }
 
     #[test]

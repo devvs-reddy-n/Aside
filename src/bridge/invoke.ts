@@ -21,7 +21,7 @@ export async function invoke<T>(
   args?: Record<string, unknown>,
 ): Promise<InvokeResult<T>> {
   if (!isTauriRuntime()) {
-    if (isDemoMode()) {
+    if (import.meta.env.DEV && isDemoMode()) {
       const { mockInvoke } = await import("./mock");
       return mockInvoke<T>(command, args);
     }

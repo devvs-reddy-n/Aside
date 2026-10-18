@@ -1,97 +1,81 @@
-/*
- * Aside design tokens: one near-black look for both windows. The main
- * window is solid; the live window paints a dark tint whose strength the
- * person sets, so the desktop can show through; nothing blurs it. Neutrals are plain greys with no colour
- * cast. One deep emerald is the only accent, kept for the main action, the
- * current place and things that are on. Depth comes from layered surfaces,
- * soft shadows and a faint top highlight.
- */
+/* Aside: neutral surfaces and shared geometry for both windows. */
 :root {
-  color-scheme: dark;
-
-  /* layers, back to front */
-  --window-tint: rgb(8 9 9 / 0.9);
-  --bg: #0b0c0c;
-  --panel: rgb(17 18 18 / 0.72);
-  --surface: rgb(24 25 25 / 0.84);
-  --surface-solid: #181919;
-  --surface-muted: rgb(255 255 255 / 0.04);
-  --raised: #1a1b1b;
-  --field: rgb(255 255 255 / 0.045);
-  --field-hover: rgb(255 255 255 / 0.075);
-  --field-edge: rgb(255 255 255 / 0.08);
-  --edge: rgb(255 255 255 / 0.065);
-  --highlight: inset 0 1px 0 rgb(255 255 255 / 0.05);
-  --border: rgb(255 255 255 / 0.075);
-  --border-strong: rgb(255 255 255 / 0.15);
-
-  /* text */
-  --text: #eef0ef;
-  --text-2: #b6bab8;
-  --text-3: #979c9a;
-  --navy: #080909;
-
-  /* accent: deep emerald, used sparingly */
-  --selection: rgb(16 185 129 / 0.22);
-  --accent: #10a874;
-  --accent-hover: #14b67e;
-  --accent-solid: #0d7a55;
+  color-scheme: light;
+  --window-tint: #ffffff;
+  --bg: #ffffff;
+  --panel: #f3f3f1;
+  --surface: #f6f6f4;
+  --surface-solid: #ffffff;
+  --surface-muted: #f3f3f3;
+  --raised: #ffffff;
+  --field: #efefed;
+  --field-hover: #ededed;
+  --field-edge: #bdbdbd;
+  --edge: #d6d6d6;
+  --highlight: none;
+  --border: #d6d6d6;
+  --border-strong: #999999;
+  --text: #171717;
+  --text-2: #555555;
+  --text-3: #6b6b6b;
+  --navy: #171717;
+  --selection: #e4e4e1;
+  --accent: #171717;
+  --accent-hover: #333333;
+  --accent-solid: #171717;
   --on-accent: #ffffff;
-  --accent-ink: #6fd2a7;
-  --accent-soft: rgb(16 185 129 / 0.1);
-  --accent-soft-2: rgb(16 185 129 / 0.22);
-  --accent-gradient: linear-gradient(180deg, #0f7f59 0%, #0b6a4a 100%);
-  --accent-gradient-hover: linear-gradient(180deg, #11885f 0%, #0d7350 100%);
-  --accent-glow: 0 1px 2px rgb(0 0 0 / 0.45);
-
-  /* status */
-  --success: #2fbf86;
-  --success-ink: #7fd8b1;
-  --warning: #e3ac45;
-  --warning-ink: #f1cd85;
-  --danger: #e5555e;
-  --danger-ink: #f6a0a6;
-  --hover: rgb(255 255 255 / 0.06);
-  --press: rgb(255 255 255 / 0.1);
-
-  /* shape: one radius scale everywhere */
-  --r-xs: 10px;
-  --r-s: 13px;
-  --r-m: 17px;
+  --accent-ink: #171717;
+  --accent-soft: #f0f0f0;
+  --accent-soft-2: #dedede;
+  --accent-gradient: var(--accent);
+  --accent-gradient-hover: var(--accent-hover);
+  --accent-glow: none;
+  --action: #171717;
+  --action-hover: #333333;
+  --action-ink: #171717;
+  --action-soft: #f0f0f0;
+  --action-line: #bdbdbd;
+  --on-action: #ffffff;
+  --stealth-edge: rgb(0 0 0 / 0.32);
+  --stealth-wash: rgb(0 0 0 / 0.06);
+  --stealth-sweep: rgb(0 0 0 / 0.10);
+  --success: #262626;
+  --success-ink: #262626;
+  --warning: #555555;
+  --warning-ink: #555555;
+  --danger: #b42330;
+  --danger-ink: #b42330;
+  --hover: #ededed;
+  --press: #e2e2e2;
+  --r-control: 999px;
+  --r-field: 20px;
+  --r-panel: 24px;
+  --r-xs: 4px;
+  --r-s: 10px;
+  --r-m: 16px;
   --r-l: 24px;
   --r-xl: 28px;
   --r-pill: 999px;
-
-  /* depth */
-  --e1: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 20px rgb(0 0 0 / 0.18);
-  --e2: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 18px 44px rgb(0 0 0 / 0.42), 0 0 0 1px rgb(255 255 255 / 0.06);
-  --e3: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 30px 80px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.08);
-
-  /* type */
-  --font: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --font-display: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+  --e1: none;
+  --e2: 0 6px 20px rgb(0 0 0 / 0.12);
+  --e3: 0 16px 48px rgb(0 0 0 / 0.18);
+  --font: "Geist Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: var(--font);
   --mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
-
-  /* spacing (4-pt) */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s14: 56px;
-
-  /* motion */
   --fast: 120ms;
   --base: 180ms;
-  --slow: 260ms;
+  --slow: 240ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-std: cubic-bezier(0.2, 0, 0, 1);
-  /* A critically damped spring, written as a CSS curve for simple hover lifts. */
-  --spring: cubic-bezier(0.34, 1.3, 0.64, 1);
-
-  /* code */
-  --code-bg: #090a0a;
-  --code-head: #141515;
-  --code-num: #7f8482;
-  --tok-key: #7fd6b0;
-  --tok-str: #d9cf9a;
-  --tok-com: #9a9f9d;
-  --tok-num: #e8ae7e;
+  --spring: var(--ease-out);
+  --code-bg: #f5f5f5;
+  --code-head: #ededed;
+  --code-num: #6b6b6b;
+  --tok-key: #171717;
+  --tok-str: #262626;
+  --tok-com: #6b6b6b;
+  --tok-num: #555555;
 
   /* ---- aliases for older names ---- */
   --page: var(--bg);
@@ -113,16 +97,16 @@
   --blue-soft: var(--accent-soft-2);
   --green: var(--success);
   --green-ink: var(--success-ink);
-  --green-wash: rgb(47 191 134 / 0.12);
-  --green-line: rgb(47 191 134 / 0.3);
+  --green-wash: #f3f3f3;
+  --green-line: #bdbdbd;
   --amber: var(--warning);
   --amber-ink: var(--warning-ink);
-  --amber-wash: rgb(227 172 69 / 0.12);
-  --amber-line: rgb(227 172 69 / 0.32);
+  --amber-wash: #f3f3f3;
+  --amber-line: #bdbdbd;
   --red: var(--danger);
   --red-ink: var(--danger-ink);
-  --red-wash: rgb(229 85 94 / 0.12);
-  --red-line: rgb(229 85 94 / 0.32);
+  --red-wash: #fbeaec;
+  --red-line: #999999;
   --shadow-1: var(--e1);
   --shadow-2: var(--e2);
   --shadow-3: var(--e3);
@@ -131,4 +115,64 @@
   --t-fast: var(--fast);
   --t-med: var(--base);
   --t-slow: var(--slow);
+}
+
+/* Live-session surfaces and portaled menus share a neutral black theme. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111111;
+  --panel: #171717;
+  --surface: #1c1c1c;
+  --surface-solid: #1c1c1c;
+  --raised: #222222;
+  --surface-muted: #292929;
+  --field: #262626;
+  --field-hover: #333333;
+  --field-edge: #484848;
+  --edge: #3b3b3b;
+  --border: #3b3b3b;
+  --border-strong: #666666;
+  --text: #f5f5f5;
+  --text-2: #cccccc;
+  --text-3: #b5b5b5;
+  --selection: #444444;
+  --accent: #f5f5f5;
+  --accent-hover: #dddddd;
+  --accent-solid: #f5f5f5;
+  --accent-ink: #f5f5f5;
+  --on-accent: #111111;
+  --accent-soft: #292929;
+  --accent-soft-2: #444444;
+  --action: #f5f5f5;
+  --action-hover: #dddddd;
+  --action-ink: #f5f5f5;
+  --action-soft: #292929;
+  --action-line: #666666;
+  --on-action: #111111;
+  --success: #f5f5f5;
+  --success-ink: #f5f5f5;
+  --warning: #cccccc;
+  --warning-ink: #ededed;
+  --danger: #ff9b9b;
+  --danger-ink: #ff9b9b;
+  --green-wash: #292929;
+  --green-line: #666666;
+  --amber-wash: #292929;
+  --amber-line: #666666;
+  --red-wash: #3b2527;
+  --red-line: #666666;
+  --hover: #333333;
+  --press: #444444;
+  --stealth-edge: rgb(255 255 255 / 0.24);
+  --stealth-wash: rgb(255 255 255 / 0.025);
+  --stealth-sweep: rgb(255 255 255 / 0.05);
+  --code-bg: #111111;
+  --code-head: #1c1c1c;
+  --code-num: #aaaaaa;
+  --tok-key: #ffffff;
+  --tok-str: #dddddd;
+  --tok-com: #aaaaaa;
+  --tok-num: #cccccc;
+  --e2: 0 6px 20px rgb(0 0 0 / 0.35);
+  --e3: 0 16px 48px rgb(0 0 0 / 0.45);
 }

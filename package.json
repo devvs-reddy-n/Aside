@@ -1,11 +1,12 @@
 {
   "name": "aside",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:windows": "node scripts/build-windows.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "node --test \"src/**/*.test.ts\""

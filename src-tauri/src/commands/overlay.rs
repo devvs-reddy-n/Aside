@@ -11,7 +11,7 @@
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use uuid::Uuid;
 
 use crate::audio::channel::Channel;
@@ -85,12 +85,10 @@ pub fn open_overlay(app: AppHandle) -> Result<(), String> {
     }
 
     let stealth_on = crate::stealth::is_enabled_for_app(&app);
-    let window =
+    let builder =
         WebviewWindowBuilder::new(&app, OVERLAY_LABEL, WebviewUrl::App("index.html".into()))
             .title("Aside")
-            // Transparent + no decorations + no native blur: the window itself
-            // is fully clear, and the frontend draws each control and the
-            // reading area as its own solid white tile.
+            // The webview draws the adjustable tint over a transparent window.
             .transparent(true)
             .decorations(false)
             .always_on_top(true)
@@ -105,9 +103,10 @@ pub fn open_overlay(app: AppHandle) -> Result<(), String> {
             // A native shadow follows a transparent webview's changing alpha
             // outline, which is what drew the jagged black sketch around the
             // toolbar and answer card. CSS supplies clean shadows per surface.
-            .shadow(false)
-            .build()
-            .map_err(|e| e.to_string())?;
+            .shadow(false);
+    // No fixed native material: the saved tint controls desktop visibility.
+    let builder = builder.theme(Some(tauri::Theme::Dark));
+    let window = builder.build().map_err(|e| e.to_string())?;
 
     crate::stealth::apply_to_window(&window, stealth_on);
 
@@ -118,21 +117,16 @@ pub fn open_overlay(app: AppHandle) -> Result<(), String> {
     window.show().map_err(|e| e.to_string())?;
     crate::stealth::apply_to_window(&window, stealth_on);
 
-    // Belt-and-suspenders, same reasoning as `lib.rs`'s shutdown teardown:
-    // the in-UI End Session button (Timer/End pill) is the normal path, but
-    // if the window is ever closed some other way (Mission Control, a
-    // future OS-level close affordance), this stops capture instead of
-    // leaving mic/system audio running with no visible UI left to stop it.
-    // Does not call `prevent_close()` — the window is allowed to actually
-    // close either way.
+    // Native close requests the same explicit End confirmation as the toolbar.
     let app_for_close = app.clone();
     window.on_window_event(move |event| {
-        if let tauri::WindowEvent::CloseRequested { .. } = event {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
             if let Err(message) = crate::panic_guard::catch("closing the overlay window", || {
-                stop_all_capture_best_effort(&app_for_close);
-                if let Some(main) = app_for_close.get_webview_window("main") {
-                    let _ = main.show();
-                    let _ = main.set_focus();
+                if let Some(overlay) = app_for_close.get_webview_window("overlay") {
+                    let _ = overlay.show();
+                    let _ = overlay.set_focus();
+                    let _ = overlay.emit("end-requested", ());
                 }
             }) {
                 eprintln!("{message}");
@@ -153,7 +147,8 @@ fn place_docked(window: &tauri::WebviewWindow) {
     };
     let scale = monitor.scale_factor();
     let work = monitor.work_area();
-    let x = work.position.x as f64 + work.size.width as f64 - (DEFAULT_WIDTH + SCREEN_MARGIN) * scale;
+    let x =
+        work.position.x as f64 + work.size.width as f64 - (DEFAULT_WIDTH + SCREEN_MARGIN) * scale;
     let y = work.position.y as f64 + SCREEN_TOP_MARGIN * scale;
     let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
     keep_on_screen(window, DOCK_MIN_WIDTH, DOCK_MIN_HEIGHT);
@@ -228,7 +223,7 @@ pub fn end_live_session(
 /// above does.
 fn close_overlay(app: AppHandle) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window(OVERLAY_LABEL) {
-        existing.close().map_err(|e| e.to_string())?;
+        existing.destroy().map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -257,7 +252,10 @@ pub fn set_overlay_mode(
         })))
         .map_err(|e| e.to_string())?;
     window
-        .set_size(tauri::Size::Logical(tauri::LogicalSize { width: w, height: h }))
+        .set_size(tauri::Size::Logical(tauri::LogicalSize {
+            width: w,
+            height: h,
+        }))
         .map_err(|e| e.to_string())?;
     keep_on_screen(&window, min_w, min_h);
     Ok(())
@@ -343,13 +341,13 @@ const MAX_ZOOM: u32 = 160;
 /// How solid the live window's panel, cards and code block are. Text always
 /// stays solid; the person chooses how see-through the rest gets. Match the
 /// frontend slider so saved values and the displayed control never disagree.
-const MIN_OPACITY: u32 = 40;
+const MIN_OPACITY: u32 = 20;
 const MAX_OPACITY: u32 = 100;
-const MIN_FONT_PX: u32 = 12;
-const MAX_FONT_PX: u32 = 20;
+const MIN_FONT_PX: u32 = 11;
+const MAX_FONT_PX: u32 = 15;
 
-/// ISO 639-1 codes only — matches what `stt::speechmatics::SpeechmaticsConfig`/
-/// `stt::deepgram::DeepgramConfig` already expect on the wire. Any value this
+/// ISO 639-1 codes only — matches what `stt::speechmatics::SpeechmaticsConfig`
+/// already expects on the wire. Any value this
 /// project doesn't recognize falls back to `DEFAULT_LANGUAGE` rather than
 /// being sent to the STT provider unchecked.
 const SUPPORTED_LANGUAGES: [&str; 6] = ["en", "es", "fr", "de", "hi", "pt"];
@@ -460,17 +458,27 @@ mod tests {
     }
 
     #[test]
-    fn opacity_can_never_be_saved_below_the_spec_floor() {
+    fn old_clear_background_clamps_to_twenty_percent() {
         let saved = clamp_prefs(OverlayPrefs {
             zoom_pct: 100,
-            opacity_pct: 1,
+            opacity_pct: 0,
             font_px: 13,
             language: default_language(),
         });
         assert_eq!(
             saved.opacity_pct, MIN_OPACITY,
-            "opacity must clamp up to the 40% floor"
+            "old 0% opacity must clamp to the new 20% floor"
         );
+    }
+
+    #[test]
+    fn smaller_font_survives_and_removed_large_sizes_migrate() {
+        let mut prefs = OverlayPrefs::default();
+        prefs.font_px = 11;
+        prefs.opacity_pct = 20;
+        assert_eq!(clamp_prefs(prefs.clone()), prefs);
+        prefs.font_px = 20;
+        assert_eq!(clamp_prefs(prefs).font_px, 15);
     }
 
     #[test]

@@ -6,3 +6,4 @@ pub mod mic;
 pub mod pcm;
 pub mod system;
 pub mod vad;
+pub mod test_sound;
