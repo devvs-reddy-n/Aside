@@ -352,7 +352,7 @@ function PrivacyRow() {
   );
 }
 
-/* ------------------------------ answer rules ------------------------------ */
+/* ------------------------------ system rules ------------------------------ */
 
 function RulesSection() {
   const [rules, setRules] = useState<AnswerRules | null>(null);
@@ -404,7 +404,7 @@ function RulesSection() {
       setOpen(false);
       setRules(result.value);
       setDraft(result.value.text);
-      toast("Answer rules reset", { tone: "ok" });
+      toast("System rules reset to default", { tone: "ok" });
     } else setError(result.error);
   }
 
@@ -412,37 +412,37 @@ function RulesSection() {
   return (
     // Just the button: the rules themselves are only shown after the warning.
     <div className="set-rules set-rules--button" id="st-rules">
-      <button type="button" className="set-rules__edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit default rules</button>
+      <button type="button" className="set-rules__edit" disabled={!rules} onClick={() => setConfirmEdit(true)}>Edit system rules</button>
       {error && !open ? <p className="set-row set-bad" role="alert">{error}</p> : null}
 
-      <Dialog open={confirmEdit} onClose={() => setConfirmEdit(false)} title="Edit the default rules?" size="sm"
+      <Dialog open={confirmEdit} onClose={() => setConfirmEdit(false)} title="Edit the system rules?" size="sm"
         footer={<><Button variant="ghost" onClick={() => setConfirmEdit(false)}>Cancel</Button><Button variant="danger" onClick={() => { setConfirmEdit(false); setOpen(true); }}>Edit rules</Button></>}>
-        <p>These rules shape every answer in every copilot. A small change can make answers worse. You can reset them to the original at any time.</p>
+        <p>System rules decide what kind of answer the AI gives (answering a question, replying to an introduction, finishing your point, length), in every copilot. A small change can make answers worse. You can reset them to the default at any time.</p>
       </Dialog>
 
       <Sheet
         open={open}
         onClose={() => void close()}
-        title="Answer rules"
+        title="System rules"
         width={680}
         meta={status ?? `${wordCount(draft)} words`}
         footer={
           <>
-            <Button variant="ghost" icon="undo" disabled={busy || !rules || rules.isDefault} onClick={() => setConfirmReset(true)}>Reset to original</Button>
+            <Button variant="ghost" icon="undo" disabled={busy || !rules || rules.isDefault} onClick={() => setConfirmReset(true)}>Reset to default</Button>
             <span className="grow" />
             <Button variant="primary" onClick={() => void close()}>Done</Button>
           </>
         }
       >
-        <TextEditor value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="Answer rules" spellCheck={false} autoFocus />
+        <TextEditor value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="System rules" spellCheck={false} autoFocus />
         {!draft.trim() ? <p className="set-bad">Rules can't be empty. The last saved version is kept.</p> : null}
         {rules && !rules.meetsCacheFloor ? <p className="set-bad">These rules are short, so each answer costs a little more.</p> : null}
         {error ? <p className="set-bad">{error}</p> : null}
       </Sheet>
 
-      <Dialog open={confirmReset} onClose={() => setConfirmReset(false)} size="sm" title="Reset answer rules?"
+      <Dialog open={confirmReset} onClose={() => setConfirmReset(false)} size="sm" title="Reset system rules to default?"
         footer={<><Button variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button><Button variant="danger" busy={busy} onClick={() => void reset()}>Reset</Button></>}>
-        <p>Your edits are replaced with the original rules.</p>
+        <p>Your edits are replaced with the default system rules.</p>
       </Dialog>
     </div>
   );

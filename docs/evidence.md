@@ -948,3 +948,16 @@ Limits: native Windows runtime/installer and actual audio/cloud-call checks rema
 ### 2026-10-19 — Library/History row highlight
 
 - Demo preview (`?demo`): Library list rows span the tile edge to edge (row 253–983px = list 253–983px), row and inner radius 0px, list radius 24px with overflow hidden; hovering the first row shows a full-width highlight clipped by the tile's top corners. History rows radius 0px; hovering "Harbor" shows a square full-width highlight. `npm run build` passed.
+
+
+### 2026-10-20 — moment handling and length (live)
+
+- Gated test `anthropic::tests::live_moment_behaviour` (ASIDE_LIVE_MOMENTS_TEST=1): owner's saved rules, Robert Half Guidance, resume and attached documents; Claude Sonnet 5.5; prefix about 66,000 chars. Final run: question 173 words/4.7 s, introduction 71 words/1.8 s with one question back, unfinished point continued from the cut-off words in 179 words/4.4 s. Earlier runs (before tightening): 207/70/186 and 231/85/154 words; one run started with "(continuing)" and repeated words, fixed by the closing-line rule.
+- New unit test checks the core's moment, grounding and length text and the closing reminder. `cargo test --lib` 811 passed, 16 ignored; `cargo build` clean.
+
+
+### 2026-10-20 — System rules, live copilot, caching (verified)
+
+- `cargo test --lib` 820 passed, 16 ignored; `cargo build` clean; `npm test` 81 passed; `npm run build` passed. New tests: layout order and labels; default rules content (moments, ownership, trade-offs, no JD mirroring, length); merged_rules and migration v13 (once, idempotent); dossiers sent whole; memory split marker; length buttons leave the system message byte-identical; Claude 1-hour prefix block and 5-minute memory block; screenshot reuses the identical cached block; OpenAI text/screen share one cache key; warm-up matches real request settings; a copilot edit (resume swap, new dossier, JD change) appears in the next request, and quick calls keep their own sources.
+- Live (gated `live_moment_behaviour`, Claude Sonnet 5.5, owner's merged rules, Robert Half Guidance and all documents): warm-up 1.76 s wrote 234,665 tokens; four answers each read 234,655–234,709 cached tokens of ~234,800 input (question 219 words/4.8 s, introduction 62 words, unfinished point continued mid-sentence 148 words, "why this role" 141 words grounded in resume work without JD wording). Cost at Sonnet 5.5 prices: about $0.94 for the one 1-hour write, about $0.05 per answer after (vs ~$0.47 uncached). Lengths still run over the bands on two answers.
+- Demo preview: Settings shows "Edit system rules", the new warning, the "System rules" editor and "Reset to default".

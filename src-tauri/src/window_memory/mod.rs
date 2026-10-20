@@ -15,7 +15,12 @@ pub use background::{enqueue_window, init_background_worker};
 pub use parse::{ParsedResponse, StreamParser};
 #[cfg(test)]
 pub(crate) use prompt::build_prompt;
-pub use prompt::{AnswerRules, ContextPreview, DefaultContext, LengthOverride, WindowPrompt};
+pub use prompt::{
+    merged_rules, AnswerRules, ContextPreview, DefaultContext, LengthOverride, WindowPrompt,
+    MY_CONTENT_RULES_HEADING,
+};
+#[cfg(test)]
+pub use prompt::DEFAULT_SYSTEM_RULES;
 pub use types::{
     ConversationWindow, PressLog, RawTurn, SessionMemory, Speaker, WindowPreview,
     EMPTY_WINDOW_NOTICE,
@@ -167,6 +172,10 @@ pub fn warm_defaults(app: &AppHandle) {
     if !db_facts.is_empty() {
         merge::merge_db_facts(&mut guard.memory, db_facts);
     }
+    drop(guard);
+    // A call just started or its copilot changed: put the new prefix in the
+    // provider's prompt cache before the first answer needs it.
+    crate::llm::prewarm_cache(app);
 }
 
 /// Reads `storage::facts::list_for_session` and renders each row as a
@@ -305,6 +314,12 @@ fn load_default_context_from_store(
     let Some(sid) = sid else {
         return ctx;
     };
+    // A call started from a copilot always sends what that copilot has now,
+    // so edits to its resume, documents, job description or guidance reach
+    // the very next answer, even mid-call.
+    if apply_live_copilot(&conn, sid, &mut ctx) {
+        return ctx;
+    }
     if ctx.instructions.is_none() {
         ctx.instructions = crate::storage::instructions::get(&conn, sid).ok().flatten();
     }
@@ -333,6 +348,40 @@ fn load_default_context_from_store(
         }
     }
     ctx
+}
+
+/// Fills `ctx` from the live copilot behind session `sid`: guidance, target
+/// role, company, job description, resume and additional documents, in the
+/// copilot's order. False when the session has no copilot (a quick resume
+/// call or an older session), which keeps the call-start snapshot.
+fn apply_live_copilot(conn: &rusqlite::Connection, sid: Uuid, ctx: &mut DefaultContext) -> bool {
+    let copilot_id: Option<String> = conn
+        .query_row("SELECT copilot_id FROM sessions WHERE id = ?1", [sid.to_string()], |row| row.get(0))
+        .ok()
+        .flatten();
+    let Some(copilot) = copilot_id
+        .and_then(|id| Uuid::parse_str(&id).ok())
+        .and_then(|id| crate::storage::copilots::get(conn, id).ok().flatten())
+    else {
+        return false;
+    };
+    ctx.instructions = copilot.instructions.clone();
+    ctx.target_role = copilot.target_role.clone();
+    ctx.company = copilot.company.clone();
+    ctx.job_description = copilot.job_description.clone();
+    ctx.resume = None;
+    ctx.other_docs.clear();
+    for (id, is_resume) in crate::storage::copilots::sources(conn, copilot.id).unwrap_or_default() {
+        let Some(doc) = crate::storage::documents::get(conn, id).ok().flatten() else {
+            continue;
+        };
+        if is_resume && ctx.resume.is_none() {
+            ctx.resume = Some(doc.raw_text);
+        } else {
+            ctx.other_docs.push((doc.file_name, doc.raw_text));
+        }
+    }
+    true
 }
 
 /// The role from the copilot this call was started with (its snapshot is
@@ -401,6 +450,58 @@ mod fixtures {
     use super::*;
     use crate::window_memory::parse::StreamParser;
 
+    #[test]
+    fn a_copilot_call_always_reads_the_copilots_current_documents_and_details() {
+        use crate::domain::Session;
+        use crate::storage::{copilots, documents, sessions};
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        let resume = documents::insert_document(&conn, None, "resume", "Resume v1.pdf", "Old resume text", 1).unwrap();
+        let dossier = documents::insert_document(&conn, None, "other", "Walmart_Dossier.docx", "Walmart dossier text", 2).unwrap();
+        let mut copilot = copilots::Copilot {
+            id: Uuid::new_v4(),
+            name: "Robert Half".into(),
+            company: Some("Robert Half".into()),
+            target_role: Some("Kiro AI Engineer".into()),
+            job_description: Some("Build agents.".into()),
+            instructions: Some("Speak naturally.".into()),
+            save_transcript: true,
+            llm_provider: crate::llm::LlmProviderKind::Anthropic,
+            llm_model: "default".into(),
+            kind: crate::storage::copilots::CopilotKind::Interview,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+        };
+        copilots::create(&conn, &copilot).unwrap();
+        copilots::replace_documents(&conn, copilot.id, Some(resume), &[dossier], 3).unwrap();
+        let session = Session::new("Kiro AI Engineer", 4);
+        sessions::create(&conn, &session).unwrap();
+        sessions::set_copilot_snapshot(&conn, session.id, copilot.id, "{}").unwrap();
+
+        let mut ctx = DefaultContext::default();
+        assert!(apply_live_copilot(&conn, session.id, &mut ctx));
+        assert_eq!(ctx.resume.as_deref(), Some("Old resume text"));
+        assert_eq!(ctx.other_docs, vec![("Walmart_Dossier.docx".to_string(), "Walmart dossier text".to_string())]);
+        assert_eq!(ctx.target_role.as_deref(), Some("Kiro AI Engineer"));
+
+        // Mid-call the owner swaps the resume, adds a dossier and edits the JD.
+        let new_resume = documents::insert_document(&conn, None, "resume", "Resume v2.pdf", "New resume text", 5).unwrap();
+        let cvs = documents::insert_document(&conn, None, "other", "CVS_Dossier.docx", "CVS dossier text", 6).unwrap();
+        copilot.job_description = Some("Build agents on Bedrock.".into());
+        copilots::update(&conn, &copilot).unwrap();
+        copilots::replace_documents(&conn, copilot.id, Some(new_resume), &[dossier, cvs], 7).unwrap();
+        let mut next = DefaultContext::default();
+        assert!(apply_live_copilot(&conn, session.id, &mut next));
+        assert_eq!(next.resume.as_deref(), Some("New resume text"));
+        assert_eq!(next.other_docs.len(), 2);
+        assert_eq!(next.job_description.as_deref(), Some("Build agents on Bedrock."));
+
+        // A quick call (no copilot) keeps its own call-start documents.
+        let quick = Session::new("Quick call", 8);
+        sessions::create(&conn, &quick).unwrap();
+        assert!(!apply_live_copilot(&conn, quick.id, &mut DefaultContext::default()));
+    }
+
     fn speak(state: &mut Inner, text: &str, is_final: bool, at: u64) {
         live::apply_event(&mut state.open, &mut state.live, Speaker::Other, text, is_final, at);
     }
@@ -419,7 +520,8 @@ mod fixtures {
             assert!(!repeated.is_new, "replays must not duplicate background memory");
             let request = prompt::build_prompt_with_length(&defaults, &state.memory, &repeated.window, length);
             assert!(request.user.contains("How do you build reliable systems?"));
-            assert_eq!(request.system.contains("ANSWER LENGTH OVERRIDE"), length.is_some());
+            assert_eq!(request.user.contains("ANSWER LENGTH OVERRIDE"), length.is_some());
+            assert!(!request.system.contains("ANSWER LENGTH OVERRIDE"));
         }
     }
 
@@ -513,7 +615,7 @@ mod fixtures {
         };
         let p = build_prompt(&DefaultContext::default(), &SessionMemory::default(), &w);
         assert!(p.user.contains("Tell me about your current project."));
-        assert!(p.system.contains("entire Current Conversation Window"));
+        assert!(p.system.contains("Read the whole NEW RAW CONVERSATION WINDOW"));
     }
 
     #[test]

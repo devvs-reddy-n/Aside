@@ -1,4 +1,4 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 
 /// The full schema, as of migration 1. Later migrations should be added as
 /// additional `if version < N` blocks below `apply_v1`, never by editing this
@@ -454,6 +454,26 @@ pub fn run(conn: &Connection) -> Result<(), String> {
             .map_err(|e| format!("failed to record schema version 12: {e}"))?;
     }
 
+    if version < 13 {
+        // One System rules set (2026-10-20): the owner's earlier saved rules
+        // are kept, appended after the new default, instead of replacing it.
+        let saved: Option<String> = conn
+            .query_row("SELECT value FROM settings WHERE key = 'answer_rules_override'", [], |row| row.get(0))
+            .optional()
+            .map_err(|e| format!("migration v13 failed to read rules: {e}"))?;
+        if let Some(saved) = saved.filter(|text| {
+            !text.trim().is_empty() && !text.contains(crate::window_memory::MY_CONTENT_RULES_HEADING)
+        }) {
+            conn.execute(
+                "UPDATE settings SET value = ?1 WHERE key = 'answer_rules_override'",
+                [crate::window_memory::merged_rules(&saved)],
+            )
+            .map_err(|e| format!("migration v13 failed to merge rules: {e}"))?;
+        }
+        conn.pragma_update(None, "user_version", 13)
+            .map_err(|e| format!("failed to record schema version 13: {e}"))?;
+    }
+
     Ok(())
 }
 
@@ -468,7 +488,7 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(version, 12);
+        assert_eq!(version, 13);
     }
 
     #[test]
@@ -479,7 +499,7 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(version, 12);
+        assert_eq!(version, 13);
     }
 
     #[test]
@@ -535,6 +555,23 @@ mod tests {
         let models: Vec<String> = conn.prepare("SELECT llm_model FROM copilots ORDER BY id").unwrap()
             .query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect();
         assert_eq!(models, ["default", "default", "gpt-5.6-terra"]);
+    }
+
+    #[test]
+    fn v13_keeps_the_owners_rules_after_the_new_default_once() {
+        let conn = Connection::open_in_memory().unwrap();
+        run(&conn).unwrap();
+        conn.pragma_update(None, "user_version", 12).unwrap();
+        conn.execute("INSERT INTO settings (key, value) VALUES ('answer_rules_override', 'Explain the real use case.')", []).unwrap();
+        run(&conn).unwrap();
+        let merged: String = conn.query_row("SELECT value FROM settings WHERE key='answer_rules_override'", [], |r| r.get(0)).unwrap();
+        assert!(merged.starts_with(crate::window_memory::DEFAULT_SYSTEM_RULES));
+        assert!(merged.ends_with("MY CONTENT RULES\n\nExplain the real use case."));
+        // Running again (or a later version bump) never merges twice.
+        conn.pragma_update(None, "user_version", 12).unwrap();
+        run(&conn).unwrap();
+        let again: String = conn.query_row("SELECT value FROM settings WHERE key='answer_rules_override'", [], |r| r.get(0)).unwrap();
+        assert_eq!(again, merged);
     }
 
     #[test]

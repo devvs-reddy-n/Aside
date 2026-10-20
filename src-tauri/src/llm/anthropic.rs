@@ -94,13 +94,39 @@ fn latency_settings(model: &str) -> (Option<Value>, bool) {
 }
 
 /// Shared body for text and screenshot answers. `content` is the user turn.
+/// The system message as cache-friendly blocks: the shared prefix (rules,
+/// guidance, role, experience) cached for an hour, because interview gaps
+/// often exceed the default 5 minutes and the prefix can be ~150k tokens;
+/// anything after the split marker (screen instructions) is uncached.
+fn system_blocks(system: &str) -> Value {
+    let (prefix, rest) = prompt::split_cached(system);
+    let mut blocks = vec![json!({"type": "text", "text": prefix, "cache_control": {"type": "ephemeral", "ttl": "1h"}})];
+    if let Some(rest) = rest.filter(|r| !r.trim().is_empty()) {
+        blocks.push(json!({"type": "text", "text": rest}));
+    }
+    Value::Array(blocks)
+}
+
+/// A text answer's user turn: the append-only conversation memory as its own
+/// cached block (5 minutes, after the 1-hour prefix as Anthropic requires),
+/// then the raw window and closing instructions.
+fn user_blocks(user: &str) -> Value {
+    match prompt::split_cached(user) {
+        (memory, Some(rest)) if !memory.trim().is_empty() => json!([
+            {"type": "text", "text": memory, "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": rest},
+        ]),
+        _ => json!(prompt::without_split(user)),
+    }
+}
+
 fn body_with(model: &str, system: &str, content: Value) -> Value {
     let (thinking, fallback) = latency_settings(model);
     let mut body = json!({
         "model": model,
         "max_tokens": MAX_TOKENS,
         "stream": true,
-        "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+        "system": system_blocks(system),
         "messages": [{"role": "user", "content": content}],
         "output_config": {"effort": "low"},
     });
@@ -116,7 +142,7 @@ fn body_with(model: &str, system: &str, content: Value) -> Value {
 /// Pure — testable without a network call.
 pub fn build_request_body(model: &str, question: &str, context: Option<&str>) -> Value {
     let (system, user) = prompt::compose_system_and_user(question, context);
-    body_with(model, &system, json!(user))
+    body_with(model, &system, user_blocks(&user))
 }
 
 /// Screenshot request: the image first, then the accompanying text.
@@ -126,9 +152,20 @@ pub fn build_vision_request_body(model: &str, system: &str, user_text: &str, jpe
         system,
         json!([
             {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": jpeg_base64}},
-            {"type": "text", "text": user_text},
+            {"type": "text", "text": prompt::without_split(user_text)},
         ]),
     )
+}
+
+/// Writes the call's shared prefix into the cache before the first real
+/// answer: the same model, thinking and effort settings as real traffic (so
+/// the entry is one real requests hit), `max_tokens: 0` so nothing is
+/// generated, and no streaming (required with `max_tokens: 0`).
+pub fn build_prewarm_body(model: &str, system: &str) -> Value {
+    let mut body = body_with(model, system, json!("Ready."));
+    body["max_tokens"] = json!(0);
+    body["stream"] = json!(false);
+    body
 }
 
 /// Text from one named SSE event: only `text_delta`s carry answer text.
@@ -187,7 +224,7 @@ impl StreamState {
 }
 
 impl AnthropicProvider {
-    async fn stream_body(&self, body: Value, sink: &mut dyn AnswerSink) -> Result<(), String> {
+    fn request(&self, body: &Value) -> reqwest::RequestBuilder {
         let mut request = self
             .client
             .post(ENDPOINT)
@@ -199,6 +236,11 @@ impl AnthropicProvider {
         if let Some(workspace) = &self.workspace {
             request = request.header("anthropic-workspace-id", workspace);
         }
+        request
+    }
+
+    async fn stream_body(&self, body: Value, sink: &mut dyn AnswerSink) -> Result<(), String> {
+        let request = self.request(&body);
         sink.on_request_dispatch();
         let resp = request
             .json(&body)
@@ -292,6 +334,31 @@ impl LlmProvider for AnthropicProvider {
         self.stream_body(build_vision_request_body(&self.model, system, user_text, jpeg_base64), sink)
             .await
     }
+
+    async fn prewarm(&self, system: &str) -> Result<TokenUsage, String> {
+        let body = build_prewarm_body(&self.model, system);
+        let resp = self
+            .request(&body)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("anthropic: warm-up failed: {e}"))?;
+        let status = resp.status();
+        let value: Value = resp.json().await.unwrap_or_default();
+        if !status.is_success() {
+            let message = value["error"]["message"].as_str().unwrap_or("rejected");
+            return Err(format!("anthropic: warm-up rejected ({status}): {}", explain_error(message)));
+        }
+        let usage = &value["usage"];
+        let read = usage["cache_read_input_tokens"].as_u64().unwrap_or(0);
+        let written = usage["cache_creation_input_tokens"].as_u64().unwrap_or(0);
+        let fresh = usage["input_tokens"].as_u64().unwrap_or(0);
+        Ok(TokenUsage {
+            input_tokens: Some((fresh + read + written) as u32),
+            cached_input_tokens: Some(read as u32),
+            ..TokenUsage::default()
+        })
+    }
 }
 
 #[cfg(test)]
@@ -336,6 +403,109 @@ mod tests {
                 let result = provider.stream_vision("Describe images in one short sentence.", "What is in this picture?", &jpeg, &mut sink).await;
                 println!("LIVE_CLAUDE_VISION {model} result={:?} text={:?}", result.map_err(|e| e.replace(key.trim(), "[key]")), sink.0);
             }
+        }
+    }
+
+    /// Explicitly invoked only: three live-call moments (a question, an
+    /// introduction, the owner trailing off) through the owner's real rules,
+    /// guidance and copilot documents, exactly as a call would send them.
+    #[tokio::test]
+    #[ignore = "real Anthropic account and owner data; ASIDE_LIVE_MOMENTS_TEST=1 required"]
+    async fn live_moment_behaviour() {
+        use crate::window_memory::{build_prompt, DefaultContext};
+        use crate::window_memory::{ConversationWindow, RawTurn, SessionMemory, Speaker};
+        assert_eq!(std::env::var("ASIDE_LIVE_MOMENTS_TEST").as_deref(), Ok("1"));
+        let path = std::path::PathBuf::from(std::env::var("HOME").unwrap())
+            .join("Library/Application Support/com.aside.desktop/aside.sqlite3");
+        let db = rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let get = |sql: &str| -> Option<String> { db.query_row(sql, [], |r| r.get(0)).ok() };
+        let key = get("SELECT value FROM settings WHERE key='llm_api_key_anthropic'").unwrap();
+        let model = get("SELECT value FROM settings WHERE key='llm_model_anthropic'").unwrap_or(DEFAULT_MODEL.into());
+        let copilot = std::env::var("ASIDE_COPILOT").unwrap_or("Robert Half".into());
+        let row = |col: &str| get(&format!("SELECT {col} FROM copilots WHERE name='{copilot}'"));
+        let mut stmt = db.prepare("SELECT d.doc_type, d.file_name, d.raw_text FROM copilots c JOIN copilot_documents cd ON cd.copilot_id=c.id JOIN documents d ON d.id=cd.document_id WHERE c.name=?1 ORDER BY cd.attached_at_ms").unwrap();
+        let docs: Vec<(String, String, String)> = stmt.query_map([&copilot], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap().map(Result::unwrap).collect();
+        let mut ctx = DefaultContext {
+            instructions: row("instructions"),
+            target_role: row("target_role"),
+            company: row("company"),
+            job_description: row("job_description"),
+            // As migration v13 leaves it: the owner's rules after the default.
+            rules_override: get("SELECT value FROM settings WHERE key='answer_rules_override'").map(|saved| {
+                if saved.contains(crate::window_memory::MY_CONTENT_RULES_HEADING) { saved } else { crate::window_memory::merged_rules(&saved) }
+            }),
+            ..DefaultContext::default()
+        };
+        for (kind, name, text) in docs {
+            if kind == "resume" && ctx.resume.is_none() { ctx.resume = Some(text); } else { ctx.other_docs.push((name, text)); }
+        }
+        let turn = |who: &str, text: &str| RawTurn { speaker: if who == "Me" { Speaker::Me } else { Speaker::Other }, text: text.into(), at_ms: 0 };
+        let moments = [
+            ("question", vec![turn("Other", "Can you walk me through how you handled data quality checks in your pipelines?")]),
+            ("introduction", vec![turn("Other", "Hi, I'm Sarah. I lead the platform team here, we're about twelve engineers and we mostly own the streaming ingestion and the internal feature store.")]),
+            ("unfinished", vec![
+                turn("Other", "Tell me about a challenging project you worked on."),
+                turn("Me", "Yeah so at one of my projects we had this issue where the nightly batch was taking way too long and what we did was we started moving the"),
+            ]),
+            ("why_this_role", vec![turn("Other", "So why are you interested in this role?")]),
+        ];
+        #[derive(Default)]
+        struct Sink(String, Option<TokenUsage>);
+        impl AnswerSink for Sink {
+            fn on_delta(&mut self, t: &str) { self.0.push_str(t); }
+            fn on_done(&mut self, _: bool) {}
+            fn on_error(&mut self, _: &str) {}
+            fn on_usage(&mut self, usage: TokenUsage) { self.1 = Some(usage); }
+        }
+        let provider = AnthropicProvider::new(reqwest::Client::new(), key.trim().to_string(), Some(model.clone()));
+        let warm_system = build_prompt(&ctx, &SessionMemory::default(), &ConversationWindow { turns: Vec::new(), start_ms: 0, end_ms: 0 }).system;
+        let began = std::time::Instant::now();
+        let warm = provider.prewarm(&warm_system).await;
+        println!("=== PREWARM ms={} prefix_chars={} result={:?}", began.elapsed().as_millis(), warm_system.len(), warm);
+        for (label, turns) in moments {
+            let window = ConversationWindow { turns, start_ms: 0, end_ms: 0 };
+            let prompt = build_prompt(&ctx, &SessionMemory::default(), &window);
+            let encoded = prompt::encode_messages(&prompt.system, &prompt.user);
+            let mut sink = Sink::default();
+            let started = std::time::Instant::now();
+            let result = provider.stream_answer("", Some(&encoded), &mut sink).await;
+            let usage = sink.1.clone().unwrap_or_default();
+            println!("=== MOMENT {label} model={model} ms={} prefix_chars={} input_tokens={:?} cached_tokens={:?} words={} ok={:?}\n{}\n", started.elapsed().as_millis(), prompt.system.len(), usage.input_tokens, usage.cached_input_tokens, sink.0.split_whitespace().count(), result.as_ref().err(), sink.0);
+        }
+    }
+
+    #[test]
+    fn the_prefix_is_cached_for_an_hour_and_memory_gets_its_own_cache_point() {
+        let user = format!("CONVERSATION SO FAR\n- earlier{}NEW RAW CONVERSATION WINDOW\nOther: Why?", prompt::CACHE_SPLIT);
+        let body = build_request_body("claude-sonnet-5-5", "", Some(&prompt::encode_messages("SHARED PREFIX", &user)));
+        assert_eq!(body["system"][0]["text"], "SHARED PREFIX");
+        assert_eq!(body["system"][0]["cache_control"]["ttl"], "1h");
+        let content = &body["messages"][0]["content"];
+        assert_eq!(content[0]["text"], "CONVERSATION SO FAR\n- earlier");
+        assert_eq!(content[0]["cache_control"]["type"], "ephemeral");
+        assert!(content[0]["cache_control"].get("ttl").is_none(), "5-minute entry after the 1-hour one");
+        assert!(content[1]["text"].as_str().unwrap().contains("Other: Why?"));
+        assert!(!body.to_string().contains("ASIDE_CACHE_SPLIT"), "the marker never reaches the model");
+    }
+
+    #[test]
+    fn a_screenshot_reuses_the_exact_cached_prefix_of_text_answers() {
+        let prefix = "HOW THIS REQUEST IS ORGANIZED\n...rules, guidance, experience...\n";
+        let text = build_request_body("claude-opus-5-5", "", Some(&prompt::encode_messages(prefix, "Other: Hi")));
+        let screen = build_vision_request_body("claude-opus-5-5", &super::super::vision_prompt::vision_system_prompt(prefix), "Look", "abc");
+        assert_eq!(text["system"][0], screen["system"][0], "same cached block, byte for byte");
+        assert!(screen["system"][1]["text"].as_str().unwrap().contains("SCREEN ANSWERS"));
+        assert!(screen["system"][1].get("cache_control").is_none());
+    }
+
+    #[test]
+    fn the_warm_up_matches_real_traffic_but_generates_nothing() {
+        let warm = build_prewarm_body("claude-sonnet-5-5", "SHARED PREFIX");
+        let real = build_request_body("claude-sonnet-5-5", "", Some(&prompt::encode_messages("SHARED PREFIX", "Other: Hi")));
+        assert_eq!(warm["max_tokens"], 0);
+        assert_eq!(warm["stream"], false);
+        for field in ["system", "model", "thinking", "output_config", "fallbacks"] {
+            assert_eq!(warm[field], real[field], "{field} must match so real answers hit the warmed entry");
         }
     }
 

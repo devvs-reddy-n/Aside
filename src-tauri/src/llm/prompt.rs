@@ -46,6 +46,31 @@ The fact ledger in this system message is authoritative. If a resume or retrieve
 const STABLE_SENTINEL: &str = "\u{001e}ASIDE_STABLE\n";
 const USER_SENTINEL: &str = "\n\u{001e}ASIDE_USER\n";
 
+/// Marks where the cacheable part of a message ends: the shared prefix of a
+/// screenshot's system message, or the append-only memory at the start of
+/// the user message. Claude puts a cache breakpoint there; OpenAI (automatic
+/// prefix caching) just removes it. Never reaches a model as text.
+pub const CACHE_SPLIT: &str = "\u{001e}ASIDE_CACHE_SPLIT\n";
+
+/// `(cached part, rest)` at the marker; `(text, None)` when there is none.
+pub fn split_cached(text: &str) -> (&str, Option<&str>) {
+    match text.split_once(CACHE_SPLIT) {
+        Some((head, tail)) => (head, Some(tail)),
+        None => (text, None),
+    }
+}
+
+/// The text with the marker removed, for providers without breakpoints.
+pub fn without_split(text: &str) -> String {
+    text.replace(CACHE_SPLIT, "")
+}
+
+/// The OpenAI `prompt_cache_key` seed: only the shared cacheable prefix, so
+/// text answers and screenshots of the same call route to the same cache.
+pub fn cache_seed(system: &str) -> &str {
+    split_cached(system).0
+}
+
 pub fn encode_messages(system: &str, user: &str) -> String {
     format!("{STABLE_SENTINEL}{system}{USER_SENTINEL}{user}")
 }

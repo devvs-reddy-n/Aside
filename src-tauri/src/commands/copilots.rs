@@ -152,6 +152,7 @@ pub fn create_copilot(db: State<Db>, input: CopilotInput) -> Result<copilots::Co
 
 #[tauri::command]
 pub fn update_copilot(
+    app: AppHandle,
     db: State<Db>,
     copilot_id: Uuid,
     input: CopilotInput,
@@ -171,6 +172,10 @@ pub fn update_copilot(
         &input.document_ids,
         now_ms(),
     )?;
+    drop(conn);
+    // A running call reads this copilot live: refresh what its next answer
+    // sends (and re-warm the prompt cache once edits settle).
+    crate::window_memory::warm_defaults(&app);
     Ok(copilot)
 }
 

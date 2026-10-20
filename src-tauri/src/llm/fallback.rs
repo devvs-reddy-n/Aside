@@ -114,6 +114,14 @@ impl FallbackLlmProvider {
         self.providers.first().and_then(|p| p.model_name())
     }
 
+    /// Warms the answering provider's prompt cache (the first in the chain).
+    pub async fn prewarm(&self, system: &str) -> Result<super::timing::TokenUsage, String> {
+        match self.providers.first() {
+            Some(provider) => provider.prewarm(system).await,
+            None => Err("no AI key saved".to_string()),
+        }
+    }
+
     /// Screenshot answers use the call's own provider and model only (the
     /// first in the chain). No cross-provider retry: a picture is large, and
     /// a silent switch to another model would surprise more than help.

@@ -4,6 +4,8 @@
 
 ## Current result
 
+- Answers (2026-10-20): one System rules set (editable, Reset to default; your earlier rules kept under MY CONTENT RULES); each request labels rules, guidance, target role and experience; calls always use the copilot's current documents; all dossiers sent; prompt caching verified live (~10% cost per answer after a one-time warm-up). Answers still sometimes run longer than the length bands.
+
 - Models (2026-10-17): Settings switch between OpenAI (GPT-6 Luna, GPT-6.1 Sol, GPT-5.6 Terra) and Claude (Opus 5.5, Sonnet 5.5, Haiku 5.5); Copilots only offer the chosen provider. Screenshots use the call's model; speech is Speechmatics or Parakeet only. Background notes still need an OpenAI key. No real GPT-6 or Claude answer tested yet.
 
 - Answer prompt (2026-10-17): your Strict rules and copilot Guidance now lead every answer, including screenshots; your actual words beat any AI suggestion; full resume, job description and target role are sent. Tests and builds pass; a real answer with the new prompt has not been checked yet.

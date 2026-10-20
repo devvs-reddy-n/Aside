@@ -367,6 +367,14 @@ pub trait LlmProvider: Send + Sync {
         let _ = (system, user_text, jpeg_base64, sink);
         Err(format!("{:?} cannot read screenshots", self.kind()))
     }
+
+    /// Writes the call's shared system prefix into the provider's prompt
+    /// cache before the first answer, generating nothing. Returns the usage
+    /// the provider reported.
+    async fn prewarm(&self, system: &str) -> Result<timing::TokenUsage, String> {
+        let _ = system;
+        Ok(timing::TokenUsage::default())
+    }
 }
 
 // --- Events (mirrors pipeline.rs's exact `AppHandle::emit` pattern) ---
@@ -1230,6 +1238,67 @@ fn build_vision_parts(app: &AppHandle, session_id: Option<Uuid>, question: &str)
     };
     let prompt = crate::window_memory::build_request(app, session_id, &window);
     (vision_prompt::vision_system_prompt(&prompt.system), prompt.user)
+}
+
+/// When the cache was last warmed, and for which prefix, so repeated
+/// triggers (call start, then a copilot save a second later) warm once.
+static LAST_PREWARM: Mutex<Option<(String, std::time::Instant)>> = Mutex::new(None);
+/// Bumped on every trigger; a scheduled warm-up runs only if no newer
+/// trigger arrived during its quiet period (copilot autosave while typing).
+static PREWARM_GENERATION: AtomicU64 = AtomicU64::new(0);
+/// Quiet period before warming, so a burst of edits costs one cache write.
+const PREWARM_QUIET: std::time::Duration = std::time::Duration::from_secs(10);
+/// Claude's prefix entry lives an hour; re-warming sooner only costs money.
+const PREWARM_REFRESH: std::time::Duration = std::time::Duration::from_secs(50 * 60);
+
+/// Writes the active call's shared prefix (system rules, guidance, target
+/// role, experience) into the answering provider's prompt cache in the
+/// background, so the first answer of a call is fast and every later one
+/// reads ~90% cheaper. Never blocks and never fails a call: a failed warm-up
+/// only means the first real answer writes the cache itself.
+pub fn prewarm_cache(app: &AppHandle) {
+    if crate::active_session::get(app).and_then(|active| active.id).is_none() {
+        return;
+    }
+    let generation = PREWARM_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(PREWARM_QUIET).await;
+        if PREWARM_GENERATION.load(Ordering::SeqCst) == generation {
+            prewarm_now(&app).await;
+        }
+    });
+}
+
+async fn prewarm_now(app: &AppHandle) {
+    let Some(session_id) = crate::active_session::get(app).and_then(|active| active.id) else {
+        return;
+    };
+    let empty = crate::window_memory::ConversationWindow { turns: Vec::new(), start_ms: 0, end_ms: 0 };
+    let system = crate::window_memory::build_request(app, Some(session_id), &empty).system;
+    let Ok(chain) = build_provider_chain_for_app(app) else {
+        return;
+    };
+    let key = format!("{}|{}", chain.active_model().unwrap_or_default(), prompt::cache_key(&system));
+    {
+        let mut last = LAST_PREWARM.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some((done, at)) = last.as_ref() {
+            if *done == key && at.elapsed() < PREWARM_REFRESH {
+                return;
+            }
+        }
+        *last = Some((key, std::time::Instant::now()));
+    }
+    let began = std::time::Instant::now();
+    match chain.prewarm(&system).await {
+        Ok(usage) => eprintln!(
+            "prompt cache warmed in {} ms: {} input tokens, {} already cached",
+            began.elapsed().as_millis(),
+            usage.input_tokens.unwrap_or(0),
+            usage.cached_input_tokens.unwrap_or(0)
+        ),
+        Err(e) => eprintln!("prompt cache warm-up skipped: {e}"),
+    }
 }
 
 /// Answers about a picture of the screen (⌘⇧↩). Streams through the exact

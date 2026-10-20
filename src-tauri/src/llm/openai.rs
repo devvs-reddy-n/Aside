@@ -103,10 +103,10 @@ pub fn build_request_body(model: &str, question: &str, context: Option<&str>) ->
         "model": model,
         "stream": true,
         "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
+            {"role": "system", "content": prompt::without_split(&system)},
+            {"role": "user", "content": prompt::without_split(&user)},
         ],
-        "prompt_cache_key": prompt::cache_key(&system),
+        "prompt_cache_key": prompt::cache_key(prompt::cache_seed(&system)),
     });
     if let Some(effort) = reasoning_effort_for(model) {
         body["reasoning_effort"] = json!(effort);
@@ -266,16 +266,16 @@ pub fn build_vision_request_body(
         "model": model,
         "stream": true,
         "messages": [
-            {"role": "system", "content": system},
+            {"role": "system", "content": prompt::without_split(system)},
             {"role": "user", "content": [
-                {"type": "text", "text": user_text},
+                {"type": "text", "text": prompt::without_split(user_text)},
                 {"type": "image_url", "image_url": {
                     "url": format!("data:image/jpeg;base64,{jpeg_base64}"),
                     "detail": "high",
                 }},
             ]},
         ],
-        "prompt_cache_key": prompt::cache_key(system),
+        "prompt_cache_key": prompt::cache_key(prompt::cache_seed(system)),
     });
     if let Some(effort) = reasoning_effort_for(model) {
         body["reasoning_effort"] = json!(effort);
@@ -315,6 +315,35 @@ impl LlmProvider for OpenAiProvider {
         apply_live_openai_options(&mut body, self.service_tier.as_deref());
         stream_prebuilt_body(&self.client, ENDPOINT, &self.api_key, "openai", body, sink).await
     }
+
+    async fn prewarm(&self, system: &str) -> Result<TokenUsage, String> {
+        let body = build_prewarm_body(&self.model, system);
+        let resp = self
+            .client
+            .post(ENDPOINT)
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("openai: warm-up failed: {e}"))?;
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(format!("openai: warm-up rejected ({status})"));
+        }
+        Ok(extract_usage(&text).unwrap_or_default())
+    }
+}
+
+/// OpenAI caches a prompt prefix automatically after any request that sends
+/// it, so the warm-up is the call's real prefix plus a one-word user turn and
+/// the smallest useful output. Same model, routing key and reasoning setting
+/// as real answers, so they hit the entry it leaves.
+pub fn build_prewarm_body(model: &str, system: &str) -> serde_json::Value {
+    let mut body = build_request_body(model, "Ready.", Some(&prompt::encode_messages(system, "Ready.")));
+    body["stream"] = json!(false);
+    body["max_completion_tokens"] = json!(16);
+    body
 }
 
 #[cfg(test)]
@@ -427,6 +456,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn text_answers_and_screenshots_share_one_cache_key_and_the_marker_is_removed() {
+        let prefix = "HOW THIS REQUEST IS ORGANIZED\nshared\n";
+        let user = format!("memory{}window", prompt::CACHE_SPLIT);
+        let text = build_request_body(DEFAULT_MODEL, "", Some(&prompt::encode_messages(prefix, &user)));
+        let screen = build_vision_request_body(DEFAULT_MODEL, &super::super::vision_prompt::vision_system_prompt(prefix), "Look", "abc");
+        assert_eq!(text["prompt_cache_key"], screen["prompt_cache_key"]);
+        assert_eq!(text["messages"][1]["content"], "memorywindow");
+        assert!(screen["messages"][0]["content"].as_str().unwrap().starts_with(prefix), "same leading bytes for automatic prefix caching");
+        assert!(!text.to_string().contains("ASIDE_CACHE_SPLIT") && !screen.to_string().contains("ASIDE_CACHE_SPLIT"));
+        let warm = build_prewarm_body(DEFAULT_MODEL, prefix);
+        assert_eq!(warm["prompt_cache_key"], text["prompt_cache_key"]);
+        assert_eq!(warm["messages"][0], text["messages"][0]);
     }
 
     #[test]

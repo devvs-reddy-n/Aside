@@ -311,7 +311,7 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
             onDocuments={(ids) => set("document_ids", ids)} onAdd={addFiles} onPreview={setViewing} />
 
           <SetupSummary name="guidance" title="Guidance" icon="bulb" copilotId={savedId} kind="guidance" value={input.instructions}
-            helper={<>Adds to your <a href={hrefFor("settings", "rules")}>Answer rules</a>.</>}
+            helper={<>How answers sound: tone, voice, fillers. What kind of answer to give comes from <a href={hrefFor("settings", "rules")}>System rules</a>.</>}
             placeholder="Add guidance to see five response preferences." onChange={(value) => set("instructions", value)} />
         </div>
         <footer className="cp-foot">

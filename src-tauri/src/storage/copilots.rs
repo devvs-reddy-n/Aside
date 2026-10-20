@@ -191,6 +191,23 @@ pub fn replace_documents(
         .map_err(|e| format!("failed to save Copilot sources: {e}"))
 }
 
+/// The copilot's sources in prompt order (resume first), each with whether
+/// it is the resume.
+pub fn sources(conn: &Connection, copilot_id: Uuid) -> Result<Vec<(Uuid, bool)>, String> {
+    let mut stmt = conn.prepare("SELECT document_id, is_resume FROM copilot_documents WHERE copilot_id=?1 ORDER BY is_resume DESC, attached_at_ms ASC")
+        .map_err(|e| format!("failed to prepare Copilot sources: {e}"))?;
+    let rows = stmt
+        .query_map(params![copilot_id.to_string()], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? != 0))
+        })
+        .map_err(|e| format!("failed to load Copilot sources: {e}"))?;
+    rows.map(|row| {
+        row.map_err(|e| e.to_string())
+            .and_then(|(id, resume)| Uuid::parse_str(&id).map(|id| (id, resume)).map_err(|e| e.to_string()))
+    })
+    .collect()
+}
+
 pub fn document_ids(conn: &Connection, copilot_id: Uuid) -> Result<Vec<Uuid>, String> {
     let mut stmt = conn.prepare("SELECT document_id FROM copilot_documents WHERE copilot_id=?1 ORDER BY is_resume DESC, attached_at_ms ASC")
         .map_err(|e| format!("failed to prepare Copilot sources: {e}"))?;
