@@ -221,7 +221,7 @@ mod tests {
             instructions: None,
             save_transcript: true,
             llm_provider: LlmProviderKind::OpenAi,
-            llm_model: "gpt-5.6-luna".into(),
+            llm_model: "gpt-6-luna".into(),
             kind: CopilotKind::Interview,
             created_at_ms: now,
             updated_at_ms: now,

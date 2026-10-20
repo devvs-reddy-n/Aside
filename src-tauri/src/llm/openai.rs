@@ -7,8 +7,10 @@
 //! `Authorization: Bearer`, `stream: true`, SSE lines of
 //! `data: {"choices":[{"delta":{"content":"..."}}]}` terminated by a literal
 //! `data: [DONE]` — has been stable and documented for a long time and is
-//! used with high confidence. Answers use GPT-5.6 Sol, Terra or Luna (Luna
-//! is the default and fastest); background notes use `gpt-5.4-mini`.
+//! used with high confidence. Answers use GPT-6 Luna (default, fastest),
+//! GPT-6.1 Sol or GPT-5.6 Terra (the newest Terra; there is no GPT-6 Terra).
+//! GPT-6 Astra is deliberately not offered. Background notes also use
+//! GPT-6 Luna.
 
 use futures_util::StreamExt;
 use serde_json::json;
@@ -18,23 +20,31 @@ use super::timing::TokenUsage;
 use super::{prompt, AnswerSink, LlmProvider, LlmProviderKind};
 
 const ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
-/// Fastest GPT-5.6 Chat Completions id, and the first preset.
-pub const DEFAULT_MODEL: &str = "gpt-5.6-luna";
+/// GPT-6 Luna: the fastest and cheapest current model, and the first preset.
+pub const DEFAULT_MODEL: &str = "gpt-6-luna";
 
 /// The only GPT models offered and accepted for answers and screenshots:
-/// the GPT-5.6 generation.
-pub const MODEL_PRESETS: &[&str] = &["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
+/// the newest Luna, Sol and Terra (all stream on Chat Completions and read
+/// images; checked against OpenAI's model pages 2026-10-17).
+pub const MODEL_PRESETS: &[&str] = &["gpt-6-luna", "gpt-6.1-sol", "gpt-5.6-terra"];
 
-/// The cheap, asynchronous background note-taker (`llm::background`,
-/// `window_memory::background`). Never shown as an answer model.
-pub const BACKGROUND_MODEL: &str = "gpt-5.4-mini";
+/// The background note-taker (`llm::background`, `window_memory::background`):
+/// GPT-6 Luna, the cheapest and fastest current model, whichever model
+/// answers the call.
+pub const BACKGROUND_MODEL: &str = "gpt-6-luna";
 
 /// The `reasoning_effort` to send. Hidden thinking is not streamed, so any
-/// thinking looks like a frozen screen mid-interview; every model Aside uses
-/// accepts `"none"`.
+/// thinking looks like a frozen screen mid-interview: send the lowest each
+/// model accepts. GPT-6.1 Sol rejects `"none"`, so it runs at `"low"`.
 pub fn reasoning_effort_for(model: &str) -> Option<&'static str> {
     let m = model.trim().to_lowercase();
-    (m.starts_with("gpt-5.6") || m.starts_with("gpt-5.4")).then_some("none")
+    if m.starts_with("gpt-6.1-sol") {
+        Some("low")
+    } else if m.starts_with("gpt-6-luna") || m.starts_with("gpt-5.6") {
+        Some("none")
+    } else {
+        None
+    }
 }
 
 /// Whether `temperature`/`top_p`/`seed` may be sent for `model`. These
@@ -362,8 +372,8 @@ mod tests {
 
     #[test]
     fn request_body_has_stream_true_and_both_messages() {
-        let body = build_request_body("gpt-5.6-luna", "what is rust", None);
-        assert_eq!(body["model"], "gpt-5.6-luna");
+        let body = build_request_body("gpt-6-luna", "what is rust", None);
+        assert_eq!(body["model"], "gpt-6-luna");
         assert_eq!(body["stream"], true);
         assert_eq!(body["messages"][0]["role"], "system");
         assert_eq!(body["messages"][1]["role"], "user");
@@ -374,17 +384,19 @@ mod tests {
     }
 
     #[test]
-    fn only_the_gpt_5_6_generation_is_offered_and_luna_is_the_default() {
-        assert_eq!(MODEL_PRESETS, &["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"]);
+    fn only_the_newest_luna_sol_and_terra_are_offered_and_luna_is_the_default() {
+        assert_eq!(MODEL_PRESETS, &["gpt-6-luna", "gpt-6.1-sol", "gpt-5.6-terra"]);
+        assert!(!MODEL_PRESETS.iter().any(|m| m.contains("astra")), "Astra is not offered");
         assert_eq!(MODEL_PRESETS[0], DEFAULT_MODEL);
-        assert!(!MODEL_PRESETS.contains(&BACKGROUND_MODEL), "background model is not an answer choice");
+        assert_eq!(BACKGROUND_MODEL, "gpt-6-luna", "background notes use GPT-6 Luna");
     }
 
     #[test]
-    fn every_model_aside_uses_sends_reasoning_effort_none() {
+    fn every_model_gets_the_lowest_reasoning_effort_it_accepts() {
         for model in MODEL_PRESETS.iter().copied().chain([BACKGROUND_MODEL]) {
             let body = build_request_body(model, "q", None);
-            assert_eq!(body["reasoning_effort"], "none", "model {model} produced {body}");
+            let lowest = if model == "gpt-6.1-sol" { "low" } else { "none" };
+            assert_eq!(body["reasoning_effort"], lowest, "model {model} produced {body}");
             assert_eq!(body["model"], model);
             assert_eq!(body["stream"], true);
         }
@@ -392,9 +404,9 @@ mod tests {
 
     #[test]
     fn a_screenshot_uses_the_given_model_and_carries_the_image() {
-        let body = build_vision_request_body("gpt-5.6-sol", "SYSTEM", "What is on screen?", "abc");
-        assert_eq!(body["model"], "gpt-5.6-sol");
-        assert_eq!(body["reasoning_effort"], "none");
+        let body = build_vision_request_body("gpt-6.1-sol", "SYSTEM", "What is on screen?", "abc");
+        assert_eq!(body["model"], "gpt-6.1-sol");
+        assert_eq!(body["reasoning_effort"], "low");
         assert_eq!(body["messages"][0]["content"], "SYSTEM");
         assert_eq!(body["messages"][1]["content"][0]["text"], "What is on screen?");
         assert_eq!(body["messages"][1]["content"][1]["image_url"]["url"], "data:image/jpeg;base64,abc");
@@ -419,8 +431,8 @@ mod tests {
 
     #[test]
     fn the_request_carries_a_stable_prompt_cache_key() {
-        let a = build_request_body("gpt-5.6-luna", "first question", None);
-        let b = build_request_body("gpt-5.6-luna", "a totally different question", None);
+        let a = build_request_body("gpt-6-luna", "first question", None);
+        let b = build_request_body("gpt-6-luna", "a totally different question", None);
         assert_eq!(
             a["prompt_cache_key"], b["prompt_cache_key"],
             "the key must key off the stable system prefix, not the question"
@@ -438,12 +450,12 @@ mod tests {
             prompt::SYSTEM_PROMPT
         );
         let a = build_request_body(
-            "gpt-5.6-luna",
+            "gpt-6-luna",
             "q1",
             Some(&prompt::encode_messages(&sys, "user one")),
         );
         let b = build_request_body(
-            "gpt-5.6-luna",
+            "gpt-6-luna",
             "q2",
             Some(&prompt::encode_messages(&sys, "user two")),
         );
@@ -458,9 +470,9 @@ mod tests {
         let p = OpenAiProvider::new(
             reqwest::Client::new(),
             "sk".to_string(),
-            Some("gpt-5.6-sol".to_string()),
+            Some("gpt-6.1-sol".to_string()),
         );
-        assert_eq!(p.model(), "gpt-5.6-sol");
+        assert_eq!(p.model(), "gpt-6.1-sol");
     }
 
     #[test]
@@ -482,7 +494,7 @@ mod tests {
     #[test]
     fn request_body_splices_retrieved_context_into_the_user_message() {
         let body = build_request_body(
-            "gpt-5.6-luna",
+            "gpt-6-luna",
             "what is rust",
             Some("[you] I use Rust daily"),
         );
@@ -528,14 +540,14 @@ mod tests {
 
     #[test]
     fn paid_service_tiers_are_omitted_unless_the_owner_opts_in() {
-        let mut body = build_request_body("gpt-5.6-luna", "q", None);
+        let mut body = build_request_body("gpt-6-luna", "q", None);
         apply_live_openai_options(&mut body, None);
         assert!(body.get("service_tier").is_none(), "got {body}");
         assert_eq!(body["stream_options"]["include_usage"], true);
-        let mut priority = build_request_body("gpt-5.6-luna", "q", None);
+        let mut priority = build_request_body("gpt-6-luna", "q", None);
         apply_live_openai_options(&mut priority, Some("priority"));
         assert_eq!(priority["service_tier"], "priority");
-        let mut clean = build_request_body("gpt-5.6-luna", "q", None);
+        let mut clean = build_request_body("gpt-6-luna", "q", None);
         apply_live_openai_options(&mut clean, Some("fast"));
         assert!(
             clean.get("service_tier").is_none(),

@@ -55,7 +55,7 @@ pub struct SessionSummary {
     pub highlights: Vec<String>,
 }
 
-/// The background note-taker always uses OpenAI's `gpt-5.4-mini`
+/// The background note-taker always uses GPT-6 Luna
 /// ([`openai::BACKGROUND_MODEL`]) with the saved OpenAI key, whichever model
 /// answers the call, Claude included. No fallback chain: a failed note is
 /// logged and skipped by `window_memory::background::run_job`, never shown.
@@ -69,7 +69,7 @@ pub(super) fn build_background_provider(app: &AppHandle) -> Result<Box<dyn LlmPr
     let tier = settings::get(&conn, SERVICE_TIER_SETTING_KEY)?;
     drop(conn);
     let client = app.state::<HttpClient>().0.clone();
-    Ok(build_provider(provider, client, api_key, Some(model), tier))
+    Ok(build_provider(provider, client, api_key, Some(model), tier, None))
 }
 
 /// Collects a provider's full streamed reply into one `String` — the
@@ -175,9 +175,9 @@ mod tests {
     }
 
     #[test]
-    fn background_notes_use_gpt_5_4_mini_which_is_not_an_answer_choice() {
-        assert_eq!(openai::BACKGROUND_MODEL, "gpt-5.4-mini");
-        assert!(!LlmProviderKind::OpenAi.supports_model(openai::BACKGROUND_MODEL));
+    fn background_notes_use_gpt_6_luna() {
+        assert_eq!(openai::BACKGROUND_MODEL, "gpt-6-luna");
+        assert!(LlmProviderKind::OpenAi.supports_model(openai::BACKGROUND_MODEL));
     }
 
     #[test]

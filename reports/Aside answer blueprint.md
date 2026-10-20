@@ -76,8 +76,8 @@ Now write exactly what I should say at this point in the conversation, following
 ### Step 5: Asking OpenAI
 | Setting | Conversation / typed | Screenshot | Background summary |
 |---|---|---|---|
-| Model | your copilot's model: GPT-5.6 Luna/Terra/Sol or Claude Opus 5.5/Sonnet 5.5/Haiku 5.5/Fable 5.1 | same as the call | `gpt-5.4-mini` (always OpenAI) |
-| Reasoning ("thinking") | GPT: `none`; Claude: lowest each model allows (effort `low`; off on Sonnet/Haiku) | same | `none` |
+| Model | the provider chosen in Settings (OpenAI or Claude) and its model: GPT-6 Luna / GPT-6.1 Sol / GPT-5.6 Terra, or Claude Opus 5.5 / Sonnet 5.5 / Haiku 5.5 | same as the call | `gpt-6-luna` (always OpenAI) |
+| Reasoning ("thinking") | GPT: `none` (GPT-6.1 Sol: `low`, its minimum); Claude: effort `low`, thinking off on Sonnet/Haiku | same | `none` |
 | Streaming | on (words appear as written) | on | collected, not shown |
 | Prompt caching | GPT: `prompt_cache_key`; Claude: `cache_control` on the stable opening | same | same |
 | Max length / temperature | not set (model defaults; length is controlled by your rules) | not set | not set |
@@ -87,7 +87,7 @@ Now write exactly what I should say at this point in the conversation, following
 Endpoints: OpenAI Chat Completions, or Anthropic Messages (with automatic refusal fallback, except on Haiku). Answers stream to the live window as they arrive.
 
 ### Step 6: Remembering (background, never slows the answer)
-- After each press with new speech, the frozen window goes to `gpt-5.4-mini` with the summary prompt (3E). Its 1–2 sentences are added to **CONVERSATION SO FAR** and saved for History.
+- After each press with new speech, the frozen window goes to `gpt-6-luna` with the summary prompt (3E). Its 1–2 sentences are added to **CONVERSATION SO FAR** and saved for History.
 - It only ever sees the transcript, **never the AI's answers**. So if the AI suggested Kafka but you said RabbitMQ, memory records RabbitMQ.
 - At the end of a call, a whole-call summary is written for History (3F).
 
@@ -195,7 +195,7 @@ ANSWER LENGTH OVERRIDE — the person manually pressed SMALL|MEDIUM|LONG. For th
 ```
 Bands: Short about 15–40 words; Medium about 40–90; Long about 90–180.
 
-### 3E. Per-window memory summary (background, `gpt-5.4-mini`)
+### 3E. Per-window memory summary (background, `gpt-6-luna`)
 ```text
 You silently take notes on a live spoken conversation. You will be given the raw transcript of one short window of that conversation, with lines labeled "Other:" (the other participant) and "Me:" (the user). Write exactly 1 or 2 plain prose sentences describing only what was actually said in this window - no more, no less. Say who said what: what Other asked or shared, and what the user said about themselves (write it as "I said..."). Keep every technology, tool, company, project name, and number exactly as spoken, because later answers must stay consistent with what the user actually said. Do not answer any question in it, do not add opinions, do not invent anything that is not present in the transcript. Output only the 1-2 sentences, nothing else - no preamble, no labels, no quotation marks.
 ```

@@ -150,6 +150,9 @@ export const model = {
     invoke<void>("set_llm_model", { provider, model: modelName }),
   hasKey: (provider: LlmProviderKind) => invoke<boolean>("has_llm_api_key", { provider }),
   saveKey: (provider: LlmProviderKind, apiKey: string) => invoke<void>("set_llm_api_key", { provider, apiKey }),
+  /** Claude workspace ID, needed only for a Claude key not tied to one workspace. Empty clears it. */
+  workspace: () => invoke<string>("get_anthropic_workspace_id"),
+  setWorkspace: (workspaceId: string) => invoke<void>("set_anthropic_workspace_id", { workspaceId }),
   tier: () => invoke<string>("get_llm_service_tier"),
   setTier: (tier: string) => invoke<void>("set_llm_service_tier", { tier }),
   rules: () => invoke<AnswerRules>("get_answer_rules"),

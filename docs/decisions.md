@@ -722,3 +722,26 @@ Owner requested Resume and Supporting documents become one aligned section. Use 
 - Screenshots use the call's own provider and model (a Copilot's model or the Settings default), replacing the fixed GPT-5.6 Terra; no cross-provider retry for images.
 - Claude via raw HTTP (no official Rust SDK): streaming Messages API, `anthropic-version: 2023-06-01`, system prefix as a cached block (`cache_control: ephemeral`), `max_tokens` 16,000 ceiling, `output_config.effort: low`; thinking off where allowed (Sonnet `between_tools`, Haiku `disabled`), omitted on Opus 5.5/Fable 5.1 (which reject thinking-off). Server-side refusal fallback `fallbacks: "default"` + `server-side-fallback-2026-07-01` on Opus/Sonnet/Fable (Haiku has none). Default Claude model Opus 5.5 (Anthropic's recommended default). Connection dot now really checks Anthropic keys (GET /v1/models/{model}).
 - Speech: Deepgram engine deleted; only Speechmatics and Parakeet remain. Migration v11 deletes settings (and saved keys) for Deepgram/Gemini/Groq and the unused background-model overrides, clears stored older model choices, and moves Copilots on removed models to Default. The v1 transcript `origin` CHECK still lists the retired engine so older saved transcripts stay valid; nothing writes it.
+
+
+### 2026-10-17 — OpenAI / Claude switch; GPT-6 models
+
+- Owner: switch providers like the speech engine; Copilots show only the chosen provider's models; use the newest GPT models; leave out GPT Astra and Claude Fable.
+- Checked OpenAI's model pages (developers.openai.com, 2026-10-17): current GPT-6 family is gpt-6-astra (flagship, excluded), gpt-6.1-sol and gpt-6-luna; no GPT-6 Terra exists, so gpt-5.6-terra stays as the newest Terra. Both GPT-6 models stream on Chat Completions and read images. gpt-6.1-sol rejects reasoning_effort "none" (minimum "low"); gpt-6-luna accepts "none".
+- OpenAI list: GPT-6 Luna (default), GPT-6.1 Sol, GPT-5.6 Terra. Claude list: Opus 5.5 (default), Sonnet 5.5, Haiku 5.5.
+- Settings has an OpenAI | Claude switch, then that provider's models and key; with Claude chosen the OpenAI key row stays for background notes. The switch decides every call: a Copilot's own model counts only while it belongs to the chosen provider, otherwise the call uses the default. The default model is the saved choice while still offered, else the provider's first model. If the chosen provider fails, the chain still tries the other provider when its key is saved (existing resilience, unchanged).
+- Migration v12 clears saved defaults and Copilot models no longer offered.
+
+- Owner (same day): background notes use GPT-6 Luna only; `gpt-5.4-mini` removed. Luna is the cheapest current OpenAI model ($0.10 / $0.50 per million input/output tokens) and accepts reasoning effort "none". Still OpenAI-only, so an OpenAI key is needed on Claude calls.
+
+
+### 2026-10-19 — Claude keys not tied to a workspace
+
+- Owner reported Claude not working. A live probe with the saved key (never printed) showed every model rejected with 400: "This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header". Per Anthropic's authentication docs, personal/service-account keys created without a single workspace need `anthropic-workspace-id: wrkspc_...` on every request; single-workspace keys don't. The key cannot list workspaces (permission_error), so the ID can't be discovered automatically.
+- Added an optional "Claude workspace ID" in Settings (shown with Claude selected), validated as `wrkspc_` + letters/numbers, sent as the header on answers, screenshots and the connection check. Anthropic workspace errors now show plain instructions (create a workspace-scoped key, or add the ID). Saved keys are normalized (trim, quotes, "Bearer ") before use.
+- The saved provider setting was still OpenAI at diagnosis time, so calls were going to GPT regardless; the owner also needs to pick Claude with the switch.
+
+
+### 2026-10-19 — square row highlights in Library and History
+
+- Owner: hovering a Library or History row drew a pill (rows used the 999px capsule radius) and in Library lit only the left part. Rows inside a rounded tile now highlight as full-width rectangles; the tile keeps its rounded corners and clips the first/last row. Keyboard focus outline is drawn inside the row. CSS-only change appended to `src/theme/spatial.css` (baseline copy kept in the session scratchpad).

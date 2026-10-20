@@ -184,10 +184,12 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
 
   const resumes = docs.filter((doc) => doc.doc_type === "resume");
   const extras = docs.filter((doc) => doc.doc_type === "other");
-  const usesDefault = input.llm_model === DEFAULT_MODEL_CHOICE;
+  // Only the provider chosen in Settings is offered; a model saved under the other provider follows Default.
+  const provider = system.provider ?? "open_ai";
+  const options = models.filter((m) => m.provider === provider);
+  const usesDefault = input.llm_model === DEFAULT_MODEL_CHOICE || input.llm_provider !== provider || !options.some((m) => m.model === input.llm_model);
   const modelKey = usesDefault ? DEFAULT_MODEL_CHOICE : `${input.llm_provider}|${input.llm_model}`;
-  const options = usesDefault || models.some((m) => `${m.provider}|${m.model}` === modelKey) || models.length === 0 ? models : [{ provider: input.llm_provider, model: input.llm_model }, ...models];
-  const defaultLabel = copilotModelLabel(input.llm_provider, DEFAULT_MODEL_CHOICE, system);
+  const defaultLabel = copilotModelLabel(provider, DEFAULT_MODEL_CHOICE, system);
 
   async function addFiles(docType: DocType, paths?: string[]) {
     if (filesLock.current) return;
@@ -259,7 +261,6 @@ export function CopilotPage({ copilot, onCreated, onDelete, onDuplicate, onStart
                   setInput((c) => ({ ...c, llm_provider: provider as LlmProviderKind, llm_model: rest.join("|") }));
                 }}>
                 <option value={DEFAULT_MODEL_CHOICE}>{defaultLabel}</option>
-                {options.length === 0 && !usesDefault ? <option value={modelKey}>{modelLabel(input.llm_provider, input.llm_model)}</option> : null}
                 {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
               </Select>
               </label>

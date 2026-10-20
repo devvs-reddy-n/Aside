@@ -450,3 +450,17 @@ html.bubble-window, html.bubble-window body, html.bubble-window #root { backgrou
 .btn, .icon-btn, .sb-item, .seg__item { transition: background-color var(--fast), color var(--fast), transform var(--fast) var(--ease-out); }
 .btn:active:not(:disabled), .icon-btn:active:not(:disabled), .sb-item:active { transition-duration: 60ms; }
 :root[data-theme="dark"] .dialog-backdrop, :root[data-theme="dark"] .sheet-backdrop { background: rgb(0 0 0 / .5); }
+
+/* Rows inside a rounded tile (Library list, History): the tile keeps its rounded
+   corners; each row highlights as a plain full-width rectangle, never a pill. */
+.lib .lib-list[data-view="list"] { padding: 0; overflow: hidden; }
+.lib-item[data-view="list"] { padding-inline: 16px; border-radius: 0; transition: background-color var(--fast) var(--ease-std); }
+.lib-item[data-view="list"]:hover { background: var(--hover); }
+.lib-item[data-view="list"] .lib-item__main,
+.lib-item[data-view="list"] .lib-item__main:hover { border-radius: 0; background: none; }
+.hist-list { overflow: hidden; }
+.hist-row, .hist-row__main { border-radius: 0; }
+.hist-row { transition: background-color var(--fast) var(--ease-std); }
+/* Keyboard focus stays visible but drawn inside the row, so the tile can't clip it. */
+.lib-item[data-view="list"] .lib-item__main:focus-visible,
+.hist-row__main:focus-visible { outline-offset: -2px; border-radius: 0; }

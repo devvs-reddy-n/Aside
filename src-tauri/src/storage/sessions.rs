@@ -608,7 +608,7 @@ mod tests {
         let copilot_id = Uuid::new_v4();
         conn.execute(
             "INSERT INTO copilots (id, name, auto_answer, save_transcript, llm_provider, llm_model, created_at_ms, updated_at_ms)
-             VALUES (?1, 'Platform setup', 0, 1, 'open_ai', 'gpt-5.6-luna', 1, 1)",
+             VALUES (?1, 'Platform setup', 0, 1, 'open_ai', 'gpt-6-luna', 1, 1)",
             params![copilot_id.to_string()],
         )
         .unwrap();
@@ -620,13 +620,13 @@ mod tests {
             &conn,
             session.id,
             copilot_id,
-            r#"{"llm_provider":"open_ai","llm_model":"gpt-5.6-sol"}"#,
+            r#"{"llm_provider":"open_ai","llm_model":"gpt-6.1-sol"}"#,
         )
         .unwrap();
 
         assert_eq!(
             copilot_model_for_call(&conn, session.id).unwrap(),
-            Some((LlmProviderKind::OpenAi, "gpt-5.6-sol".to_string()))
+            Some((LlmProviderKind::OpenAi, "gpt-6.1-sol".to_string()))
         );
     }
 

@@ -70,12 +70,12 @@ pub fn list_llm_models(provider: LlmProviderKind) -> Vec<String> {
         .collect()
 }
 
-/// The model saved for `provider`, or `None` — in which case that provider
-/// uses its own built-in default.
+/// The model `provider` answers with: the saved choice while it is still
+/// offered, otherwise the provider's first model (see `llm::effective_model`).
 #[tauri::command]
 pub fn get_llm_model(db: State<Db>, provider: LlmProviderKind) -> Result<Option<String>, String> {
     let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
-    settings::get(&conn, provider.model_setting())
+    llm::effective_model(&conn, provider).map(Some)
 }
 
 /// Only the listed latest models are accepted, so an old or mistyped name
@@ -122,6 +122,43 @@ pub fn set_llm_service_tier(app: AppHandle, db: State<Db>, tier: String) -> Resu
         settings::set(&conn, llm::SERVICE_TIER_SETTING_KEY, &value)?;
     } else {
         settings::delete(&conn, llm::SERVICE_TIER_SETTING_KEY)?;
+    }
+    drop(conn);
+    llm::invalidate_llm_settings(&app);
+    Ok(())
+}
+
+/// The saved Claude workspace ID, or empty when none is needed.
+#[tauri::command]
+pub fn get_anthropic_workspace_id(db: State<Db>) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
+    Ok(settings::get(&conn, llm::ANTHROPIC_WORKSPACE_SETTING_KEY)?.unwrap_or_default())
+}
+
+/// Accepts `wrkspc_...` or empty (empty removes it: workspace-scoped keys
+/// don't need one).
+fn validate_workspace_id(raw: &str) -> Result<Option<String>, String> {
+    let id = raw.trim();
+    if id.is_empty() {
+        return Ok(None);
+    }
+    if id.starts_with("sk-ant-") {
+        return Err("That's a Claude API key, not a workspace ID. Click Replace next to Claude key and paste it there. A key made for one workspace (like Default) needs no workspace ID, so leave this box empty.".to_string());
+    }
+    let body = id.strip_prefix("wrkspc_").unwrap_or("");
+    if body.is_empty() || !body.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err("A Claude workspace ID starts with wrkspc_ followed by letters and numbers. Copy it from the ID column on the Claude Console's Workspaces page.".to_string());
+    }
+    Ok(Some(id.to_string()))
+}
+
+#[tauri::command]
+pub fn set_anthropic_workspace_id(app: AppHandle, db: State<Db>, workspace_id: String) -> Result<(), String> {
+    let validated = validate_workspace_id(&workspace_id)?;
+    let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
+    match validated {
+        Some(id) => settings::set(&conn, llm::ANTHROPIC_WORKSPACE_SETTING_KEY, &id)?,
+        None => settings::delete(&conn, llm::ANTHROPIC_WORKSPACE_SETTING_KEY)?,
     }
     drop(conn);
     llm::invalidate_llm_settings(&app);
@@ -244,6 +281,17 @@ mod tests {
     }
 
     #[test]
+    fn workspace_ids_must_look_like_wrkspc_or_be_empty() {
+        assert_eq!(validate_workspace_id("  wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ ").unwrap().as_deref(), Some("wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ"));
+        assert_eq!(validate_workspace_id("   ").unwrap(), None);
+        for bad in ["wrkspc_", "workspace-1", "wrkspc_abc def"] {
+            assert!(validate_workspace_id(bad).unwrap_err().contains("wrkspc_"), "{bad}");
+        }
+        let pasted_key = validate_workspace_id("sk-ant-usr-abc123").unwrap_err();
+        assert!(pasted_key.contains("Replace next to Claude key"), "{pasted_key}");
+    }
+
+    #[test]
     fn only_listed_latest_models_are_accepted() {
         for provider in LlmProviderKind::ALL {
             for model in provider.model_presets() {
@@ -283,10 +331,10 @@ mod tests {
             settings::get(&conn, LlmProviderKind::OpenAi.model_setting()).unwrap(),
             None
         );
-        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-5.6-sol").unwrap();
+        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-6.1-sol").unwrap();
         assert_eq!(
             settings::get(&conn, LlmProviderKind::OpenAi.model_setting()).unwrap(),
-            Some("gpt-5.6-sol".to_string())
+            Some("gpt-6.1-sol".to_string())
         );
     }
 

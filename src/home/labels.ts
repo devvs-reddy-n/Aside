@@ -3,22 +3,21 @@ import type { EngineKind, LlmProviderKind } from "../bridge/types";
 export function providerLabel(provider: LlmProviderKind): string {
   switch (provider) {
     case "open_ai": return "OpenAI";
-    case "anthropic": return "Anthropic";
+    case "anthropic": return "Claude";
   }
 }
 
 /** Display names only. The saved id sent to the API never changes. */
 const KNOWN_MODELS: Partial<Record<LlmProviderKind, Record<string, string>>> = {
   open_ai: {
-    "gpt-5.6-luna": "GPT-5.6 Luna",
+    "gpt-6-luna": "GPT-6 Luna",
+    "gpt-6.1-sol": "GPT-6.1 Sol",
     "gpt-5.6-terra": "GPT-5.6 Terra",
-    "gpt-5.6-sol": "GPT-5.6 Sol",
   },
   anthropic: {
     "claude-opus-5-5": "Claude Opus 5.5",
     "claude-sonnet-5-5": "Claude Sonnet 5.5",
     "claude-haiku-5-5": "Claude Haiku 5.5",
-    "claude-fable-5-1": "Claude Fable 5.1",
   },
 };
 
@@ -31,8 +30,9 @@ export function copilotModelLabel(provider: LlmProviderKind, model: string, fall
   return fallback.provider && fallback.model ? `Default · ${modelLabel(fallback.provider, fallback.model).replace(/^[^·]+· /, "")}` : "Default";
 }
 
+/** Known names already carry the brand ("GPT-6 Luna", "Claude Opus 5.5"). */
 export function modelLabel(provider: LlmProviderKind, model: string): string {
-  return `${providerLabel(provider)} · ${KNOWN_MODELS[provider]?.[model] ?? model}`;
+  return KNOWN_MODELS[provider]?.[model] ?? `${providerLabel(provider)} · ${model}`;
 }
 
 export const ENGINE_ORDER: EngineKind[] = ["speechmatics", "parakeet_local"];

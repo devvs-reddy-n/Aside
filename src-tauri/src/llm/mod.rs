@@ -168,6 +168,27 @@ impl LlmProviderKind {
 /// The `storage::settings` key holding the primary (active) provider,
 /// mirroring `commands/stt.rs`'s `ENGINE_SETTING_KEY`.
 pub const PROVIDER_SETTING_KEY: &str = "llm_provider";
+/// The provider chosen with the Settings switch (OpenAI unless Claude is
+/// picked). It decides which models every Copilot and call can use.
+pub fn selected_provider(conn: &Connection) -> Result<LlmProviderKind, String> {
+    Ok(settings::get(conn, PROVIDER_SETTING_KEY)?
+        .and_then(|value| LlmProviderKind::from_setting_value(&value))
+        .unwrap_or(LlmProviderKind::OpenAi))
+}
+
+/// The model `provider` answers with by default: the saved choice while it
+/// is still offered, otherwise that provider's first model. Never empty, so
+/// switching provider always lands on a real model.
+pub fn effective_model(conn: &Connection, provider: LlmProviderKind) -> Result<String, String> {
+    Ok(settings::get(conn, provider.model_setting())?
+        .filter(|model| provider.supports_model(model))
+        .unwrap_or_else(|| provider.model_presets()[0].to_string()))
+}
+
+/// Claude workspace ID (`wrkspc_...`), needed only for a Claude key that is
+/// not tied to a single workspace. Sent as `anthropic-workspace-id`.
+pub const ANTHROPIC_WORKSPACE_SETTING_KEY: &str = "llm_anthropic_workspace_id";
+
 /// Paid OpenAI service tier (`flex` / `priority`). Empty / missing = off.
 pub const SERVICE_TIER_SETTING_KEY: &str = "llm_service_tier";
 /// Skip a provider on later presses after this many consecutive failures.
@@ -179,6 +200,8 @@ struct CachedLlmSettings {
     /// Enabled providers that have a key: kind, key, optional model.
     keys: Vec<(LlmProviderKind, String, Option<String>)>,
     service_tier: Option<String>,
+    /// Claude workspace for keys not tied to one workspace (`wrkspc_...`).
+    anthropic_workspace: Option<String>,
 }
 
 /// In-memory provider settings + failure counts. Command+Enter reads this
@@ -695,7 +718,11 @@ fn load_settings_snapshot(conn: &Connection) -> Result<CachedLlmSettings, String
         .and_then(|s| LlmProviderKind::from_setting_value(&s));
     let mut keys = Vec::new();
     for kind in LlmProviderKind::ALL {
-        if let Some(key) = settings::get(conn, kind.api_key_setting())? {
+        // Normalized here too, so a key pasted with a stray newline, quotes
+        // or a "Bearer " prefix still authenticates.
+        if let Some(key) = settings::get(conn, kind.api_key_setting())?
+            .and_then(|raw| crate::stt::normalize_api_key(&raw).ok())
+        {
             let model = settings::get(conn, kind.model_setting())?
                 .filter(|model| kind.supports_model(model));
             keys.push((kind, key, model));
@@ -704,10 +731,14 @@ fn load_settings_snapshot(conn: &Connection) -> Result<CachedLlmSettings, String
     let service_tier = settings::get(conn, SERVICE_TIER_SETTING_KEY)?
         .as_deref()
         .and_then(|s| openai::normalize_service_tier(Some(s)));
+    let anthropic_workspace = settings::get(conn, ANTHROPIC_WORKSPACE_SETTING_KEY)?
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty());
     Ok(CachedLlmSettings {
         primary,
         keys,
         service_tier,
+        anthropic_workspace,
     })
 }
 
@@ -738,6 +769,7 @@ fn build_provider_chain_from_snapshot(
             key.clone(),
             model.clone(),
             snapshot.service_tier.clone(),
+            snapshot.anthropic_workspace.clone(),
         ));
     }
     FallbackLlmProvider::new(kept_order, providers)
@@ -784,14 +816,15 @@ fn build_provider(
     api_key: String,
     model: Option<String>,
     service_tier: Option<String>,
+    anthropic_workspace: Option<String>,
 ) -> Box<dyn LlmProvider> {
     match kind {
         LlmProviderKind::OpenAi => Box::new(
             openai::OpenAiProvider::new(client, api_key, model).with_service_tier(service_tier),
         ),
-        LlmProviderKind::Anthropic => {
-            Box::new(anthropic::AnthropicProvider::new(client, api_key, model))
-        }
+        LlmProviderKind::Anthropic => Box::new(
+            anthropic::AnthropicProvider::new(client, api_key, model).with_workspace(anthropic_workspace),
+        ),
     }
 }
 
@@ -1654,9 +1687,9 @@ mod tests {
         settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-5.5").unwrap();
         let chain = build_provider_chain(&conn, &reqwest::Client::new()).unwrap();
         assert_eq!(chain.active_model().as_deref(), Some(openai::DEFAULT_MODEL));
-        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-5.6-sol").unwrap();
+        settings::set(&conn, LlmProviderKind::OpenAi.model_setting(), "gpt-6.1-sol").unwrap();
         let chain = build_provider_chain(&conn, &reqwest::Client::new()).unwrap();
-        assert_eq!(chain.active_model().as_deref(), Some("gpt-5.6-sol"));
+        assert_eq!(chain.active_model().as_deref(), Some("gpt-6.1-sol"));
     }
 
     #[test]

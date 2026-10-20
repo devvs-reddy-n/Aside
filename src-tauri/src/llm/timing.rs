@@ -215,7 +215,7 @@ mod tests {
             first_delta_at: Some(at(base, 700)),
             done_at: Some(at(base, 2_100)),
             provider: Some("openai".to_string()),
-            model: Some("gpt-5.6-luna".to_string()),
+            model: Some("gpt-6-luna".to_string()),
             context_chars: 1234,
             first_useful_at: Some(at(base, 900)),
             answer_preview: Some("opening bullets".to_string()),
@@ -315,6 +315,6 @@ mod tests {
         m.first_delta_at = None;
         let line = log_line(&summarize(&m));
         assert!(line.contains("first-word=-"), "got {line}");
-        assert!(line.contains("gpt-5.6-luna"));
+        assert!(line.contains("gpt-6-luna"));
     }
 }

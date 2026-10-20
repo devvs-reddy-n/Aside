@@ -15,7 +15,7 @@ import { useStealth } from "../../kit/Stealth";
 import { wordCount } from "../../core/text";
 import { toast } from "../../kit/toast";
 import { refreshSystem, systemStore } from "../data";
-import { ENGINE_ORDER, LANGUAGES, engineName, engineNeedsKey, modelLabel } from "../labels";
+import { ENGINE_ORDER, LANGUAGES, engineName, engineNeedsKey, modelLabel, providerLabel } from "../labels";
 
 const SECTIONS = ["speech", "ai", "rules", "general"] as const;
 
@@ -186,12 +186,11 @@ interface ModelOption { provider: LlmProviderKind; model: string }
 
 const PROVIDERS: LlmProviderKind[] = ["open_ai", "anthropic"];
 
-/** OpenAI also writes the background call notes, so it is needed even when Claude answers. */
-const KEY_LABELS: Record<LlmProviderKind, string> = {
-  open_ai: "OpenAI key (answers and call notes)",
-  anthropic: "Anthropic key (Claude)",
-};
-
+/**
+ * Works like the speech engine switch: pick OpenAI or Claude, then one of its models.
+ * Copilots only offer the chosen provider's models. Background call notes always run on
+ * OpenAI, so with Claude chosen the OpenAI key is still asked for.
+ */
 function AiSection() {
   const system = useStore(systemStore, (state) => state);
   const [options, setOptions] = useState<ModelOption[]>([]);
@@ -228,40 +227,82 @@ function AiSection() {
     };
   }, []);
 
-  async function chooseModel(option: ModelOption) {
+  async function run(step: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
     setError(null);
-    const provider = await api.model.setProvider(option.provider);
-    const model = provider.ok ? await api.model.setModel(option.provider, option.model) : provider;
+    const result = await step();
     setBusy(false);
-    if (!model.ok) setError(model.error);
+    if (!result.ok) setError(result.error ?? "Could not save that choice.");
     await refreshSystem();
   }
 
   const provider = system.provider ?? "open_ai";
+  const models = options.filter((option) => option.provider === provider);
+  const saveKey = (each: LlmProviderKind) => async (key: string) => {
+    const result = await api.model.saveKey(each, key);
+    await refreshKeys();
+    await refreshSystem();
+    return result.ok;
+  };
   return (
     <Section id="ai" title="AI model" icon="bot" badge={system.model && !system.aiKey ? <Badge tone="warn">Needs key</Badge> : null}>
+      <Row label="Provider">
+        <Segmented<LlmProviderKind> label="AI provider" value={provider} onChange={(next) => void run(() => api.model.setProvider(next))} options={PROVIDERS.map((each) => ({ value: each, label: providerLabel(each) }))} />
+      </Row>
       <Row label="Default model">
-        <Select aria-label="AI model" disabled={busy || options.length === 0} value={system.model ? `${provider}|${system.model}` : ""} onChange={(event) => { const [p, ...rest] = event.target.value.split("|"); void chooseModel({ provider: p as LlmProviderKind, model: rest.join("|") }); }}>
+        <Select aria-label="AI model" disabled={busy || models.length === 0} value={system.model ? `${provider}|${system.model}` : ""} onChange={(event) => { const model = event.target.value.split("|").slice(1).join("|"); void run(() => api.model.setModel(provider, model)); }}>
           <option value="" disabled>Choose one</option>
-          {options.map((option) => <option key={`${option.provider}|${option.model}`} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
+          {models.map((option) => <option key={option.model} value={`${option.provider}|${option.model}`}>{modelLabel(option.provider, option.model)}</option>)}
         </Select>
       </Row>
-      {PROVIDERS.map((each) => (
-        <KeyRow
-          key={each}
-          label={KEY_LABELS[each]}
-          hasKey={keys[each] ?? false}
-          onSave={async (key) => {
-            const result = await api.model.saveKey(each, key);
-            await refreshKeys();
-            await refreshSystem();
-            return result.ok;
-          }}
-        />
-      ))}
+      <KeyRow key={provider} label={`${providerLabel(provider)} key`} hasKey={keys[provider] ?? false} onSave={saveKey(provider)} />
+      {provider === "anthropic" ? <WorkspaceRow /> : null}
+      {provider === "anthropic" ? (
+        <KeyRow key="notes" label="OpenAI key (call notes)" hasKey={keys.open_ai ?? false} onSave={saveKey("open_ai")} />
+      ) : null}
       {error ? <p className="set-row set-bad" role="alert">{error}</p> : null}
     </Section>
+  );
+}
+
+/**
+ * Some Claude keys aren't tied to one workspace; those need the workspace's ID on every request.
+ * A key created for a single workspace leaves this empty.
+ */
+function WorkspaceRow() {
+  const [saved, setSaved] = useState("");
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void api.model.workspace().then((result) => {
+      if (result.ok) {
+        setSaved(result.value);
+        setValue(result.value);
+      }
+    });
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    setError(null);
+    const result = await api.model.setWorkspace(value.trim());
+    setBusy(false);
+    if (!result.ok) return setError(result.error);
+    setSaved(value.trim());
+    toast(value.trim() ? "Workspace saved" : "Workspace cleared", { tone: "ok" });
+    await refreshSystem();
+  }
+
+  return (
+    <div className="set-row set-row--stack">
+      <div className="set-row__label"><b>Claude workspace ID (only if your key needs one)</b>{error ? <small className="set-bad" role="alert">{error}</small> : null}</div>
+      <div className="set-inline">
+        <TextInput autoComplete="off" spellCheck={false} value={value} placeholder="wrkspc_…" aria-label="Claude workspace ID" onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void save(); }} />
+        <Button variant="primary" busy={busy} disabled={value.trim() === saved} onClick={() => void save()}>Save</Button>
+      </div>
+    </div>
   );
 }
 

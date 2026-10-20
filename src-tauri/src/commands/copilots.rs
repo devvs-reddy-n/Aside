@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::active_session::{self, ActiveSessionInfo};
 use crate::domain::{Session, SessionStatus, SessionType};
-use crate::llm::{LlmProviderKind, PROVIDER_SETTING_KEY};
+use crate::llm::LlmProviderKind;
 use crate::storage::{copilots, documents, sessions, settings, Db};
 
 fn now_ms() -> u64 {
@@ -52,27 +52,22 @@ fn resolve_model(
     conn: &rusqlite::Connection,
     copilot: &copilots::Copilot,
 ) -> Result<(LlmProviderKind, String), String> {
-    // A model no longer offered (an older generation) follows the default.
-    if copilot.llm_model != DEFAULT_MODEL_CHOICE && copilot.llm_provider.supports_model(&copilot.llm_model) {
+    // The Settings switch decides the provider. A Copilot's own model counts
+    // only while it belongs to that provider and is still offered; otherwise
+    // the call follows the default.
+    let selected = crate::llm::selected_provider(conn)?;
+    if copilot.llm_model != DEFAULT_MODEL_CHOICE
+        && copilot.llm_provider == selected
+        && selected.supports_model(&copilot.llm_model)
+    {
         return Ok((copilot.llm_provider, copilot.llm_model.clone()));
     }
     resolve_default_model(conn)
 }
 
 fn resolve_default_model(conn: &rusqlite::Connection) -> Result<(LlmProviderKind, String), String> {
-    let provider = settings::get(conn, PROVIDER_SETTING_KEY)?
-        .and_then(|value| LlmProviderKind::from_setting_value(&value))
-        .unwrap_or(LlmProviderKind::OpenAi);
-    let model = settings::get(conn, provider.model_setting())?
-        .filter(|model| provider.supports_model(model))
-        .or_else(|| {
-            provider
-                .model_presets()
-                .first()
-                .map(|model| model.to_string())
-        })
-        .ok_or_else(|| "Choose a default AI model in Settings first.".to_string())?;
-    Ok((provider, model))
+    let provider = crate::llm::selected_provider(conn)?;
+    Ok((provider, crate::llm::effective_model(conn, provider)?))
 }
 
 fn ensure_supported_kind(kind: copilots::CopilotKind) -> Result<(), String> {
@@ -416,8 +411,24 @@ mod tests {
         .unwrap();
         let chosen = resolve_model(&conn, &copilot_with_model(DEFAULT_MODEL_CHOICE)).unwrap();
         assert_eq!(chosen.1, "gpt-5.6-terra");
-        let own = resolve_model(&conn, &copilot_with_model("gpt-5.6-luna")).unwrap();
-        assert_eq!(own.1, "gpt-5.6-luna");
+        let own = resolve_model(&conn, &copilot_with_model("gpt-6-luna")).unwrap();
+        assert_eq!(own.1, "gpt-6-luna");
+    }
+
+    #[test]
+    fn switching_to_claude_makes_every_copilot_use_claude() {
+        let db = Db::open_in_memory();
+        let conn = db.0.lock().unwrap();
+        settings::set(&conn, crate::llm::PROVIDER_SETTING_KEY, "anthropic").unwrap();
+        // A Copilot that picked a GPT model follows the Claude default.
+        let gpt = resolve_model(&conn, &copilot_with_model("gpt-6.1-sol")).unwrap();
+        assert_eq!(gpt, (LlmProviderKind::Anthropic, "claude-opus-5-5".to_string()));
+        settings::set(&conn, LlmProviderKind::Anthropic.model_setting(), "claude-sonnet-5-5").unwrap();
+        let default = resolve_model(&conn, &copilot_with_model(DEFAULT_MODEL_CHOICE)).unwrap();
+        assert_eq!(default, (LlmProviderKind::Anthropic, "claude-sonnet-5-5".to_string()));
+        let mut own = copilot_with_model("claude-haiku-5-5");
+        own.llm_provider = LlmProviderKind::Anthropic;
+        assert_eq!(resolve_model(&conn, &own).unwrap().1, "claude-haiku-5-5");
     }
     #[test]
     fn quick_call_uses_only_the_chosen_resume_and_freezes_the_global_model() {
@@ -452,7 +463,7 @@ mod tests {
         settings::set(
             &conn,
             LlmProviderKind::OpenAi.model_setting(),
-            "gpt-5.6-luna",
+            "gpt-6-luna",
         )
         .unwrap();
         assert_eq!(
@@ -468,7 +479,7 @@ mod tests {
                 .unwrap()
                 .unwrap()
                 .1,
-            "gpt-5.6-luna"
+            "gpt-6-luna"
         );
     }
 

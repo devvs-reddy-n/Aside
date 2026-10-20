@@ -20,13 +20,13 @@ let copilots: CopilotSummary[] = [
     id: "c1", name: "Nimbus platform interview", company: "Nimbus", target_role: "Senior Platform Engineer",
     job_description: "Own the reliability of our multi-region API platform. Work with product teams on rate limiting, observability and incident response.\n\nWhat you'll do:\n- Design and run the global traffic layer across three regions\n- Lead incident reviews and turn them into lasting fixes\n- Build the tooling that keeps deploys safe at 400 releases a week\n\nYou have eight or more years running large distributed systems, strong Go or Rust, and you explain trade-offs clearly to people outside engineering.",
     instructions: "Keep answers under a minute. Lead with the outcome, then the how. Mention the payments migration when reliability comes up, and keep numbers concrete. Avoid jargon unless they use it first.", save_transcript: true,
-    llm_provider: "open_ai", llm_model: "gpt-5.6-luna", kind: "interview", created_at_ms: now - 6 * DAY, updated_at_ms: now - 2 * 3_600_000,
+    llm_provider: "open_ai", llm_model: "gpt-6-luna", kind: "interview", created_at_ms: now - 6 * DAY, updated_at_ms: now - 2 * 3_600_000,
     document_count: 3, has_resume: true,
   },
   {
     id: "c2", name: "Harbor design screen", company: "Harbor", target_role: "Staff Product Designer",
     job_description: "Lead design for the payments experience.", instructions: null, save_transcript: true,
-    llm_provider: "open_ai", llm_model: "gpt-5.6-luna", kind: "interview", created_at_ms: now - 12 * DAY, updated_at_ms: now - 3 * DAY,
+    llm_provider: "open_ai", llm_model: "gpt-6-luna", kind: "interview", created_at_ms: now - 12 * DAY, updated_at_ms: now - 3 * DAY,
     document_count: 1, has_resume: true,
   },
 
@@ -68,6 +68,10 @@ let engine = "parakeet_local";
 let stealth = true;
 let prefs = { zoom_pct: 100, opacity_pct: 90, font_px: 13, language: "en" };
 let rules = { text: "You are Aside, a quiet interview copilot. Answer in the first person, in plain spoken language...".padEnd(800, " Keep it natural."), defaultText: "default", isDefault: false, charCount: 800, meetsCacheFloor: true };
+
+/** The demo remembers the provider switch for the life of the page. */
+let demoProvider = "open_ai";
+let demoWorkspace = "";
 
 export async function mockInvoke<T>(command: string, args?: Record<string, unknown>): Promise<InvokeResult<T>> {
   const id = (args?.copilotId ?? args?.documentId ?? args?.sessionId) as string | undefined;
@@ -143,12 +147,15 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
       case "download_parakeet_model": return null;
       case "list_llm_providers": return ["open_ai", "anthropic"];
       case "list_llm_models": return args?.provider === "anthropic"
-        ? ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1"]
-        : ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
-      case "get_llm_provider": return "open_ai";
-      case "get_llm_model": return "gpt-5.6-luna";
-      case "set_llm_provider": case "set_llm_model": case "set_llm_api_key": case "set_llm_service_tier": return null;
+        ? ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
+        : ["gpt-6-luna", "gpt-6.1-sol", "gpt-5.6-terra"];
+      case "get_llm_provider": return demoProvider;
+      case "get_llm_model": return args?.provider === "anthropic" ? "claude-opus-5-5" : "gpt-6-luna";
+      case "set_llm_provider": demoProvider = args?.provider as string; return null;
+      case "set_llm_model": case "set_llm_api_key": case "set_llm_service_tier": return null;
       case "has_llm_api_key": return true;
+      case "get_anthropic_workspace_id": return demoWorkspace;
+      case "set_anthropic_workspace_id": demoWorkspace = String(args?.workspaceId ?? "").trim(); return null;
       case "check_model_connections": return { ai: { state: "connected", detail: "Connected to OpenAI." }, speech: { state: "connected", detail: "Runs on this computer." } };
       case "get_llm_service_tier": return "";
       case "get_stealth": return stealth;

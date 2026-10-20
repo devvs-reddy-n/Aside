@@ -924,3 +924,27 @@ Limits: native Windows runtime/installer and actual audio/cloud-call checks rema
 - New tests: closed model lists per provider; old saved models ignored; provider order with both keys; Claude request shape (cached system block, effort low, per-model thinking, fallback except Haiku, image before text, usage/cached tokens, refusal and error handling); GPT vision uses the given model; migration v11 cleanup keeps current choices.
 - `cargo build` clean (no warnings); `cargo test --lib` 805 passed, 14 ignored; `npm test` 81 passed; `npm run build` passed; `git diff --check` clean. Browser preview of Settings shows the OpenAI and Anthropic key rows (plain preview has no backend, so the model list was empty there).
 - Not run: any real Claude request (no Anthropic key saved on this machine); a real GPT-5.6 Sol answer or screenshot with the session model.
+
+
+### 2026-10-17 — provider switch and GPT-6 models
+
+- Sources checked: developers.openai.com models/all, models/gpt-6.1-sol, models/gpt-6-luna, guides/latest-model (model IDs, image input, Chat Completions, reasoning effort values).
+- New/updated tests: newest model lists (no Astra, no Fable), per-model reasoning effort (Sol low, others none), switching to Claude makes Copilots use Claude, v12 cleanup. `cargo test --lib` 807 passed, 14 ignored; `cargo build` clean; `npm test` 81 passed; `npm run build` passed; `git diff --check` clean.
+- Browser demo (`?demo`): switch shows OpenAI | Claude; Claude lists Opus/Sonnet/Haiku 5.5 with "Claude key" and "OpenAI key (call notes)"; a Copilot saved with GPT-6 Luna shows only Claude models and "Default · Claude Opus 5.5"; back on OpenAI it shows GPT-6 Luna / GPT-6.1 Sol / GPT-5.6 Terra and keeps its own GPT-6 Luna. No console errors.
+- Not run: real GPT-6 or Claude answers (no live call this turn; no Anthropic key saved).
+
+- Background model changed to gpt-6-luna: `cargo test --lib` 807 passed, 14 ignored; `cargo build` clean. No live background summary run.
+
+
+### 2026-10-19 — Claude workspace diagnosis
+
+- Ignored test `anthropic::tests::live_claude_probe` (ASIDE_LIVE_CLAUDE_TEST=1) against the real API: Opus 5.5, Sonnet 5.5, Haiku 5.5 all returned 400 "not scoped to a workspace" (/tmp/aside-claude-probe.log, key redacted). GET /v1/organizations/workspaces with the key: permission_error.
+- New tests: workspace ID validation, workspace error explanations, blank workspace not sent. `cargo test --lib` 810 passed, 15 ignored; `cargo build` clean; `npm test` 81 passed; `npm run build` passed. Demo preview: Claude selected shows Claude key, workspace ID field, OpenAI key (call notes); saving shows "Workspace saved".
+- Not verified: a successful real Claude answer (needs the owner's workspace ID or a workspace-scoped key).
+
+- 2026-10-19 (after the owner replaced the deleted key with the new Default-workspace key and switched to Claude): live probe through Aside's exact request — Opus 5.5 OK in 2.4 s, Sonnet 5.5 OK in 1.9 s, Haiku 5.5 OK in 1.3 s (round trip, tiny prompt); Claude screenshot request (Haiku 5.5, app icon JPEG) described the image correctly (/tmp/aside-claude-probe-2.log, key redacted). Cause of the earlier failures: the saved key was an older multi-workspace key, later deleted (401). A pasted API key in the workspace box now gets a plain message pointing to Claude key → Replace. `cargo test --lib` passing.
+
+
+### 2026-10-19 — Library/History row highlight
+
+- Demo preview (`?demo`): Library list rows span the tile edge to edge (row 253–983px = list 253–983px), row and inner radius 0px, list radius 24px with overflow hidden; hovering the first row shows a full-width highlight clipped by the tile's top corners. History rows radius 0px; hovering "Harbor" shows a square full-width highlight. `npm run build` passed.

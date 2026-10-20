@@ -330,6 +330,21 @@ UPDATE copilots SET llm_provider = 'open_ai', llm_model = 'default'
        'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1'));
 "#;
 
+/// 2026-10-17 (later): the newest GPT models are GPT-6 Luna, GPT-6.1 Sol and
+/// GPT-5.6 Terra; Claude offers Opus 5.5, Sonnet 5.5 and Haiku 5.5. Clears
+/// saved default models that are no longer offered (each provider then uses
+/// its first model) and moves Copilots on removed models to Default.
+const V12_SCHEMA: &str = r#"
+DELETE FROM settings WHERE key = 'llm_model_openai'
+  AND value NOT IN ('gpt-6-luna', 'gpt-6.1-sol', 'gpt-5.6-terra');
+DELETE FROM settings WHERE key = 'llm_model_anthropic'
+  AND value NOT IN ('claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5');
+UPDATE copilots SET llm_model = 'default'
+  WHERE llm_model <> 'default' AND llm_model NOT IN (
+    'gpt-6-luna', 'gpt-6.1-sol', 'gpt-5.6-terra',
+    'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5');
+"#;
+
 /// Brings `conn`'s schema up to the latest version. Safe to call on every
 /// startup, including against a database that's already current — each step
 /// only runs if `user_version` says it hasn't yet, and table creation itself
@@ -432,6 +447,13 @@ pub fn run(conn: &Connection) -> Result<(), String> {
             .map_err(|e| format!("failed to record schema version 11: {e}"))?;
     }
 
+    if version < 12 {
+        conn.execute_batch(V12_SCHEMA)
+            .map_err(|e| format!("migration v12 failed: {e}"))?;
+        conn.pragma_update(None, "user_version", 12)
+            .map_err(|e| format!("failed to record schema version 12: {e}"))?;
+    }
+
     Ok(())
 }
 
@@ -446,7 +468,7 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(version, 11);
+        assert_eq!(version, 12);
     }
 
     #[test]
@@ -457,7 +479,7 @@ mod tests {
         let version: i64 = conn
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(version, 11);
+        assert_eq!(version, 12);
     }
 
     #[test]
@@ -490,6 +512,29 @@ mod tests {
             ("open_ai".into(), "default".into()),
             ("anthropic".into(), "claude-sonnet-5-5".into()),
         ]);
+    }
+
+    #[test]
+    fn v12_keeps_the_newest_models_and_clears_astra_fable_and_gpt_5_6_luna() {
+        let conn = Connection::open_in_memory().unwrap();
+        run(&conn).unwrap();
+        conn.pragma_update(None, "user_version", 11).unwrap();
+        conn.execute("INSERT INTO settings (key, value) VALUES ('llm_model_openai', 'gpt-6-astra')", []).unwrap();
+        conn.execute("INSERT INTO settings (key, value) VALUES ('llm_model_anthropic', 'claude-sonnet-5-5')", []).unwrap();
+        for (id, provider, model) in [("a", "anthropic", "claude-fable-5-1"), ("b", "open_ai", "gpt-5.6-luna"), ("c", "open_ai", "gpt-5.6-terra")] {
+            conn.execute(
+                "INSERT INTO copilots (id, name, save_transcript, llm_provider, llm_model, created_at_ms, updated_at_ms) VALUES (?1, ?1, 1, ?2, ?3, 0, 0)",
+                [id, provider, model],
+            ).unwrap();
+        }
+        run(&conn).unwrap();
+        let openai: Option<String> = conn.query_row("SELECT value FROM settings WHERE key='llm_model_openai'", [], |r| r.get(0)).ok();
+        assert_eq!(openai, None);
+        let claude: String = conn.query_row("SELECT value FROM settings WHERE key='llm_model_anthropic'", [], |r| r.get(0)).unwrap();
+        assert_eq!(claude, "claude-sonnet-5-5");
+        let models: Vec<String> = conn.prepare("SELECT llm_model FROM copilots ORDER BY id").unwrap()
+            .query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect();
+        assert_eq!(models, ["default", "default", "gpt-5.6-terra"]);
     }
 
     #[test]

@@ -59,7 +59,7 @@ fn model_link(provider: &str, status: u16, model: &str) -> Link {
     }
 }
 
-async fn check_ai(client: reqwest::Client, plan: Option<(LlmProviderKind, Option<String>, String)>) -> Link {
+async fn check_ai(client: reqwest::Client, plan: Option<(LlmProviderKind, Option<String>, String)>, workspace: Option<String>) -> Link {
     let Some((provider, key, model)) = plan else {
         return Link::new(LinkState::Failed, "No AI model chosen yet.");
     };
@@ -79,12 +79,24 @@ async fn check_ai(client: reqwest::Client, plan: Option<(LlmProviderKind, Option
     }
     let request = match provider {
         LlmProviderKind::OpenAi => client.get(url).bearer_auth(key),
-        LlmProviderKind::Anthropic => client
-            .get(url)
-            .header("x-api-key", key)
-            .header("anthropic-version", crate::llm::anthropic::ANTHROPIC_VERSION),
+        LlmProviderKind::Anthropic => {
+            let request = client
+                .get(url)
+                .header("x-api-key", key)
+                .header("anthropic-version", crate::llm::anthropic::ANTHROPIC_VERSION);
+            match workspace {
+                Some(id) => request.header("anthropic-workspace-id", id),
+                None => request,
+            }
+        }
     };
     match request.timeout(TIMEOUT).send().await {
+        // A 400 from Claude is usually the workspace rule; say exactly what to do.
+        Ok(response) if provider == LlmProviderKind::Anthropic && response.status().as_u16() == 400 => {
+            let body: serde_json::Value = response.json().await.unwrap_or_default();
+            let message = body["error"]["message"].as_str().unwrap_or("Claude rejected the request (400).");
+            Link::new(LinkState::Failed, crate::llm::anthropic::explain_error(message))
+        }
         Ok(response) => model_link(name, response.status().as_u16(), &model),
         Err(_) => Link::new(LinkState::Failed, format!("Couldn't reach {name}. Check the internet connection.")),
     }
@@ -128,15 +140,14 @@ pub async fn check_model_connections(
         .map_err(|e| format!("could not resolve app data dir: {e}"))?
         .join("models");
     // Read everything first so the database is never locked during a request.
-    let (ai_plan, speech_plan) = {
+    let (ai_plan, speech_plan, workspace) = {
         let conn = db.0.lock().map_err(|_| "database poisoned".to_string())?;
         let provider = settings::get(&conn, PROVIDER_SETTING_KEY)?
             .and_then(|value| LlmProviderKind::from_setting_value(&value));
         let ai_plan = match provider {
             Some(provider) => {
                 let key = settings::get(&conn, provider.api_key_setting())?
-                    .map(|key| key.trim().to_owned())
-                    .filter(|key| !key.is_empty());
+                    .and_then(|raw| crate::stt::normalize_api_key(&raw).ok());
                 let model = settings::get(&conn, provider.model_setting())?
                     .filter(|model| provider.supports_model(model))
                     .or_else(|| provider.model_presets().first().map(|model| model.to_string()))
@@ -158,9 +169,12 @@ pub async fn check_model_connections(
                 SpeechPlan::Speechmatics { key: key.and_then(|raw| crate::stt::normalize_api_key(&raw).ok()) }
             }
         };
-        (ai_plan, speech_plan)
+        let workspace = settings::get(&conn, crate::llm::ANTHROPIC_WORKSPACE_SETTING_KEY)?
+            .map(|id| id.trim().to_string())
+            .filter(|id| !id.is_empty());
+        (ai_plan, speech_plan, workspace)
     };
-    let (ai, speech) = tokio::join!(check_ai(http.0.clone(), ai_plan), check_speech(speech_plan));
+    let (ai, speech) = tokio::join!(check_ai(http.0.clone(), ai_plan, workspace), check_speech(speech_plan));
     Ok(ModelConnections { ai, speech })
 }
 
@@ -180,9 +194,9 @@ mod tests {
     fn missing_setup_fails_without_any_request() {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         let client = reqwest::Client::new();
-        assert_eq!(rt.block_on(check_ai(client.clone(), None)).state, LinkState::Failed);
-        let no_key = Some((LlmProviderKind::OpenAi, None, "gpt-5.6-luna".to_string()));
-        assert_eq!(rt.block_on(check_ai(client, no_key)).detail, "No API key saved.");
+        assert_eq!(rt.block_on(check_ai(client.clone(), None, None)).state, LinkState::Failed);
+        let no_key = Some((LlmProviderKind::OpenAi, None, "gpt-6-luna".to_string()));
+        assert_eq!(rt.block_on(check_ai(client, no_key, None)).detail, "No API key saved.");
         assert_eq!(rt.block_on(check_speech(SpeechPlan::Parakeet { downloaded: true })).state, LinkState::Connected);
         assert_eq!(rt.block_on(check_speech(SpeechPlan::Speechmatics { key: None })).state, LinkState::Failed);
     }

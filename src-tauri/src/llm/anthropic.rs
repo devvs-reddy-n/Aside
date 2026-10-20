@@ -3,9 +3,9 @@
 //!
 //! Tuned for a live copilot, where every second of silence matters:
 //! - **Thinking kept to the minimum each model allows.** Hidden thinking is
-//!   not shown, so it reads as a frozen screen. Claude Opus 5.5 and Fable
-//!   5.1 cannot turn thinking off (only `output_config.effort` controls it),
-//!   so they run at `low`. Sonnet 5.5 turns it off with
+//!   not shown, so it reads as a frozen screen. Claude Opus 5.5 cannot turn
+//!   thinking off (only `output_config.effort` controls it), so it runs at
+//!   `low`. Sonnet 5.5 turns it off with
 //!   `thinking: {type: "between_tools"}`; Haiku 5.5 with `disabled`.
 //! - **Prompt caching** on the stable system prefix (core, the owner's
 //!   rules and guidance, background), so repeat answers in a call read it
@@ -31,13 +31,9 @@ const FALLBACK_BETA: &str = "server-side-fallback-2026-07-01";
 /// Claude Opus 5.5, the current Opus and Anthropic's recommended default.
 pub const DEFAULT_MODEL: &str = "claude-opus-5-5";
 
-/// The only Claude models offered and accepted: the current generation.
-pub const MODEL_PRESETS: &[&str] = &[
-    "claude-opus-5-5",
-    "claude-sonnet-5-5",
-    "claude-haiku-5-5",
-    "claude-fable-5-1",
-];
+/// The only Claude models offered and accepted: the current Opus, Sonnet
+/// and Haiku (Fable is deliberately not offered).
+pub const MODEL_PRESETS: &[&str] = &["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"];
 
 /// A ceiling, not a target: answer length comes from the owner's rules.
 /// Generous so a long code answer is never cut off mid-line.
@@ -47,6 +43,8 @@ pub struct AnthropicProvider {
     client: reqwest::Client,
     api_key: String,
     model: String,
+    /// `anthropic-workspace-id`, required by keys not tied to one workspace.
+    workspace: Option<String>,
 }
 
 impl AnthropicProvider {
@@ -56,8 +54,29 @@ impl AnthropicProvider {
             client,
             api_key,
             model: model.unwrap_or_else(|| DEFAULT_MODEL.to_string()),
+            workspace: None,
         }
     }
+
+    pub fn with_workspace(mut self, workspace: Option<String>) -> Self {
+        self.workspace = workspace.map(|id| id.trim().to_string()).filter(|id| !id.is_empty());
+        self
+    }
+}
+
+/// Anthropic's plain error text, rewritten where Aside can say exactly what
+/// to do about it.
+pub fn explain_error(message: &str) -> String {
+    if message.contains("anthropic-workspace-id") && message.contains("valid workspace ID") {
+        return "The Claude workspace ID in Settings isn't valid. Copy it from the ID column on the Claude Console's Workspaces page (it starts with wrkspc_).".to_string();
+    }
+    if message.contains("anthropic-workspace-id") || message.contains("not scoped to a workspace") {
+        return "This Claude key isn't tied to a workspace. Either create a new key for one workspace in the Claude Console (API keys page) and paste it into Settings, or add your Workspace ID under the Claude key in Settings.".to_string();
+    }
+    if message.contains("Workspace `") && message.contains("not found") {
+        return "Claude can't find that workspace for this key. Check the Workspace ID in Settings, or that the key's account belongs to that workspace.".to_string();
+    }
+    message.to_string()
 }
 
 /// Lowest-latency settings each current model accepts. Returns the
@@ -69,7 +88,7 @@ fn latency_settings(model: &str) -> (Option<Value>, bool) {
     } else if model.starts_with("claude-haiku-5-5") {
         (Some(json!({"type": "disabled"})), false)
     } else {
-        // Opus 5.5 and Fable 5.1: thinking is always on; effort is the dial.
+        // Opus 5.5: thinking is always on; effort is the dial.
         (None, true)
     }
 }
@@ -177,6 +196,9 @@ impl AnthropicProvider {
         if body.get("fallbacks").is_some() {
             request = request.header("anthropic-beta", FALLBACK_BETA);
         }
+        if let Some(workspace) = &self.workspace {
+            request = request.header("anthropic-workspace-id", workspace);
+        }
         sink.on_request_dispatch();
         let resp = request
             .json(&body)
@@ -191,7 +213,7 @@ impl AnthropicProvider {
                 .ok()
                 .and_then(|v| v["error"]["message"].as_str().map(str::to_string))
                 .unwrap_or(body);
-            return Err(format!("anthropic: request rejected ({status}): {message}"));
+            return Err(format!("anthropic: request rejected ({status}): {}", explain_error(&message)));
         }
         sink.on_http_headers();
 
@@ -276,9 +298,51 @@ impl LlmProvider for AnthropicProvider {
 mod tests {
     use super::*;
 
+    /// Explicitly invoked only: one tiny real request per offered model with
+    /// the locally saved Anthropic key (never printed), through the exact
+    /// request Aside sends.
+    #[tokio::test]
+    #[ignore = "real Anthropic account; ASIDE_LIVE_CLAUDE_TEST=1 required"]
+    async fn live_claude_probe() {
+        assert_eq!(std::env::var("ASIDE_LIVE_CLAUDE_TEST").as_deref(), Ok("1"));
+        let path = std::path::PathBuf::from(std::env::var("HOME").unwrap())
+            .join("Library/Application Support/com.aside.desktop/aside.sqlite3");
+        let db = rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let key: String = db.query_row("SELECT value FROM settings WHERE key='llm_api_key_anthropic'", [], |r| r.get(0)).unwrap();
+        let workspace: Option<String> = db.query_row("SELECT value FROM settings WHERE key='llm_anthropic_workspace_id'", [], |r| r.get(0)).ok();
+        drop(db);
+        #[derive(Default)]
+        struct Sink(String, Vec<String>);
+        impl AnswerSink for Sink {
+            fn on_delta(&mut self, t: &str) { self.0.push_str(t); }
+            fn on_done(&mut self, _: bool) {}
+            fn on_error(&mut self, m: &str) { self.1.push(m.to_string()); }
+        }
+        let only = std::env::var("ASIDE_CLAUDE_ONLY").ok();
+        for model in MODEL_PRESETS {
+            if only.as_deref().is_some_and(|o| o != *model) { continue; }
+            let provider = AnthropicProvider::new(reqwest::Client::new(), key.trim().to_string(), Some(model.to_string()))
+                .with_workspace(workspace.clone());
+            let encoded = prompt::encode_messages("You are a test. Reply with exactly: OK", "Say OK.");
+            let mut sink = Sink::default();
+            let started = std::time::Instant::now();
+            let result = provider.stream_answer("Say OK.", Some(&encoded), &mut sink).await;
+            let shown = |s: String| s.replace(key.trim(), "[key]");
+            println!("LIVE_CLAUDE {model} ms={} result={:?} text={:?}", started.elapsed().as_millis(), result.map_err(shown), sink.0);
+            if let Ok(path) = std::env::var("ASIDE_CLAUDE_VISION_JPEG") {
+                use base64::Engine;
+                let jpeg = base64::engine::general_purpose::STANDARD.encode(std::fs::read(path).unwrap());
+                let mut sink = Sink::default();
+                let result = provider.stream_vision("Describe images in one short sentence.", "What is in this picture?", &jpeg, &mut sink).await;
+                println!("LIVE_CLAUDE_VISION {model} result={:?} text={:?}", result.map_err(|e| e.replace(key.trim(), "[key]")), sink.0);
+            }
+        }
+    }
+
     #[test]
     fn only_the_current_claude_models_are_offered_and_opus_5_5_is_the_default() {
-        assert_eq!(MODEL_PRESETS, &["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1"]);
+        assert_eq!(MODEL_PRESETS, &["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]);
+        assert!(!MODEL_PRESETS.iter().any(|m| m.contains("fable")), "Fable is not offered");
         assert_eq!(MODEL_PRESETS[0], DEFAULT_MODEL);
     }
 
@@ -306,16 +370,15 @@ mod tests {
             assert_eq!(body["output_config"]["effort"], "low", "{model}");
             assert!(body["thinking"].get("budget_tokens").is_none(), "{model}: budgets are rejected");
         }
-        // Opus 5.5 / Fable 5.1 reject any explicit thinking-off value.
+        // Opus 5.5 rejects any explicit thinking-off value.
         assert!(build_request_body("claude-opus-5-5", "q", None).get("thinking").is_none());
-        assert!(build_request_body("claude-fable-5-1", "q", None).get("thinking").is_none());
         assert_eq!(build_request_body("claude-sonnet-5-5", "q", None)["thinking"]["type"], "between_tools");
         assert_eq!(build_request_body("claude-haiku-5-5", "q", None)["thinking"]["type"], "disabled");
     }
 
     #[test]
     fn refusal_fallback_is_on_except_for_haiku_which_has_none() {
-        for model in ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"] {
+        for model in ["claude-opus-5-5", "claude-sonnet-5-5"] {
             assert_eq!(build_request_body(model, "q", None)["fallbacks"], "default", "{model}");
         }
         assert!(build_request_body("claude-haiku-5-5", "q", None).get("fallbacks").is_none());
@@ -366,6 +429,25 @@ mod tests {
             .observe(Some("error"), r#"{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}"#)
             .unwrap_err();
         assert_eq!(err, "Overloaded");
+    }
+
+    #[test]
+    fn workspace_errors_become_plain_instructions() {
+        let missing = "This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header with the ID of the workspace to use.";
+        assert!(explain_error(missing).contains("Workspace ID"));
+        let identity = "anthropic-workspace-id is required when authenticating with an identity-linked API key; send the id of the workspace this request acts in.";
+        assert!(explain_error(identity).contains("isn't tied to a workspace"));
+        assert!(explain_error("anthropic-workspace-id header must be a valid workspace ID.").contains("isn't valid"));
+        assert!(explain_error("Workspace `wrkspc_x` not found.").contains("can't find that workspace"));
+        assert_eq!(explain_error("Overloaded"), "Overloaded");
+    }
+
+    #[test]
+    fn a_blank_workspace_is_not_sent() {
+        let p = AnthropicProvider::new(reqwest::Client::new(), "k".into(), None).with_workspace(Some("  ".into()));
+        assert!(p.workspace.is_none());
+        let p = AnthropicProvider::new(reqwest::Client::new(), "k".into(), None).with_workspace(Some(" wrkspc_abc ".into()));
+        assert_eq!(p.workspace.as_deref(), Some("wrkspc_abc"));
     }
 
     #[test]

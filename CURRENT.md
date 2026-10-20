@@ -4,7 +4,7 @@
 
 ## Current result
 
-- Models (2026-10-17): only GPT-5.6 Luna/Terra/Sol and the latest Claude models; screenshots use the call's model; speech is Speechmatics or Parakeet only (Deepgram removed). Background notes still need an OpenAI key. No real Claude call tested yet.
+- Models (2026-10-17): Settings switch between OpenAI (GPT-6 Luna, GPT-6.1 Sol, GPT-5.6 Terra) and Claude (Opus 5.5, Sonnet 5.5, Haiku 5.5); Copilots only offer the chosen provider. Screenshots use the call's model; speech is Speechmatics or Parakeet only. Background notes still need an OpenAI key. No real GPT-6 or Claude answer tested yet.
 
 - Answer prompt (2026-10-17): your Strict rules and copilot Guidance now lead every answer, including screenshots; your actual words beat any AI suggestion; full resume, job description and target role are sent. Tests and builds pass; a real answer with the new prompt has not been checked yet.
 
@@ -18,7 +18,7 @@
 
 ## Next action
 
-Try a practice call and a screenshot answer to judge the new prompt against your Guidance. Quit and reopen Aside.app (the open copy predates the rebuild), then do one real call with Speechmatics: confirm both lanes transcribe, and if anything is rejected, check `speechmatics-connection.log` for the exact reason. Resolve intermittent native capture startup and verify a repeatable cold-start preflight on the owner's chosen microphone/output. UI work is complete; existing real-call/cloud-answer/transcript and Windows runtime checks remain.
+Claude now works (verified with real requests). Try a practice call and a screenshot answer to judge the new prompt against your Guidance. Quit and reopen Aside.app (the open copy predates the rebuild), then do one real call with Speechmatics: confirm both lanes transcribe, and if anything is rejected, check `speechmatics-connection.log` for the exact reason. Resolve intermittent native capture startup and verify a repeatable cold-start preflight on the owner's chosen microphone/output. UI work is complete; existing real-call/cloud-answer/transcript and Windows runtime checks remain.
 
 ## Rollback
 

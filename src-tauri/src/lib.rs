@@ -135,6 +135,8 @@ pub fn run() {
             commands::llm::trigger_screenshot_answer,
             commands::llm::list_llm_models,
             commands::llm::get_llm_model,
+            commands::llm::get_anthropic_workspace_id,
+            commands::llm::set_anthropic_workspace_id,
             commands::llm::set_llm_model,
             commands::llm::get_llm_service_tier,
             commands::llm::set_llm_service_tier,
